@@ -8,17 +8,20 @@ DRAGONEGGDIR="$BASEDIR/dragonegg"
 CPU2006DIR="$BASEDIR/CPU2006"
 GCCPATH="/usr/bin/gcc-4.8"
 
+echo -n 'Install Prerequisites? [y/n]: '
+read answer
+
+if [ $answer == 'y' ]; then
 echo 'Installing Prerequisites'
 sudo apt-get install cmake
 sudo apt-get install gcc-4.8
 sudo apt-get install gcc-4.8-plugin-dev
 sudo apt-get install gfortran-4.8
 sudo apt-get install g++-4.8
+fi
 
 echo 'building LLVM'
 sudo rm -rf $LLVMDIR/build/*
-rm $LLVMDIR/llvm-master/lib/CodeGen/GhassanRegAllocGreedy.cpp
-rm $LLVMDIR/llvm-master/lib/CodeGen/GhassanInlineSpiller.cpp
 cd $LLVMDIR/build
 cmake $LLVMDIR/llvm-master
 make

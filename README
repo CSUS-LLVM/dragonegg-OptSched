@@ -1,10 +1,9 @@
-Steps to install modified dragonegg and llvm:
+Steps to build modified dragonegg and llvm:
 
 -Use Ubuntu 16.04
--Download generic.tar.gz and CompileLLVMandDRAGONEGG.sh from drive where this file is
--move both files to a directory where you want to build LLVM and DRAGONEGG
--extract generic.tar.gz
--open up CompileLLVMandDRAGONEGG.sh and edit line 4 so that BASEDIR points to the extracted "Generic" directory
+-Download the modified DRAGONEGG from https://drive.google.com/drive/folders/0B0PcXgBFyHNqcXkyb0pCU3QxY2M?usp=sharing
+-Move the extracted dragonegg directory to LLVMDRAGONEGG/Generic
+-open up LLVMDRAGONEGG/CompileLLVMandDRAGONEGG.sh and edit line 4 so that BASEDIR points to the "Generic" directory
 -make CompileLLVMandDRAGONEGG.sh executable run the command:
 	sudo chmod u+x ./CompileLLVMandDRAGONEGG.sh
 -run the script with:
@@ -27,21 +26,15 @@ to compile a program with dragonegg use the command:
 
 Steps to run CPU2006 tests:
 
--Download Intel_llvm_3.3.cfg Makefile ConfigureCPU2006.sh
--Open Intel_llvm_3.3.cfg
--open up ConfigureCPU2006.sh and edit line 4 so that BASEDIR points to the extracted "Generic" directory
-
-- Open Intel_llvm_3.3.cfg and change line 32 so that DRAGON_EGG points to your dragonegg installation
-
--make ConfigureCPU2006.sh executable with:
-	sudo chmod u+x ./ConfigureCPU2006.sh
--run the script with:
-	./ConfigureCPU2006.sh
-
+-Download CPU2006 from https://drive.google.com/drive/folders/0B0PcXgBFyHNqcXkyb0pCU3QxY2M?usp=sharing
+-Open Intel_llvm_3.3.cfg and change line 32 so that DRAGON_EGG points to your dragonegg installation
 -copy Intel_llvm_3.3.cfg to CPU2006/config
-
-If runspec is not working run in the CPU2006 directory:
+-cd into the CPU2006 base directory
+-run: 
+	./install.sh
+-after that install script finishes run:
 	source shrc
+
 
 More details about running CPU2006 test copied from https://drive.google.com/drive/folders/0BxVfA7be0XrJWGxnXzhhTFVRdkU?usp=sharing
 
