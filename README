@@ -1,0 +1,67 @@
+Steps to install modified dragonegg and llvm:
+
+-Use Ubuntu 16.04
+-Download generic.tar.gz and CompileLLVMandDRAGONEGG.sh from drive where this file is
+-move both files to a directory where you want to build LLVM and DRAGONEGG
+-extract generic.tar.gz
+-open up CompileLLVMandDRAGONEGG.sh and edit line 4 so that BASEDIR points to the extracted "Generic" directory
+-make CompileLLVMandDRAGONEGG.sh executable run the command:
+	sudo chmod u+x ./CompileLLVMandDRAGONEGG.sh
+-run the script with:
+	./CompileLLVMandDRAGONEGG.sh (this will take a very long time
+					   you should check the progress periodically
+					   becuase you may have to re-enter your password
+				           multiple times)
+to compile a program with dragonegg use the command:
+	/usr/bin/gcc-4.8 -fplugin="/***path to dragonegg.so*** -O3 myprogram.c
+
+
+
+
+
+
+
+
+
+
+
+Steps to run CPU2006 tests:
+
+-Download Intel_llvm_3.3.cfg Makefile ConfigureCPU2006.sh
+-Open Intel_llvm_3.3.cfg
+-open up ConfigureCPU2006.sh and edit line 4 so that BASEDIR points to the extracted "Generic" directory
+
+- Open Intel_llvm_3.3.cfg and change line 32 so that DRAGON_EGG points to your dragonegg installation
+
+-make ConfigureCPU2006.sh executable with:
+	sudo chmod u+x ./ConfigureCPU2006.sh
+-run the script with:
+	./ConfigureCPU2006.sh
+
+-copy Intel_llvm_3.3.cfg to CPU2006/config
+
+If runspec is not working run in the CPU2006 directory:
+	source shrc
+
+More details about running CPU2006 test copied from https://drive.google.com/drive/folders/0BxVfA7be0XrJWGxnXzhhTFVRdkU?usp=sharing
+
+- Run the benchmarks by performing the following commands in CPU2006_DIR. If runspec command is not found. Try rerunning "source shrc".
+  
+  (1) This clears any existing compilations of the benchmarks
+  runspec --loose -size=ref -iterations=3 -config=Intel_llvm_3.3 --tune=base -r 1 -I -a scrub all
+  (2) This compiles and runs the actual benchmarks. Be sure not to use the compiter when the benchmarks are running.
+  runspec --loose -size=SIZE -iterations=N -config=CF --tune=base -r 1 -I -a ACT BENCH
+
+  where SIZE is either test (use the small test input for checking correctness) or ref (use the large reference input for measuring performance)
+  N is the number of iterations you want to run. Usually, we run 3 iterations 
+  CF is the name of the config file to use
+  ACT is either build (only compile the benchmarks without running them) or validate (compile and then run the benchmarks)
+  BENCH is either all (run all benchmarks) or fp (run FP benchmarks only) or int (run integer benchmarks only) or a list of specific benchmark names. The list could have only one benchmark.
+
+Example:
+runspec --loose -size=ref -iterations=3 -config= Intel_llvm_3.3.cfg --tune=base -r 1 -I -a validate all
+
+This command will compile and run all benchmarks three times using the reference input according to the configuration specified in the file Intel_llvm_3.3.cfg.
+Collect the results for your test by opening the .txt files whose names appear when the test completes. 
+The result files will be located in the directory CPU2006_DIR/result. The files generated that hold the execution times are the files "*.ref.txt"
+
