@@ -21,7 +21,11 @@ sudo apt-get install g++-4.8
 fi
 
 echo 'building LLVM'
-sudo rm -rf $LLVMDIR/build/*
+
+if [ ! -d "$LLVMDIR/build" ]; then
+mkdir $LLVMDIR/build
+fi
+
 cd $LLVMDIR/build
 cmake $LLVMDIR/llvm-master
 make
