@@ -17,6 +17,10 @@ Steps to build modified dragonegg and llvm:
 to compile a program with dragonegg use the command:
 	/usr/bin/gcc-4.8 -fplugin="/***path to dragonegg.so*** -O3 myprogram.c
 
+to compile a program using the OptSched scheduler use the command:
+  /usr/bin/g++-4.8 -fplugin="$DRAGONEGG" -fplugin-arg-dragonegg-llvm-option=-optsched -O3 test.cpp
+
+
 
 
 
