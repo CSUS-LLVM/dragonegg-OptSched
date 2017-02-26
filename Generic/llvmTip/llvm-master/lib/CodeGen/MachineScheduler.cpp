@@ -11,9 +11,6 @@
 // preserves LiveIntervals so it can be invoked before register allocation.
 //
 //===----------------------------------------------------------------------===//
-
-#include "LUCCPMachineStrategy.cpp"
-
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/ADT/PriorityQueue.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -88,6 +85,10 @@ static cl::opt<bool> EnableMacroFusion("misched-fusion", cl::Hidden,
 
 static cl::opt<bool> VerifyScheduling("verify-misched", cl::Hidden,
   cl::desc("Verify machine instrs before and after machine scheduling"));
+
+// OptSched cl option
+static cl::opt<bool> UseOptSched("optsched", cl::Hidden,
+                             cl::desc("Use the optsched scheduler"));
 
 // DAG subtrees must have at least this many nodes.
 static const unsigned MinSubtreeSize = 8;
@@ -237,6 +238,9 @@ static cl::opt<bool> EnablePostRAMachineSched(
 static ScheduleDAGInstrs *createGenericSchedLive(MachineSchedContext *C);
 static ScheduleDAGInstrs *createGenericSchedPostRA(MachineSchedContext *C);
 
+// Forward declare the OptSched scheduler
+static ScheduleDAGInstrs *createOptSched(MachineSchedContext *C);
+
 /// Decrement this iterator until reaching the top or a non-debug instr.
 static MachineBasicBlock::const_iterator
 priorNonDebug(MachineBasicBlock::const_iterator I,
@@ -280,7 +284,9 @@ nextIfDebug(MachineBasicBlock::iterator I,
 /// Instantiate a ScheduleDAGInstrs that will be owned by the caller.
 ScheduleDAGInstrs *MachineScheduler::createMachineScheduler() {
   
-  //return new ScheduleDAGMILive(this, make_unique<LUCCPMachineStrategy>(this));
+  // Create OptSched scheduler if enabled from cl
+  if (UseOptSched)
+    return createOptSched(this);
   
   // Select the scheduler, or set the default.
   MachineSchedRegistry::ScheduleDAGCtor Ctor = MachineSchedOpt;
@@ -3115,6 +3121,12 @@ void GenericScheduler::schedNode(SUnit *SU, bool IsTopNode) {
     if (SU->hasPhysRegDefs)
       reschedulePhysRegCopies(SU, false);
   }
+}
+
+// Create OptSched scheduler
+static ScheduleDAGInstrs *createOptSched(MachineSchedContext *C) {
+  // TODO: placeholder for the actual creation of the OptSched
+  return createGenericSchedLive(C);
 }
 
 /// Create the standard converging machine scheduler. This will be used as the
