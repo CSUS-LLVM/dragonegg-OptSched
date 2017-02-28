@@ -3126,6 +3126,7 @@ void GenericScheduler::schedNode(SUnit *SU, bool IsTopNode) {
 // Create OptSched scheduler
 static ScheduleDAGInstrs *createOptSched(MachineSchedContext *C) {
   // TODO: placeholder for the actual creation of the OptSched
+  // return new opt_sched::OptScheduler(C);
   return createGenericSchedLive(C);
 }
 

@@ -146,6 +146,7 @@ add_llvm_library(LLVMCodeGen
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/CodeGen
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/CodeGen/PBQP
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/CodeGen/OptSched
 
   LINK_LIBS ${PTHREAD_LIB}
   )
@@ -156,3 +157,4 @@ add_subdirectory(SelectionDAG)
 add_subdirectory(AsmPrinter)
 add_subdirectory(MIRParser)
 add_subdirectory(GlobalISel)
+add_subdirectory(OptSched)
