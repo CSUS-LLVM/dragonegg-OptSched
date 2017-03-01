@@ -13,9 +13,12 @@
 namespace opt_sched {
   class OptScheduler; 
 
-  class OptScheduler : public llvm::ScheduleDAGInstrs {
+  class OptScheduler : public llvm::ScheduleDAGMILive {
+    private:
+      llvm::MachineSchedContext *context;
     public:
       OptScheduler(llvm::MachineSchedContext* C);
+      void defaultScheduler();
       void schedule() override;
   };
 

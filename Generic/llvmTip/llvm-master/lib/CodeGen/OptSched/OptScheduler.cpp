@@ -14,9 +14,14 @@
 
 namespace opt_sched {
   OptScheduler::OptScheduler(llvm::MachineSchedContext* C)
-    : llvm::ScheduleDAGInstrs(*C->MF, C->MLI, RemoveKillFlags) {}
+    : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)) {}
 
   void OptScheduler::schedule() {
-    return;
+    defaultScheduler();
+  }
+
+  // call the default "Generic Scheduler" on a region
+  void OptScheduler::defaultScheduler() {
+    llvm::ScheduleDAGMILive::schedule();
   }
 } // namespace opt_sched

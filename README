@@ -20,6 +20,9 @@ to compile a program with dragonegg use the command:
 to compile a program using the OptSched scheduler use the command:
   /usr/bin/g++-4.8 -fplugin="$DRAGONEGG" -fplugin-arg-dragonegg-llvm-option=-optsched -O3 test.cpp
 
+to compile a program using the OptSched scheduler while printing machine scheduler debuging info use:
+  /usr/bin/g++-4.8 -fplugin="$DRAGONEGG" -fplugin-arg-dragonegg-llvm-option=-optsched -fplugin-arg-dragonegg-llvm-option=-debug-only:optsched,misched -O3 test.cpp
+
 
 
 
