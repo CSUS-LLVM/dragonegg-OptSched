@@ -1,15 +1,22 @@
 //===- OptScheduler.cpp - Implement the opt scheduler -===//
 // 
-// OptScheduler replaces the MachineScheduler pass in 
-// LLVM with an alternative scheduler.
+// Integrates an alternative scheduler into LLVM which 
+// implements a branch and bound scheduling algorithm.
 //
 //===-------------------------------------------------===//
 #include "llvm/CodeGen/OptSched/OptScheduler.h"
+#include "llvm/CodeGen/MachineScheduler.h"
+#include "llvm/CodeGen/ScheduleDAGInstrs.h"
+#include "llvm/Support/Debug.h"
+#include <iostream>
 
-using namespace llvm;
-using namespace opt_sched;
-
-#define DEBUG_TYPE "misched"
+#define DEBUG_TYPE "optsched"
 
 namespace opt_sched {
+  OptScheduler::OptScheduler(llvm::MachineSchedContext* C)
+    : llvm::ScheduleDAGInstrs(*C->MF, C->MLI, RemoveKillFlags) {}
+
+  void OptScheduler::schedule() {
+    return;
+  }
 } // namespace opt_sched
