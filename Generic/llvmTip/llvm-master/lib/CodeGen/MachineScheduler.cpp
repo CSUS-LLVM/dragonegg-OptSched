@@ -23,6 +23,7 @@
 #include "llvm/CodeGen/ScheduleDFS.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/CodeGen/OptSched/OptScheduler.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -3125,8 +3126,7 @@ void GenericScheduler::schedNode(SUnit *SU, bool IsTopNode) {
 
 // Create OptSched scheduler
 static ScheduleDAGInstrs *createOptSched(MachineSchedContext *C) {
-  // TODO: placeholder for the actual creation of the OptSched
-  return createGenericSchedLive(C);
+  return new opt_sched::OptScheduler(C);
 }
 
 /// Create the standard converging machine scheduler. This will be used as the

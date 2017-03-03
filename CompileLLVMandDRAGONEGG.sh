@@ -1,7 +1,6 @@
 #!/bin/bash
-
-# update the path to the extracted "Generic" directory
-BASEDIR="/home/austin/Documents/LLVMDRAGONEGG/Generic"
+# run from the base directory of the repository
+BASEDIR=$(pwd)"/Generic"
 
 LLVMDIR="$BASEDIR/llvmTip"
 DRAGONEGGDIR="$BASEDIR/dragonegg"
