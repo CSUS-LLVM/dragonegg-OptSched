@@ -4,9 +4,9 @@ Read Contribution Guide (CONTRIBUTING.md) for steps to install and configure git
 Steps to build modified dragonegg and llvm:
 
 -Use Ubuntu 16.04
+-Clone the repository
 -Download the modified DRAGONEGG from https://drive.google.com/drive/folders/0B0PcXgBFyHNqcXkyb0pCU3QxY2M?usp=sharing
 -Move the extracted dragonegg directory to LLVMDRAGONEGG/Generic
--open up LLVMDRAGONEGG/CompileLLVMandDRAGONEGG.sh and edit line 4 so that BASEDIR points to the "Generic" directory
 -make CompileLLVMandDRAGONEGG.sh executable run the command:
 	sudo chmod u+x ./CompileLLVMandDRAGONEGG.sh
 -run the script with:
@@ -14,21 +14,11 @@ Steps to build modified dragonegg and llvm:
 					   you should check the progress periodically
 					   becuase you may have to re-enter your password
 				           multiple times)
-to compile a program with dragonegg use the command:
-	/usr/bin/gcc-4.8 -fplugin="/***path to dragonegg.so*** -O3 myprogram.c
 
-to compile a program using the OptSched scheduler use the command:
-  /usr/bin/g++-4.8 -fplugin="$DRAGONEGG" -fplugin-arg-dragonegg-llvm-option=-optsched -O3 test.cpp
+-to use the OptScheduler use RunOptSched.sh: see file for details
 
-to compile a program using the OptSched scheduler while printing machine scheduler debuging info use:
-  /usr/bin/g++-4.8 -fplugin="$DRAGONEGG" -fplugin-arg-dragonegg-llvm-option=-optsched -fplugin-arg-dragonegg-llvm-option=-debug-only:optsched,misched -O3 test.cpp
-
-
-
-
-
-
-
+-to compile a program with dragonegg use the command:
+  /usr/bin/gcc-4.8 -fplugin="/***path to dragonegg.so*** -O3 myprogram.c
 
 
 

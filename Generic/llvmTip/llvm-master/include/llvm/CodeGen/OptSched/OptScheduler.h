@@ -13,6 +13,8 @@
 namespace opt_sched {
   class OptScheduler; 
 
+  // derive from the default scheduler so it is easy to fallback to it
+  // when needed
   class OptScheduler : public llvm::ScheduleDAGMILive {
     private:
       llvm::MachineSchedContext *context;
