@@ -2,4 +2,4 @@
 type = Library
 name = OptSched
 parent = Libraries
-required_libraries = Core Support
+required_libraries = Core Support Target
