@@ -20,12 +20,13 @@ class LLVMMachineModel : public MachineModel {
     LLVMMachineModel(llvm::MachineSchedContext* context, const string configFile);
     ~LLVMMachineModel() {}
 
-    int GetRegType(const llvm::TargetRegisterClass* cls) const;
-    const llvm::TargetRegisterClass* GetRegClass(int type) const;
+    int GetRegType(const llvm::MCRegisterClass* cls, 
+                   const llvm::MCRegisterInfo* regInfo) const;
+    const llvm::MCRegisterClass* GetRegClass(int type) const;
 
   protected:
-    std::map<const llvm::TargetRegisterClass*, int> regClassToType_;
-    std::map<int, const llvm::TargetRegisterClass*> regTypeToClass_;
+    std::map<const llvm::MCRegisterClass*, int> regClassToType_;
+    std::map<int, const llvm::MCRegisterClass*> regTypeToClass_;
 
 };
 

@@ -1,6 +1,7 @@
 add_llvm_library(LLVMOptSched
   OptScheduler.cpp
   bb_spill.cpp
+  OptSchedMachineWrapper.cpp
   buffers.cpp
   config.cpp
   data_dep.cpp
@@ -11,7 +12,6 @@ add_llvm_library(LLVMOptSched
   list_sched.cpp
   logger.cpp
   machine_model.cpp
-  OptSchedMachineWrapper.cpp
   OptScheduler.cpp
   random.cpp
   ready_list.cpp
