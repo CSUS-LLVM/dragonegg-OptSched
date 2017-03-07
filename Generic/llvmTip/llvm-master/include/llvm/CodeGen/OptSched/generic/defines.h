@@ -14,11 +14,6 @@ Last Update:  Mar. 2011
 // For integral types of specific byte length.
 // The new standard <cinttypes> is still not supported everywhere.
 #include <stdint.h>
-
-// Setup assert().
-#ifndef IS_DEBUG
-  #define NDEBUG
-#endif
 #include <cassert>
 
 namespace opt_sched {

@@ -22,7 +22,7 @@ namespace opt_sched {
       llvm::MachineSchedContext *context;
       // Wrapper object for converting LLVM information about target machine
       // into the OptSched machine model
-//      LLVMMachineModel model;
+      LLVMMachineModel model;
     public:
       OptScheduler(llvm::MachineSchedContext* C);
       void defaultScheduler();

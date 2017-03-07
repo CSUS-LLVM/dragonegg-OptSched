@@ -25,7 +25,7 @@ static llvm::cl::opt<std::string> HotfunctionsIniFile("optsched-hfini", llvm::cl
 namespace opt_sched {
   OptScheduler::OptScheduler(llvm::MachineSchedContext* C)
       : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
-        context(C) {
+        context(C), model(C, MachineModelConfigFile) {
         // print path to input files
         DEBUG(llvm::dbgs() << "\nOptSched: Path to configuration files:\n" <<
              "Machine Model Config =" << MachineModelConfigFile << "\n" <<

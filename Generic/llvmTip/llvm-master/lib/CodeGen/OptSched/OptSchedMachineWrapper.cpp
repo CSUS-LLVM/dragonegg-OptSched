@@ -72,7 +72,7 @@ LLVMMachineModel::LLVMMachineModel(llvm::MachineSchedContext* context, const str
   instTypes_.push_back(instType);
 
   // Print the machine model parameters.
-  #ifdef IS_DEBUG_MACHINE_MODEL
+  #ifdef IS_DEBUG
         Logger::Info("######################## THE MACHINE MODEL #######################");
         Logger::Info("Issue Rate: %d. Issue Slot Count: %d", issueRate_, issueSlotCnt_);
         Logger::Info("Issue Types Count: %d", issueTypes_.size());
