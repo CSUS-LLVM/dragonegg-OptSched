@@ -6,8 +6,10 @@
 //===-------------------------------------------------===//
 #include "llvm/CodeGen/OptSched/OptScheduler.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
+#include "llvm/CodeGen/OptSched/basic/data_dep.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
+#include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
 
@@ -27,23 +29,28 @@ namespace opt_sched {
   OptScheduler::OptScheduler(llvm::MachineSchedContext* C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
       context(C), model(C, MachineModelConfigFile) {
-    // print path to input files
-    DEBUG(llvm::dbgs() << "\nOptSched: Path to configuration files:\n" <<
-      "Machine Model Config =" << MachineModelConfigFile << "\n" <<
-      "Schedule Ini         =" << ScheduleIniFile << "\n" <<
-      "Hot Functions Ini    =" << HotfunctionsIniFile << "\n";);
-
     // Load config files for the OptScheduler
     loadOptSchedConfig();
   }
 
   void OptScheduler::schedule() {
-    if(optSchedEnabled) {
-      DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
+    if(!optSchedEnabled) {
       defaultScheduler();
+      return;
     }
-    else
-      defaultScheduler();
+
+    DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
+
+		// build DAG
+		buildSchedGraph(NULL);
+    // Ignore empty DAGs
+    if(SUnits.empty())
+      return;
+		// print out dag
+		//for (std::vector<llvm::SUnit>::iterator it = SUnits.begin();
+    //	   it != SUnits.end(); it++) {
+    //  it->dumpAll(this);
+    //}
   }
 
   // call the default "Generic Scheduler" on a region
@@ -52,6 +59,11 @@ namespace opt_sched {
   }
   
   void OptScheduler::loadOptSchedConfig() {
+		// print path to input files
+    DEBUG(llvm::dbgs() << "\nOptSched: Path to configuration files:\n" <<
+      "Machine Model Config =" << MachineModelConfigFile << "\n" <<
+      "Schedule Ini         =" << ScheduleIniFile << "\n" <<
+      "Hot Functions Ini    =" << HotfunctionsIniFile << "\n";);
     // load OptSched ini file
     schedIni.Load(ScheduleIniFile);
     // load hot functions ini file
@@ -76,5 +88,22 @@ namespace opt_sched {
            optSchedOption << "Assuming NO.\n");
       optSchedEnabled = false;
     }
+
+    // Set latency precision setting from config file
+    std::string lpName = schedIni.GetString("LATENCY_PRECISION");
+		if (lpName == "PRECISE") {
+      latencyPrecision = LTP_PRECISE;
+    } else if (lpName == "ROUGH") {
+      latencyPrecision = LTP_ROUGH;
+    } else if (lpName == "UNITY") {
+      latencyPrecision = LTP_UNITY;
+    } else {
+      Logger::Error("Unrecognized latency precision. Defaulted to PRECISE.");
+      latencyPrecision = LTP_PRECISE;
+    }
+    
+    maxDagSizeForLatencyPrecision = schedIni.GetInt("MAX_DAG_SIZE_FOR_PRECISE_LATENCY",
+                                                    10000);
+    treatOrderDepsAsDataDeps = schedIni.GetBool("TREAT_ORDER_DEPS_AS_DATA_DEPS", false);
   }
 } // namespace opt_sched

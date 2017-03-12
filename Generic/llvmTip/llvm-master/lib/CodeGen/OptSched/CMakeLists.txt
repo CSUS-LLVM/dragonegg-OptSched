@@ -12,7 +12,7 @@ add_llvm_library(LLVMOptSched
   list_sched.cpp
   logger.cpp
   machine_model.cpp
-  OptScheduler.cpp
+  OptSchedDagWrapper.cpp
   random.cpp
   ready_list.cpp
   register.cpp
