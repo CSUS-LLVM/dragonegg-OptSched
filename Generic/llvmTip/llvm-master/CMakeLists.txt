@@ -2,6 +2,8 @@
 
 cmake_minimum_required(VERSION 3.4.3)
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIS_DEBUG")
+
 if(POLICY CMP0022)
   cmake_policy(SET CMP0022 NEW) # automatic when 2.8.12 is required
 endif()
@@ -730,7 +732,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "(FreeBSD|DragonFly)")
 endif(${CMAKE_SYSTEM_NAME} MATCHES "(FreeBSD|DragonFly)")
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
-   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include llvm/Support/Solaris.h")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include llvm/Support/Solaris.h")
 endif( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
 
 # Make sure we don't get -rdynamic in every binary. For those that need it,
