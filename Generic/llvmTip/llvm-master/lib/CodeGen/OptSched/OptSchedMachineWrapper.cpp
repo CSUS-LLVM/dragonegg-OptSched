@@ -7,7 +7,6 @@ Last Update:  Mar. 2017
 
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/Target/TargetMachine.h"
