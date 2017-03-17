@@ -22,7 +22,7 @@ namespace opt_sched {
 typedef int64_t Milliseconds;
 
 // Instruction count.
-typedef int InstCount;
+typedef int64_t InstCount;
 
 // A generic sentinel value. Should be used with care.
 // TODO(max): Get rid of this in favor of type- or purpose-specific sentinels.

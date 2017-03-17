@@ -7,6 +7,7 @@
 #include "llvm/CodeGen/OptSched/OptScheduler.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
@@ -42,15 +43,19 @@ namespace opt_sched {
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
 
 		// build DAG
-		buildSchedGraph(NULL);
+		buildSchedGraph(AA);
     // Ignore empty DAGs
     if(SUnits.empty())
       return;
-		// print out dag
-		//for (std::vector<llvm::SUnit>::iterator it = SUnits.begin();
-    //	   it != SUnits.end(); it++) {
-    //  it->dumpAll(this);
-    //}
+		//TODO(austin) remove print out dag
+		for (std::vector<llvm::SUnit>::iterator it = SUnits.begin();
+    	   it != SUnits.end(); it++) {
+      it->dumpAll(this);
+    }
+
+    // convert build dag
+    LLVMDataDepGraph dag(context, this, &model, latencyPrecision,
+                         treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision);
   }
 
   // call the default "Generic Scheduler" on a region
