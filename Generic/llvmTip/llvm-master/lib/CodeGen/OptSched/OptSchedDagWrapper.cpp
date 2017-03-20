@@ -78,7 +78,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   std::string opCode;
   int ltncy;
 
-  #ifdef IS_DEBUG_DAG
+  #ifdef IS_DEBUG
   Logger::Info("Building opt_sched DAG out of llvm DAG"); 
   #endif
 
@@ -161,14 +161,6 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
       #ifdef IS_DEBUG
       Logger::Info("Creating an edge from %d to %d. Type is %d, latency = %d", 
                    unit.NodeNum, it->getSUnit()->NodeNum, depType, ltncy);
-      #endif
-
-      #ifdef IS_DEBUG
-        Logger::Info("%d %s -> %d %s",
-                     unit.NodeNum,
-                     schedDag_->TII->getName(unit.getInstr()->getOpcode()),
-                     it->getSUnit()->NodeNum,
-                     schedDag_->TII->getName(it->getSUnit()->getInstr()->getOpcode()));
       #endif
     }
   }

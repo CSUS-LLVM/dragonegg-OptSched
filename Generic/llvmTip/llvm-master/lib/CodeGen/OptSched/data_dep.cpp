@@ -963,10 +963,8 @@ void DataDepGraph::CreateEdge_(InstCount frmNodeNum, InstCount toNodeNum,
   edge = frmNode->FindScsr(toNode);
 
   if (edge == NULL) {
-    //#ifdef IS_DEBUG_DAG
-    //TODO(austin) remove
-    #ifdef IS_DEBUG
-      Logger::Info("Creating edge from %d to %d of type %d and latency %d",
+    #ifdef IS_DEBUG_DAG
+    Logger::Info("Creating edge from %d to %d of type %d and latency %d",
                     frmNodeNum, toNodeNum, depType, ltncy);
     #endif
     edge = new GraphEdge(frmNode, toNode, ltncy, depType);
@@ -976,11 +974,9 @@ void DataDepGraph::CreateEdge_(InstCount frmNodeNum, InstCount toNodeNum,
     toNode->AddPrdcsr(edge);
   } else {
     if (ltncy > edge->label) {
-      //#ifdef IS_DEBUG_DAG
-      //TODO(austin) remove
-      #ifdef IS_DEBUG
-        Logger::Info("Setting latency of the edge from %d to %d to %d",
-                      frmNodeNum, toNodeNum, ltncy);
+      #ifdef IS_DEBUG_DAG
+      Logger::Info("Setting latency of the edge from %d to %d to %d",
+                   frmNodeNum, toNodeNum, ltncy);
       #endif
       edge->label = ltncy;
       edge->from->UpdtMaxEdgLbl(ltncy);
