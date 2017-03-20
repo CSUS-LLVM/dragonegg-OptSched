@@ -101,7 +101,7 @@ class BBWithSpill : public SchedRegion {
 
     FUNC_RESULT BuildFromFile();
 
-    int CmputCostLwrBound();
+    InstCount CmputCostLwrBound();
 
     InstCount UpdtOptmlSched(InstSchedule* crntSched,
                              LengthCostEnumerator* enumrtr);

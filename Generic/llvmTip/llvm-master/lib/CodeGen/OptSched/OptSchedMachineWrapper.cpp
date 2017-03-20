@@ -45,7 +45,7 @@ LLVMMachineModel::LLVMMachineModel(llvm::MachineSchedContext* context, const str
       regClassToType_[cls] = registerTypes_.size();
       regTypeToClass_[registerTypes_.size()] = cls;
       registerTypes_.push_back(regType);
-      Logger::Info("Reg Type %s has a limit of %d",regType.name.c_str(), regType.count);
+      //Logger::Info("Reg Type %s has a limit of %d",regType.name.c_str(), regType.count);
     }
   }
 
@@ -71,7 +71,7 @@ LLVMMachineModel::LLVMMachineModel(llvm::MachineSchedContext* context, const str
   instTypes_.push_back(instType);
 
   // Print the machine model parameters.
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_MM
         Logger::Info("######################## THE MACHINE MODEL #######################");
         Logger::Info("Issue Rate: %d. Issue Slot Count: %d", issueRate_, issueSlotCnt_);
         Logger::Info("Issue Types Count: %d", issueTypes_.size());

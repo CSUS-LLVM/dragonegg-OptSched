@@ -14,8 +14,11 @@
 #include "llvm/CodeGen/FunctionLoweringInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
+
+#define DEBUG_TYPE "optsched"
 
 namespace opt_sched {
 
@@ -47,7 +50,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext* context,
 
   std::snprintf(dagID_, MAX_NAMESIZE, "%s:%s",
                 context_->MF->getFunction()->getName().data(),
-                context_->FuncInfo->MBB->getBasicBlock()->getName().data());
+                context_->MF->front().getBasicBlock()->getName().data());
 
   std::snprintf(compiler_, MAX_NAMESIZE, "LLVM");
 
@@ -75,19 +78,19 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   std::string opCode;
   int ltncy;
 
-  #ifdef IS_DEBUG_DAG
+  #ifdef IS_DEBUG
   Logger::Info("Building opt_sched DAG out of llvm DAG"); 
   #endif
 
   // Create nodes.
   for (size_t i = 0; i < llvmNodes_.size(); i++) {
     const SUnit& unit = llvmNodes_[i];
-    const SDNode* node = unit.getNode()->getGluedMachineNode();
+    const MachineInstr* instr = unit.getInstr();
 
     // Make sure nodes are in numbered order.
     assert(unit.NodeNum == i);
         
-    instName = opCode = node->getOperationName();
+    instName = opCode = schedDag_->TII->getName(instr->getOpcode());
 
     // Search in the machine model for an instType with this OpCode name
     instType = machMdl_->GetInstTypeByName(instName.c_str());
@@ -95,12 +98,11 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
     // If the machine model does not have instType with this OpCode name, use the default instType
     if (instType == INVALID_INST_TYPE)
     {
-//        Logger::Info("Instruction %s was not found in machine model. Using the default", instName.c_str()); 
-    	instName = "Default";
+        Logger::Info("Instruction %s was not found in machine model. Using the default", 
+                     instName.c_str()); 
+    	  instName = "Default";
         instType = machMdl_->GetInstTypeByName("Default");  
     }
-//    else
-//        Logger::Info("Instruction %s was found in machine model with latency %d", instName.c_str(), machMdl_->GetLatency(instType, DEP_DATA)); 
 
     CreateNode_(unit.NodeNum,
                 instName.c_str(),
@@ -116,19 +118,20 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
     if (unit.NumPreds == 0) roots.push_back(unit.NodeNum);
     if (unit.NumSuccs == 0) leaves.push_back(unit.NodeNum);
 
-    #ifdef IS_DEBUG_DAG 
-    Logger::Info("Creating Node %d: %s", unit.NodeNum, node->getOperationName().c_str());
-    #endif
+    DEBUG(dbgs() << "Creating Node: " << unit.NodeNum << " " <<
+          schedDag_->TII->getName(instr->getOpcode()) << "\n");
   }
-
 
   // Create edges.
   for (size_t i = 0; i < llvmNodes_.size(); i++) {
     const SUnit& unit = llvmNodes_[i];
-    const SDNode* node = unit.getNode()->getGluedMachineNode();
+    const MachineInstr* instr = unit.getInstr();
     for (SUnit::const_succ_iterator it = unit.Succs.begin();
          it != unit.Succs.end();
          it++) {
+      // check if the successor is a boundary node
+      if(it->getSUnit()->isBoundaryNode()) break;
+
       DependenceType depType;
       switch (it->getKind()) {
         case SDep::Data:   depType = DEP_DATA; break;
@@ -142,10 +145,10 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
         prcsn = LTP_ROUGH; // use rough latencies if DAG is too large 
 
       if(prcsn == LTP_PRECISE) { // if precise latency, get the precise latency from the machine model
-        instName = node->getOperationName();
-	instType = machMdl_->GetInstTypeByName(instName.c_str());
+        instName = schedDag_->TII->getName(instr->getOpcode());
+	      instType = machMdl_->GetInstTypeByName(instName);
         ltncy = machMdl_->GetLatency(instType, depType);
-//        Logger::Info("Dep type %d with latency %d from Instruction %s", depType, ltncy, instName.c_str()); 
+        Logger::Info("Dep type %d with latency %d from Instruction %s", depType, ltncy, instName.c_str()); 
       }
       else if(prcsn == LTP_ROUGH) { // use the compiler's rough latency
          ltncy = it->getLatency();
@@ -155,19 +158,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
       CreateEdge_(unit.NodeNum, it->getSUnit()->NodeNum, ltncy, depType);
 
-      #ifdef IS_DEBUG_DAG
+      #ifdef IS_DEBUG
       Logger::Info("Creating an edge from %d to %d. Type is %d, latency = %d", 
                    unit.NodeNum, it->getSUnit()->NodeNum, depType, ltncy);
-      #endif
-
-      #ifdef IS_DEBUG_LLVM_SDOPT
-        Logger::Info("%d %s -> %d %s",
-                     unit.NodeNum,
-                     unit.getNode()->getGluedMachineNode()->
-                        getOperationName().c_str(),
-                     it->getSUnit()->NodeNum,
-                     it->getSUnit()->getNode()->getGluedMachineNode()->
-                        getOperationName().c_str());
       #endif
     }
   }
@@ -189,7 +182,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
               0);  // blkNum
   for (size_t i = 0; i < roots.size(); i++) {
     CreateEdge_(rootNum, roots[i], 0, DEP_OTHER);
-//Logger::Info("Inst %d is a root", roots[i]);
+    Logger::Info("Inst %d is a root", roots[i]);
   }
 
   // Create artificial leaf.
@@ -206,7 +199,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
               0);  // blkNum
   for (size_t i = 0; i < leaves.size(); i++) {
     CreateEdge_(leaves[i], leafNum, 0, DEP_OTHER);
-//Logger::Info("Inst %d is a leaf", leaves[i]);
+    Logger::Info("Inst %d is a leaf", leaves[i]);
   }
   AdjstFileSchedCycles_();
   PrintEdgeCntPerLtncyInfo();
@@ -214,9 +207,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
 void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   std::vector<int> regDefCounts(machMdl_->GetRegTypeCnt());
-  SDNode node;
+  SDNode* node;
   for (std::vector<SUnit>::iterator it = llvmNodes_.begin(); 
-       it != llvmNodes.end(); it++) {
+       it != llvmNodes_.end(); it++) {
     node = it->getNode();
     // Skip nodes excluded from ScheduleDAG.
     if (node->getNodeId() == -1) continue;
@@ -251,9 +244,10 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   // therefore always scheduled together), as we need to know when physical
   // registers are clobbered. However, for such cases we act as if the register
   // was never used.
-  SDNode node;
-	for (std::vector<SUnit>::iterator it = llvmNodes_.begin(); 
-       it != llvmNodes.end(); it++) {
+  SDNode* node;
+  std::vector<SUnit>::iterator it;
+	for (it = llvmNodes_.begin(); 
+       it != llvmNodes_.end(); it++) {
     node = it->getNode();
     // Skip nodes excluded from ScheduleDAG.
     if (node->getNodeId() == -1) continue;
@@ -296,17 +290,17 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
                      node->getOperationName().c_str(),
                      resNo,
                      llvmNodes_[node->getNodeId()].getNode()->
-                         getGluedMachineNode()->
+                         getGluedNode()->
                          getOperationName().c_str());
       #endif
     }
 
     // Create uses.
-    SDNode::use_iterator it;
-    for (it = node->use_begin(); it != node->use_end(); it++) {
-      unsigned resNo = it.getUse().getResNo();
+    llvm::SDNode::use_iterator useIt;
+    for (useIt = node->use_begin(); useIt != node->use_end(); useIt++) {
+      unsigned resNo = useIt.getUse().getResNo();
       const SDNode* src = node;
-      const SDNode* dst = *it;
+      const SDNode* dst = *useIt;
 
       if (definedRegs.find(std::make_pair(node, resNo)) == definedRegs.end()) {
         #ifdef IS_DEBUG_DEFS_AND_USES
@@ -339,11 +333,11 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
                        src->getOperationName().c_str(),
                        resNo,
                        llvmNodes_[src->getNodeId()].getNode()->
-                           getGluedMachineNode()->
+                           getGluedNode()->
                            getOperationName().c_str(),
                        dst->getOperationName().c_str(),
                        llvmNodes_[dst->getNodeId()].getNode()->
-                           getGluedMachineNode()->
+                           getGluedNode()->
                            getOperationName().c_str());
         #endif
       int regType = reg->GetType();
@@ -464,7 +458,7 @@ void LLVMDataDepGraph::AddOutputEdges() {
 
 unsigned LLVMDataDepGraph::GetPhysicalRegister_(const SDNode* node,
                                                 const unsigned resNo) const {
-  const TargetRegisterInfo* TRI = target_.getRegisterInfo();
+  const MCRegisterInfo* TRI = target_.getMCRegisterInfo();
   if (node->isMachineOpcode()) {
     const MCInstrDesc &II = schedDag_->TII->get(node->getMachineOpcode());
     if (II.ImplicitDefs && resNo >= II.getNumDefs()) {
@@ -495,11 +489,11 @@ unsigned LLVMDataDepGraph::GetPhysicalRegister_(const SDNode* node,
 }
 
 int LLVMDataDepGraph::GetPhysicalRegType_(unsigned reg) const {
-  const TargetRegisterInfo& TRI = *target_.getRegisterInfo();
+  const MCRegisterInfo& TRI = *target_.getMCRegisterInfo();
 
   // Find the first type that contains this register.
   for (int i = 0; i < llvmMachMdl_->GetRegTypeCnt(); i++) {
-    const TargetRegisterClass* regClass = llvmMachMdl_->GetRegClass(i);
+    const MCRegisterClass* regClass = llvmMachMdl_->GetRegClass(i);
     if (regClass->contains(reg)) {
       // HACK: On x86-64, GR32 is mapped to GR64.
       if (llvmMachMdl_->GetModelName() == "x86-64" &&
@@ -519,12 +513,14 @@ int LLVMDataDepGraph::GetRegisterType_(const SDNode* node,
                                        const unsigned resNo) const {
   if (unsigned reg = GetPhysicalRegister_(node, resNo)) {
     return GetPhysicalRegType_(reg);
-  } else {
-    const TargetRegisterClass* regClass;
-    regClass = context_->TLI.getRepRegClassFor(node->getSimpleValueType(resNo));
-    if (regClass == NULL) return INVALID_VALUE;
-    return llvmMachMdl_->GetRegType(regClass);
-  }
+  } 
+  
+    // TODO austin: is reg at machine sched level always lowered?
+    //else {
+    //const MCRegisterClass* regClass;
+    //regClass = context_->TLI.getRepRegClassFor(node->getSimpleValueType(resNo));
+    //if (regClass == NULL) return INVALID_VALUE;
+    //return llvmMachMdl_->GetRegType(regClass);
 }
 
 SUnit* LLVMDataDepGraph::GetSUnit(size_t index) const {
