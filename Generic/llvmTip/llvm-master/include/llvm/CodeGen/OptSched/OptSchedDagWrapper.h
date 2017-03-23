@@ -58,20 +58,13 @@ class LLVMDataDepGraph : public DataDepGraph {
     // The maximum DAG size to be scheduled using precise latency information
     int maxDagSizeForPrcisLtncy_;
 		// LLVM object with information about the machine we are targeting
-		llvm::TargetMachine& target_;
+		const llvm::TargetMachine& target_;
 
     // Converts the LLVM nodes saved in llvmNodes_ to opt_sched::DataDepGraph.
     // Should be called only once, by the constructor.
     void ConvertLLVMNodes_();
-    // Returns the number of the physical register produced by the node at
-    // result number resNo. If the result goes to avirtual register, returns 0.
-    unsigned GetPhysicalRegister_(const llvm::SDNode* node,
-                                  const unsigned resNo) const;
-    // Returns the type of a given physical register. Only types with non-zero
-    // limits are considered.
-    int GetPhysicalRegType_(unsigned reg) const;
-    // Returns the register type of a given node result.
-    int GetRegisterType_(const llvm::SDNode* node, const unsigned resNo) const;
+    // Returns the register type of a given machine instruction result.
+    int GetRegisterType_(const unsigned resNo) const;
 
     // Holds a register live range, mapping a producer to a set of consumers.
     struct LiveRange {

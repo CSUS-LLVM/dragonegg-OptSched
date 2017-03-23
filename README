@@ -26,9 +26,7 @@ Steps to build modified dragonegg and llvm:
 
 Steps to run CPU2006 tests:
 
--Download CPU2006 from https://drive.google.com/drive/folders/0B0PcXgBFyHNqcXkyb0pCU3QxY2M?usp=sharing
--Open Intel_llvm_3.3.cfg and change line 32 so that DRAGON_EGG points to your dragonegg installation
--copy Intel_llvm_3.3.cfg to CPU2006/config
+-Open config/Intel_llvm_3.3.cfg and change line 32 so that DRAGON_EGG points to your dragonegg installation
 -cd into the CPU2006 base directory
 -run: 
 	./install.sh

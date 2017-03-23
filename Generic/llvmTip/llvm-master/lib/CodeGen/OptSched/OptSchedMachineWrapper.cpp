@@ -9,7 +9,9 @@ Last Update:  Mar. 2017
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
+#include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "optsched"
@@ -18,8 +20,10 @@ namespace opt_sched {
 
 using namespace llvm;
 
-LLVMMachineModel::LLVMMachineModel(llvm::MachineSchedContext* context, const string configFile) : MachineModel(configFile) {
-  const TargetMachine& target = context->PassConfig->template getTM<TargetMachine>();
+LLVMMachineModel::LLVMMachineModel(const string configFile) : MachineModel(configFile) {}
+
+void LLVMMachineModel::convertMachineModel(ScheduleDAG* scheduleDag) {
+  const TargetMachine& target = scheduleDag->TM;
 
   mdlName_ = target.getTarget().getName();
 
@@ -29,21 +33,21 @@ LLVMMachineModel::LLVMMachineModel(llvm::MachineSchedContext* context, const str
   registerTypes_.clear();
 
   // TODO(max99x): Improve register pressure limit estimates.
-  const MCRegisterInfo* regInfo = target.getMCRegisterInfo();
-  for (MCRegisterInfo::regclass_iterator cls = regInfo->regclass_begin();
+  const TargetRegisterInfo* regInfo = scheduleDag->TRI;
+  for (TargetRegisterClass::sc_iterator cls = regInfo->regclass_begin();
        cls != regInfo->regclass_end();
        cls++) {
     RegTypeInfo regType;
-    regType.name = regInfo->getRegClassName(cls);
-    regType.count = cls->getNumRegs();
+    regType.name = regInfo->getRegClassName(*cls);
+    regType.count = (*cls)->getNumRegs();
     // HACK: Special case for the x86 flags register.
     if (mdlName_.find("x86") == 0 && (regType.name == "CCR" || regType.name == "FPCCR")) {
       regType.count = 1;
     }
     if (regType.count > 0) {
       // Only count types with non-zero limits.
-      regClassToType_[cls] = registerTypes_.size();
-      regTypeToClass_[registerTypes_.size()] = cls;
+      regClassToType_[*cls] = registerTypes_.size();
+      regTypeToClass_[registerTypes_.size()] = *cls;
       registerTypes_.push_back(regType);
       //Logger::Info("Reg Type %s has a limit of %d",regType.name.c_str(), regType.count);
     }
@@ -85,8 +89,8 @@ LLVMMachineModel::LLVMMachineModel(llvm::MachineSchedContext* context, const str
   #endif
 }
 
-int LLVMMachineModel::GetRegType(const llvm::MCRegisterClass* cls,
-                                 const llvm::MCRegisterInfo* regInfo) const {
+int LLVMMachineModel::GetRegType(const llvm::TargetRegisterClass* cls,
+                                 const llvm::TargetRegisterInfo* regInfo) const {
   // HACK: Map x86 virtual RFP registers to VR128.
   if (mdlName_.find("x86") == 0 && std::string(regInfo->getRegClassName(cls), 3) == "RFP") {
     Logger::Info("Mapping RFP into VR128");
@@ -96,7 +100,7 @@ int LLVMMachineModel::GetRegType(const llvm::MCRegisterClass* cls,
   return regClassToType_.find(cls)->second;
 }
 
-const llvm::MCRegisterClass* LLVMMachineModel::GetRegClass(int type) const {
+const llvm::TargetRegisterClass* LLVMMachineModel::GetRegClass(int type) const {
   assert(regTypeToClass_.find(type) != regTypeToClass_.end());
   return regTypeToClass_.find(type)->second;
 }
