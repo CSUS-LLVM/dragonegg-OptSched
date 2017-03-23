@@ -1,3 +1,11 @@
+/*******************************************************************************
+Description:  A wrapper that convert an LLVM ScheduleDAG to an OptSched
+              DataDepGraph.
+Author:       Max Shawabkeh
+Created:      Apr. 2011
+Last Update:  Mar. 2017
+*******************************************************************************/
+
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include <cstdio>
 #include <queue>
@@ -11,7 +19,9 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/FunctionLoweringInfo.h"
+#include "llvm/CodeGen/RegisterPressure.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineInstr.h"
@@ -34,7 +44,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext* context,
       llvmNodes_(llvmDag->SUnits),
       context_(context),
       schedDag_(llvmDag),
-      target_(context->PassConfig->template getTM<TargetMachine>()) {
+      target_(llvmDag->TM) {
   llvmMachMdl_ = static_cast<LLVMMachineModel*>(machMdl_);
   dagFileFormat_ = DFF_BB;
   isTraceFormat_ = false;
@@ -130,7 +140,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
          it != unit.Succs.end();
          it++) {
       // check if the successor is a boundary node
-      if(it->getSUnit()->isBoundaryNode()) break;
+      if(it->getSUnit()->isBoundaryNode()) continue;
 
       DependenceType depType;
       switch (it->getKind()) {
@@ -207,15 +217,23 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
 void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   std::vector<int> regDefCounts(machMdl_->GetRegTypeCnt());
-  SDNode* node;
+  MachineInstr* instr;
   for (std::vector<SUnit>::iterator it = llvmNodes_.begin(); 
        it != llvmNodes_.end(); it++) {
-    node = it->getNode();
-    // Skip nodes excluded from ScheduleDAG.
-    if (node->getNodeId() == -1) continue;
-
-    for (unsigned resNo = 0; resNo < node->getNumValues(); resNo++) {
-      int regType = GetRegisterType_(node, resNo);
+    instr = it->getInstr();
+    // get defs for this MachineInstr
+    RegisterOperands ops;
+    ops.collect(*instr, *schedDag_->TRI, schedDag_->MRI, false, false);
+    for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.Defs.begin();
+        regIt != ops.Defs.end(); regIt++) {
+      int regType = GetRegisterType_(regIt->RegUnit);
+      // Skip non-register results.
+      if (regType == INVALID_VALUE) continue;
+      regDefCounts[regType]++;
+    } 
+		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.DeadDefs.begin();
+        regIt != ops.DeadDefs.end(); regIt++) {
+      int regType = GetRegisterType_(regIt->RegUnit);
       // Skip non-register results.
       if (regType == INVALID_VALUE) continue;
       regDefCounts[regType]++;
@@ -223,7 +241,7 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   }
 
   for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
-    #ifdef IS_DEBUG_LLVM_SDOPT
+    #ifdef IS_DEBUG
       if (regDefCounts[i]) {
         Logger::Info("Reg Type %s -> %d registers",
                      llvmMachMdl_->GetRegTypeName(i).c_str(), regDefCounts[i]);
@@ -237,120 +255,108 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   // The index of the last "assigned" register for each register type.
   std::vector<int> regIndices(machMdl_->GetRegTypeCnt());
   // Maps node,resultNumber pairs (virtual registers) to opt_sched registers.
-  std::map<std::pair<const SDNode*, unsigned>, Register*> definedRegs;
+  std::map<std::pair<const MachineInstr*, unsigned>, Register*> definedRegs;
 
   // NOTE: We want track physical register definitions even for cases where the
   // two nodes participating in the dependency are in the same SUnit (and
   // therefore always scheduled together), as we need to know when physical
   // registers are clobbered. However, for such cases we act as if the register
   // was never used.
-  SDNode* node;
+  MachineInstr* instr;
   std::vector<SUnit>::iterator it;
 	for (it = llvmNodes_.begin(); 
        it != llvmNodes_.end(); it++) {
-    node = it->getNode();
     // Skip nodes excluded from ScheduleDAG.
-    if (node->getNodeId() == -1) continue;
+    if (it->isBoundaryNode()) continue;
+    instr = it->getInstr();
+    // get defs for this MachineInstr
+    RegisterOperands ops;
+    ops.collect(*instr, *schedDag_->TRI, schedDag_->MRI, false, false);
+    int numDefs = ops.Defs.size() + ops.DeadDefs.size();
 
-    #ifdef IS_DEBUG_DEFS_AND_USES
-    Logger::Info("\nInst %d %s has %d defs", 
-                 node->getNodeId(), insts_[node->getNodeId()]->GetOpCode(), node->getNumValues());
+    #ifdef IS_DEBUG
+    Logger::Info("Inst %d %s has %d defs", 
+                 it->NodeNum, insts_[it->NodeNum]->GetOpCode(), numDefs);
     #endif  
  
     // Create defs.
-    for (unsigned resNo = 0; resNo < node->getNumValues(); resNo++) {
-      unsigned physReg = GetPhysicalRegister_(node, resNo);
-      int regType = GetRegisterType_(node, resNo);
+		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.Defs.begin();
+        regIt != ops.Defs.end(); regIt++) {
+      unsigned resNo = regIt->RegUnit;
+      bool isPhysReg = schedDag_->TRI->isPhysicalRegister(resNo);
+      int regType = GetRegisterType_(resNo);
       // Skip non-register results.
       if (regType == INVALID_VALUE) { 
-        #ifdef IS_DEBUG_DEFS_AND_USES
+        #ifdef IS_DEBUG
         Logger::Info("resNo %d is not a reg",resNo);
         #endif 
         continue;
-      }
+			}
+			 Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
+       if (isPhysReg) reg->SetPhysicalNumber(resNo); 
+       dbgs() << "Adding def " << it->NodeNum << ":" << resNo << "\n";
+       insts_[it->NodeNum]->AddDef(reg);
+       reg->AddDef();
+       definedRegs[std::make_pair(instr, resNo)] = reg;
+    }
 
-      Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
-      if (physReg) reg->SetPhysicalNumber(physReg);
-      insts_[node->getNodeId()]->AddDef(reg);
+			// TODO(austin) fix this ugly mess
+		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.DeadDefs.begin();
+        regIt != ops.DeadDefs.end(); regIt++) {
+      unsigned resNo = regIt->RegUnit;
+      bool isPhysReg = schedDag_->TRI->isPhysicalRegister(resNo);
+      int regType = GetRegisterType_(resNo);
+      // Skip non-register results.
+      if (regType == INVALID_VALUE) {
+        #ifdef IS_DEBUG
+        Logger::Info("resNo %d is not a reg",resNo);
+        #endif
+        continue;
+			}
+			Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
+      if (isPhysReg) reg->SetPhysicalNumber(resNo); 
+      dbgs() << "Adding def " << it->NodeNum << ":" << resNo << "\n";
+      insts_[it->NodeNum]->AddDef(reg);
       reg->AddDef();
-
-      #ifdef IS_DEBUG_DEFS_AND_USES
-      Logger::Info("Inst %d %s defines resNo %d reg %d of type %d (%s). Phys = %s", 
-                   node->getNodeId(), insts_[node->getNodeId()]->GetOpCode(), resNo, reg->GetNum(), regType,  
-                   llvmMachMdl_->GetRegTypeName(regType).c_str(), physReg? "YES":"NO");
-      #endif
-
-      definedRegs[std::make_pair(node, resNo)] = reg;
-
-      #ifdef IS_DEBUG_LLVM_SDOPT
-        Logger::Info("DEF %s (%s) by %s:%d (%s)",
-                     physReg ? target_.getRegisterInfo()->getName(physReg)
-                             : "virtual",
-                     llvmMachMdl_->GetRegTypeName(regType).c_str(),
-                     node->getOperationName().c_str(),
-                     resNo,
-                     llvmNodes_[node->getNodeId()].getNode()->
-                         getGluedNode()->
-                         getOperationName().c_str());
-      #endif
+      definedRegs[std::make_pair(instr, resNo)] = reg;
     }
 
     // Create uses.
-    llvm::SDNode::use_iterator useIt;
-    for (useIt = node->use_begin(); useIt != node->use_end(); useIt++) {
-      unsigned resNo = useIt.getUse().getResNo();
-      const SDNode* src = node;
-      const SDNode* dst = *useIt;
+		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.Uses.begin();
+        regIt != ops.Uses.end(); regIt++) {
+      unsigned resNo = regIt->RegUnit;
 
-      if (definedRegs.find(std::make_pair(node, resNo)) == definedRegs.end()) {
-        #ifdef IS_DEBUG_DEFS_AND_USES
+      if (definedRegs.find(std::make_pair(instr, resNo)) == definedRegs.end()) {
+        #ifdef IS_DEBUG
         Logger::Info("resNo %d is used but Not found", resNo);
         #endif
         continue;
       }
-      Register* reg = definedRegs.find(std::make_pair(node, resNo))->second;
+      Register* reg = definedRegs.find(std::make_pair(instr, resNo))->second;
 
-      // Skip nodes excluded from ScheduleDAG.
-      if (dst->getNodeId() < 0) continue;
-
+      //TODO(austin) implement
+      /*
       // Ignore non-data edges.
-      const SUnit& srcUnit = llvmNodes_[src->getNodeId()];
       bool isDataEdge = true;
-      for (SUnit::const_succ_iterator it = srcUnit.Succs.begin();
-           it != srcUnit.Succs.end();
+      for (SUnit::const_succ_iterator succIt = it.Succs.begin();
+           succIt != it.Succs.end();
            it++) {
-        if (it->getSUnit()->NodeNum == (unsigned)dst->getNodeId() &&
-            it->getKind() != SDep::Data) {
+        if (succIt->setSUnit()->NodeNum == (unsigned)dst->getNodeId() &&
+            succIt->getKind() != SDep::Data) {
           isDataEdge = false;
         }
       }
       if (!isDataEdge) continue;
+      */
 
       // Finally add the use.
-      if (src->getNodeId() != dst->getNodeId()) {
-        #ifdef IS_DEBUG_LLVM_SDOPT
-          Logger::Info("  USE %s:%d (%s) by %s (%s)",
-                       src->getOperationName().c_str(),
-                       resNo,
-                       llvmNodes_[src->getNodeId()].getNode()->
-                           getGluedNode()->
-                           getOperationName().c_str(),
-                       dst->getOperationName().c_str(),
-                       llvmNodes_[dst->getNodeId()].getNode()->
-                           getGluedNode()->
-                           getOperationName().c_str());
-        #endif
-      int regType = reg->GetType();
-        if (!insts_[dst->getNodeId()]->FindUse(reg)) {
-          insts_[dst->getNodeId()]->AddUse(reg);
-          reg->AddUse();
-          #ifdef IS_DEBUG_DEFS_AND_USES
-          Logger::Info("Inst %d %s uses resNo %d reg %d of type %d (%s)",   
-                       dst->getNodeId(), insts_[dst->getNodeId()]->GetOpCode(), resNo, reg->GetNum(), regType,  
-                       llvmMachMdl_->GetRegTypeName(regType).c_str());
-          #endif
-        }
+      //if (src->getNodeId() != dst->getNodeId()) {
+      if (!insts_[it->NodeNum]->FindUse(reg)) {
+      	dbgs() << "Adding use " << it->NodeNum << ":" << resNo << "\n";
+        insts_[it->NodeNum]->AddUse(reg);
+        reg->AddUse();
       }
+      //}
     }
   }
 }
@@ -385,7 +391,7 @@ void LLVMDataDepGraph::AddOutputEdges() {
     }
   }
 
-  #ifdef IS_DEBUG_OUTPUT_EDGES
+  #ifdef IS_DEBUG
     for (std::map<int, vector<LiveRange> >::iterator it = ranges.begin();
          it != ranges.end();
          it++) {
@@ -428,7 +434,7 @@ void LLVMDataDepGraph::AddOutputEdges() {
       for (unsigned i = 0; i < regRanges.size(); i++) {
         if (regRanges[i].producer == P2) {
           // TODO(max): Get output dependency latency from machine model.
-          #ifdef IS_DEBUG_OUTPUT_EDGES
+          #ifdef IS_DEBUG
             Logger::Info("Output edge from [%p] %s to [%p] %s on register %d",
                          P2, P2->GetOpCode(), P1, P1->GetOpCode(), R);
           #endif
@@ -456,71 +462,25 @@ void LLVMDataDepGraph::AddOutputEdges() {
   }
 }
 
-unsigned LLVMDataDepGraph::GetPhysicalRegister_(const SDNode* node,
-                                                const unsigned resNo) const {
-  const MCRegisterInfo* TRI = target_.getMCRegisterInfo();
-  if (node->isMachineOpcode()) {
-    const MCInstrDesc &II = schedDag_->TII->get(node->getMachineOpcode());
-    if (II.ImplicitDefs && resNo >= II.getNumDefs()) {
-      unsigned physReg = II.ImplicitDefs[resNo - II.getNumDefs()];
-      if (!physReg) return 0;  // Not a real physical register.
-      // Always consider the largest super-register.
-      // NOTE: Assumes the super-register relation is transitive.
-      // <Najem> TODO::: FIX THIS
-      //while (unsigned super = *TRI.getSuperReg()) physReg = super;
-      //while (unsigned super = *TRI.getRegister(physReg)) physReg = super;
-//      for (MCSuperRegIterator Supers(physReg, TRI); Supers.isValid(); ++Supers)
-//    	  physReg = *Supers;
-
-      MCSuperRegIterator* Super = new MCSuperRegIterator(physReg, TRI);
-      while(Super->isValid())
-      {
-    	  physReg = **Super;
-    	  delete Super;
-    	  Super = new MCSuperRegIterator(physReg, TRI);
-      }
-
-      delete Super;
-
-      return physReg;
-    }
-  }
-  return 0;
-}
-
-int LLVMDataDepGraph::GetPhysicalRegType_(unsigned reg) const {
-  const MCRegisterInfo& TRI = *target_.getMCRegisterInfo();
-
-  // Find the first type that contains this register.
-  for (int i = 0; i < llvmMachMdl_->GetRegTypeCnt(); i++) {
-    const MCRegisterClass* regClass = llvmMachMdl_->GetRegClass(i);
-    if (regClass->contains(reg)) {
-      // HACK: On x86-64, GR32 is mapped to GR64.
-      if (llvmMachMdl_->GetModelName() == "x86-64" &&
-          llvmMachMdl_->GetRegTypeName(i) == "GR32") {
-        i = llvmMachMdl_->GetRegTypeByName("GR64");
-      }
-      return i;
-    }
-  }
-
-  Logger::Fatal("No type for physical register %s found.", TRI.getName(reg));
-
-  return INVALID_VALUE;
-}
-
-int LLVMDataDepGraph::GetRegisterType_(const SDNode* node,
-                                       const unsigned resNo) const {
-  if (unsigned reg = GetPhysicalRegister_(node, resNo)) {
-    return GetPhysicalRegType_(reg);
+int LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
+  const TargetRegisterInfo& TRI = *schedDag_->TRI;
+  const TargetRegisterClass* regClass;
+  // Check if is a physical register
+  if (schedDag_->TRI->isPhysicalRegister(resNo)) {
+    regClass = TRI.getMinimalPhysRegClass(resNo);
+    if (regClass == NULL) return INVALID_VALUE;
+    return llvmMachMdl_->GetRegType(regClass, &TRI);
   } 
   
-    // TODO austin: is reg at machine sched level always lowered?
-    //else {
-    //const MCRegisterClass* regClass;
-    //regClass = context_->TLI.getRepRegClassFor(node->getSimpleValueType(resNo));
-    //if (regClass == NULL) return INVALID_VALUE;
-    //return llvmMachMdl_->GetRegType(regClass);
+  else if(schedDag_->TRI->isVirtualRegister(resNo)) {
+    regClass = schedDag_->MRI.getRegClass(resNo);
+    if (regClass == NULL) return INVALID_VALUE;
+    return llvmMachMdl_->GetRegType(regClass, &TRI);
+  }
+
+  else {
+    return INVALID_VALUE;
+  }
 }
 
 SUnit* LLVMDataDepGraph::GetSUnit(size_t index) const {

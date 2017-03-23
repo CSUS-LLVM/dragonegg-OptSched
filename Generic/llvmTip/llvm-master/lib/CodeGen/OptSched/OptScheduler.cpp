@@ -29,9 +29,9 @@ static llvm::cl::opt<std::string> HotfunctionsIniFile("optsched-hfini", llvm::cl
                                   llvm::cl::desc("Path to hot functions initialization file"));
 
 namespace opt_sched {
-  OptScheduler::OptScheduler(llvm::MachineSchedContext* C)
+  ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext* C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
-      context(C), model(C, MachineModelConfigFile) {
+      context(C), model(MachineModelConfigFile) {
     // valid heuristic names
 		std::strcpy(hurstcNames[(int)LSH_CP], "CP");
     std::strcpy(hurstcNames[(int)LSH_LUC], "LUC");
@@ -41,11 +41,13 @@ namespace opt_sched {
     std::strcpy(hurstcNames[(int)LSH_ISO], "ISO");
     std::strcpy(hurstcNames[(int)LSH_SC], "SC");
     std::strcpy(hurstcNames[(int)LSH_LS], "LS");
+    // Convert target information into machine model
+    model.convertMachineModel(this);
     // Load config files for the OptScheduler
     loadOptSchedConfig();
   }
 
-  void OptScheduler::schedule() {
+  void ScheduleDAGOptSched::schedule() {
     if(!optSchedEnabled) {
       defaultScheduler();
       return;
@@ -80,15 +82,16 @@ namespace opt_sched {
                                      fixLiveIn,
                                      fixLiveOut,
                                      maxSpillCost);
+    region->BuildFromFile();
     delete region;
   }
 
   // call the default "Generic Scheduler" on a region
-  void OptScheduler::defaultScheduler() {
+  void ScheduleDAGOptSched::defaultScheduler() {
     llvm::ScheduleDAGMILive::schedule();
   }
   
-  void OptScheduler::loadOptSchedConfig() {
+  void ScheduleDAGOptSched::loadOptSchedConfig() {
 		// print path to input files
     DEBUG(llvm::dbgs() << "\nOptSched: Path to configuration files:\n" <<
       "Machine Model Config =" << MachineModelConfigFile << "\n" <<
@@ -127,7 +130,7 @@ namespace opt_sched {
 	  spillCostFunction = parseSpillCostFunc();
   }
 
-	bool OptScheduler::isOptSchedEnabled() const {
+	bool ScheduleDAGOptSched::isOptSchedEnabled() const {
 		// check scheduler ini file to see if optsched is enabled
     std::string optSchedOption = schedIni.GetString("USE_OPT_SCHED");
     if(optSchedOption == "YES") {
@@ -149,7 +152,7 @@ namespace opt_sched {
     }
 	}
 
-  LATENCY_PRECISION OptScheduler::fetchLatencyPrecision() const {
+  LATENCY_PRECISION ScheduleDAGOptSched::fetchLatencyPrecision() const {
 		std::string lpName = schedIni.GetString("LATENCY_PRECISION");
     if (lpName == "PRECISE") {
       return LTP_PRECISE;
@@ -163,7 +166,7 @@ namespace opt_sched {
     }	
   }
 
-	LB_ALG OptScheduler::parseLowerBoundAlgorithm() const {
+	LB_ALG ScheduleDAGOptSched::parseLowerBoundAlgorithm() const {
 		std::string LBalg = schedIni.GetString("LB_ALG");
   	if (LBalg == "RJ") {
     	return LBA_RJ;
@@ -175,7 +178,7 @@ namespace opt_sched {
   	}
 	}
 
-	SchedPriorities OptScheduler::parseHeuristic(const std::string &str) const {
+	SchedPriorities ScheduleDAGOptSched::parseHeuristic(const std::string &str) const {
 		SchedPriorities prirts;
   	int len = str.length();
   	char word[HEUR_NAME_MAX_SIZE];
@@ -210,7 +213,7 @@ namespace opt_sched {
 		return prirts;
 	}
 
-  SPILL_COST_FUNCTION OptScheduler::parseSpillCostFunc() const {
+  SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
     std::string name = schedIni.GetString("SPILL_COST_FUNCTION");
 		if (name == "PEAK") {
     	return SCF_PEAK;

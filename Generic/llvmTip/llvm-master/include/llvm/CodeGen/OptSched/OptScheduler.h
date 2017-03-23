@@ -19,12 +19,12 @@
 #define HEUR_NAME_MAX_SIZE 10
 
 namespace opt_sched {
-  class OptScheduler; 
+  class ScheduleDAGOptSched; 
 
   // derive from the default scheduler so it is easy to fallback to it
   // when it is needed. This object is created for each function the 
   // Machine Schduler schedules
-  class OptScheduler : public llvm::ScheduleDAGMILive {
+  class ScheduleDAGOptSched : public llvm::ScheduleDAGMILive {
     private:
       // Current machine scheduler context
       llvm::MachineSchedContext* context;
@@ -52,7 +52,7 @@ namespace opt_sched {
       // Whether to verify that calculated schedules are optimal. Defaults to NO.
       bool verifySchedule;
 			// Whether to enumerate schedules containing stalls (no-op instructions).
-			// In certain cases, such as having unpipelined instructions, this may 
+			// In certain cases, such as having unpipelined instructions, this may
 			// result in a better schedule. Defaults to YES
       bool enumerateStalls;
       // The weight of the spill cost in the objective function. This factor
@@ -63,14 +63,14 @@ namespace opt_sched {
       // architectures with in-order execution like SPARC (thus making scheduling
       // the primary objective).
       int spillCostFactor;
-      // Check spill cost sum at all points in the block for the enumerator's best 
+      // Check spill cost sum at all points in the block for the enumerator's best
       // schedule and the heuristic schedule. If the latter sum is smaller, take
-      // the heuristic schedule instead (if the heuristic sched length is not larger). 
+      // the heuristic schedule instead (if the heuristic sched length is not larger).
       // This can happen, when the SPILL_COST_FUNCTION is not set to SUM.
       bool checkSpillCostSum;
-      // Check the total number of conflicts among live ranges for the enumerator's best 
+      // Check the total number of conflicts among live ranges for the enumerator's best
       // schedule and the heuristic schedule. If the latter is smaller, take
-      // the heuristic schedule instead (if the heuristic sched length is not larger). 
+      // the heuristic schedule instead (if the heuristic sched length is not larger).
       // Check conflicts
       bool checkConflicts;
       // Force CopyFromReg instrs to be scheduled before all other instrs in the block
@@ -86,10 +86,7 @@ namespace opt_sched {
       int maxSpillCost;
       // An array of possible OptSched heuristic names
       char hurstcNames[HEUR_NAME_CNT][HEUR_NAME_MAX_SIZE];
-   		// The algorithm to use for determining the lower bound. Valid values are:
-			// RJ: Rim and Jain's algorithm.
-			// LC: Langevin and Cerny's algorithm.
-			// Defaults to LC. 
+   		// The algorithm to use for determining the lower bound. Valid values are
       LB_ALG lowerBoundAlgorithm;
       // The heuristic used for the list scheduler.
       SchedPriorities heuristicPriorities;
@@ -110,8 +107,8 @@ namespace opt_sched {
       SchedPriorities parseHeuristic(const std::string &str) const;
 
     public:
-      OptScheduler(llvm::MachineSchedContext* C);
-      ~OptScheduler() {}
+      ScheduleDAGOptSched(llvm::MachineSchedContext* C);
+      ~ScheduleDAGOptSched() {}
       // The fallback LLVM scheduler
       void defaultScheduler();
       // Schedule the current region using the OptScheduler
