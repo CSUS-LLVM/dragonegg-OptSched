@@ -69,8 +69,8 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext* context,
   includesNonStandardBlock_ = false;
   includesUnsupported_ = false;
 
-  // TODO(max99x): Find real value for this.
-  includesUnpipelined_ = false;
+  // TODO(max99x)/(austin): Find real value for this.
+  includesUnpipelined_ = true;
 
   ConvertLLVMNodes_();
       
@@ -108,8 +108,10 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
     // If the machine model does not have instType with this OpCode name, use the default instType
     if (instType == INVALID_INST_TYPE)
     {
+        #ifdef IS_DEBUG_DAG
         Logger::Info("Instruction %s was not found in machine model. Using the default", 
                      instName.c_str()); 
+        #endif
     	  instName = "Default";
         instType = machMdl_->GetInstTypeByName("Default");  
     }
@@ -127,9 +129,6 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
     if (unit.isCall) includesCall_ = true;
     if (unit.NumPreds == 0) roots.push_back(unit.NodeNum);
     if (unit.NumSuccs == 0) leaves.push_back(unit.NodeNum);
-
-    DEBUG(dbgs() << "Creating Node: " << unit.NodeNum << " " <<
-          schedDag_->TII->getName(instr->getOpcode()) << "\n");
   }
 
   // Create edges.
@@ -158,7 +157,10 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
         instName = schedDag_->TII->getName(instr->getOpcode());
 	      instType = machMdl_->GetInstTypeByName(instName);
         ltncy = machMdl_->GetLatency(instType, depType);
-        Logger::Info("Dep type %d with latency %d from Instruction %s", depType, ltncy, instName.c_str()); 
+        #ifdef IS_DEBUG_DAG
+        Logger::Info("Dep type %d with latency %d from Instruction %s",
+                     depType, ltncy, instName.c_str()); 
+        #endif
       }
       else if(prcsn == LTP_ROUGH) { // use the compiler's rough latency
          ltncy = it->getLatency();
@@ -168,7 +170,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
       CreateEdge_(unit.NodeNum, it->getSUnit()->NodeNum, ltncy, depType);
 
-      #ifdef IS_DEBUG
+      #ifdef IS_DEBUG_DAG
       Logger::Info("Creating an edge from %d to %d. Type is %d, latency = %d", 
                    unit.NodeNum, it->getSUnit()->NodeNum, depType, ltncy);
       #endif
@@ -192,7 +194,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
               0);  // blkNum
   for (size_t i = 0; i < roots.size(); i++) {
     CreateEdge_(rootNum, roots[i], 0, DEP_OTHER);
+    #ifdef IS_DEBUG_DAG
     Logger::Info("Inst %d is a root", roots[i]);
+    #endif
   }
 
   // Create artificial leaf.
@@ -209,7 +213,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
               0);  // blkNum
   for (size_t i = 0; i < leaves.size(); i++) {
     CreateEdge_(leaves[i], leafNum, 0, DEP_OTHER);
+    #ifdef IS_DEBUG_DAG
     Logger::Info("Inst %d is a leaf", leaves[i]);
+    #endif
   }
   AdjstFileSchedCycles_();
   PrintEdgeCntPerLtncyInfo();
@@ -241,7 +247,7 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   }
 
   for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
-    #ifdef IS_DEBUG
+    #ifdef IS_DEBUG_COUNT_DEFS
       if (regDefCounts[i]) {
         Logger::Info("Reg Type %s -> %d registers",
                      llvmMachMdl_->GetRegTypeName(i).c_str(), regDefCounts[i]);
@@ -274,7 +280,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
     ops.collect(*instr, *schedDag_->TRI, schedDag_->MRI, false, false);
     int numDefs = ops.Defs.size() + ops.DeadDefs.size();
 
-    #ifdef IS_DEBUG
+    #ifdef IS_DEBUG_DEFS_AND_USES
     Logger::Info("Inst %d %s has %d defs", 
                  it->NodeNum, insts_[it->NodeNum]->GetOpCode(), numDefs);
     #endif  
@@ -287,14 +293,13 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       int regType = GetRegisterType_(resNo);
       // Skip non-register results.
       if (regType == INVALID_VALUE) { 
-        #ifdef IS_DEBUG
+        #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("resNo %d is not a reg",resNo);
         #endif 
         continue;
 			}
 			 Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
        if (isPhysReg) reg->SetPhysicalNumber(resNo); 
-       dbgs() << "Adding def " << it->NodeNum << ":" << resNo << "\n";
        insts_[it->NodeNum]->AddDef(reg);
        reg->AddDef();
        definedRegs[std::make_pair(instr, resNo)] = reg;
@@ -308,14 +313,13 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       int regType = GetRegisterType_(resNo);
       // Skip non-register results.
       if (regType == INVALID_VALUE) {
-        #ifdef IS_DEBUG
+        #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("resNo %d is not a reg",resNo);
         #endif
         continue;
 			}
 			Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
       if (isPhysReg) reg->SetPhysicalNumber(resNo); 
-      dbgs() << "Adding def " << it->NodeNum << ":" << resNo << "\n";
       insts_[it->NodeNum]->AddDef(reg);
       reg->AddDef();
       definedRegs[std::make_pair(instr, resNo)] = reg;
@@ -327,7 +331,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       unsigned resNo = regIt->RegUnit;
 
       if (definedRegs.find(std::make_pair(instr, resNo)) == definedRegs.end()) {
-        #ifdef IS_DEBUG
+        #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("resNo %d is used but Not found", resNo);
         #endif
         continue;
@@ -351,8 +355,8 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
       // Finally add the use.
       //if (src->getNodeId() != dst->getNodeId()) {
+      //TODO(austin) add debug output
       if (!insts_[it->NodeNum]->FindUse(reg)) {
-      	dbgs() << "Adding use " << it->NodeNum << ":" << resNo << "\n";
         insts_[it->NodeNum]->AddUse(reg);
         reg->AddUse();
       }
@@ -391,7 +395,7 @@ void LLVMDataDepGraph::AddOutputEdges() {
     }
   }
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_OUT_EDGES
     for (std::map<int, vector<LiveRange> >::iterator it = ranges.begin();
          it != ranges.end();
          it++) {
@@ -434,13 +438,13 @@ void LLVMDataDepGraph::AddOutputEdges() {
       for (unsigned i = 0; i < regRanges.size(); i++) {
         if (regRanges[i].producer == P2) {
           // TODO(max): Get output dependency latency from machine model.
-          #ifdef IS_DEBUG
+          #ifdef IS_DEBUG_OUTEDGES
             Logger::Info("Output edge from [%p] %s to [%p] %s on register %d",
                          P2, P2->GetOpCode(), P1, P1->GetOpCode(), R);
           #endif
           CreateEdge(P2, P1, 0, DEP_OUTPUT);
 
-          #ifdef IS_DEBUG_DAG
+          #ifdef IS_DEBUG_OUTEDGES
           Logger::Info("Creating an output edge from %d to %d", P2->GetNum(), P1->GetNum());
           #endif
 
