@@ -91,6 +91,11 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   #ifdef IS_DEBUG
   Logger::Info("Building opt_sched DAG out of llvm DAG"); 
   #endif
+  for (std::vector<SUnit>::iterator it = schedDag_->SUnits.begin();
+       it != schedDag_->SUnits.end();
+       it++) {
+  	it->dumpAll(schedDag_);
+  }
 
   // Create nodes.
   for (size_t i = 0; i < llvmNodes_.size(); i++) {
@@ -127,8 +132,18 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
                 0,  // fileInstUprBound
                 0);  // blkNum
     if (unit.isCall) includesCall_ = true;
-    if (unit.NumPreds == 0) roots.push_back(unit.NodeNum);
-    if (unit.NumSuccs == 0) leaves.push_back(unit.NodeNum);
+    if (unit.NumPreds == 0) {
+      roots.push_back(unit.NodeNum); 
+       #ifdef IS_DEBUG_BUILD_DAG
+      Logger::Info("Pushing root node: %d", unit.NodeNum);
+      #endif
+    }
+    if (unit.NumSuccs == 0) { 
+      leaves.push_back(unit.NodeNum); 
+      #ifdef IS_DEBUG_BUILD_DAG
+      Logger::Info("Pushing leaf node: %d", unit.NodeNum);
+      #endif
+    }
   }
 
   // Create edges.
@@ -139,7 +154,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
          it != unit.Succs.end();
          it++) {
       // check if the successor is a boundary node
-      if(it->getSUnit()->isBoundaryNode()) continue;
+      if(it->isArtificial()) continue;
 
       DependenceType depType;
       switch (it->getKind()) {
@@ -157,7 +172,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
         instName = schedDag_->TII->getName(instr->getOpcode());
 	      instType = machMdl_->GetInstTypeByName(instName);
         ltncy = machMdl_->GetLatency(instType, depType);
-        #ifdef IS_DEBUG_DAG
+        #ifdef IS_DEBUG_BUILD_DAG
         Logger::Info("Dep type %d with latency %d from Instruction %s",
                      depType, ltncy, instName.c_str()); 
         #endif
@@ -170,7 +185,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
       CreateEdge_(unit.NodeNum, it->getSUnit()->NodeNum, ltncy, depType);
 
-      #ifdef IS_DEBUG_DAG
+      #ifdef IS_DEBUG_BUILD_DAG
       Logger::Info("Creating an edge from %d to %d. Type is %d, latency = %d", 
                    unit.NodeNum, it->getSUnit()->NodeNum, depType, ltncy);
       #endif
@@ -194,9 +209,6 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
               0);  // blkNum
   for (size_t i = 0; i < roots.size(); i++) {
     CreateEdge_(rootNum, roots[i], 0, DEP_OTHER);
-    #ifdef IS_DEBUG_DAG
-    Logger::Info("Inst %d is a root", roots[i]);
-    #endif
   }
 
   // Create artificial leaf.
@@ -213,9 +225,6 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
               0);  // blkNum
   for (size_t i = 0; i < leaves.size(); i++) {
     CreateEdge_(leaves[i], leafNum, 0, DEP_OTHER);
-    #ifdef IS_DEBUG_DAG
-    Logger::Info("Inst %d is a leaf", leaves[i]);
-    #endif
   }
   AdjstFileSchedCycles_();
   PrintEdgeCntPerLtncyInfo();
@@ -223,145 +232,127 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
 void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   std::vector<int> regDefCounts(machMdl_->GetRegTypeCnt());
-  MachineInstr* instr;
   for (std::vector<SUnit>::iterator it = llvmNodes_.begin(); 
        it != llvmNodes_.end(); it++) {
-    instr = it->getInstr();
-    // get defs for this MachineInstr
-    RegisterOperands ops;
-    ops.collect(*instr, *schedDag_->TRI, schedDag_->MRI, false, false);
-    for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.Defs.begin();
-        regIt != ops.Defs.end(); regIt++) {
-      int regType = GetRegisterType_(regIt->RegUnit);
-      // Skip non-register results.
-      if (regType == INVALID_VALUE) continue;
-      regDefCounts[regType]++;
-    } 
-		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.DeadDefs.begin();
-        regIt != ops.DeadDefs.end(); regIt++) {
-      int regType = GetRegisterType_(regIt->RegUnit);
-      // Skip non-register results.
-      if (regType == INVALID_VALUE) continue;
-      regDefCounts[regType]++;
-    }
-  }
-
-  for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
-    #ifdef IS_DEBUG_COUNT_DEFS
-      if (regDefCounts[i]) {
-        Logger::Info("Reg Type %s -> %d registers",
-                     llvmMachMdl_->GetRegTypeName(i).c_str(), regDefCounts[i]);
+    // Vector of registers defined by this node
+    std::vector<unsigned> definedRegs;
+    for (SUnit::const_succ_iterator I = it->Succs.begin(), E = it->Succs.end();
+         I != E; ++I) {
+      if (I->isArtificial() || !I->isAssignedRegDep()) continue;
+      // TODO(austin) clean up
+      // make sure this def has not already been found with differnt edge
+      unsigned resNo = I->getReg();
+      bool regAlreadyFound = false;
+      for (int i = 0; i < definedRegs.size(); ++i) {
+        if(resNo == definedRegs[i]) {
+          regAlreadyFound = true; 
+          break;
+        }
       }
-    #endif
-    regFiles[i].SetRegCnt(regDefCounts[i]);
+      if(regAlreadyFound) continue;
+
+      definedRegs.push_back(resNo);
+
+     int regType = GetRegisterType_(resNo);
+     // Skip non-register results.
+     if (regType == INVALID_VALUE) continue;
+     regDefCounts[regType]++;
+
+      for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
+        #ifdef IS_DEBUG_COUNT_DEFS
+          if (regDefCounts[i]) {
+            Logger::Info("Reg Type %s -> %d registers",
+                          llvmMachMdl_->GetRegTypeName(i).c_str(), regDefCounts[i]);
+          }
+        #endif
+        regFiles[i].SetRegCnt(regDefCounts[i]);
+      }
+    }
   }
 }
 
 void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
-  // The index of the last "assigned" register for each register type.
+  // The index of the last "assigned" register for each register type.  
   std::vector<int> regIndices(machMdl_->GetRegTypeCnt());
-  // Maps node,resultNumber pairs (virtual registers) to opt_sched registers.
-  std::map<std::pair<const MachineInstr*, unsigned>, Register*> definedRegs;
+  // Maps reg number to the Node where the reg was defined and the OptSched Register 
+  // associated with the register
+  std::map<std::pair<unsigned, unsigned>, Register*> definedRegs;
 
   // NOTE: We want track physical register definitions even for cases where the
   // two nodes participating in the dependency are in the same SUnit (and
   // therefore always scheduled together), as we need to know when physical
   // registers are clobbered. However, for such cases we act as if the register
   // was never used.
-  MachineInstr* instr;
   std::vector<SUnit>::iterator it;
 	for (it = llvmNodes_.begin(); 
        it != llvmNodes_.end(); it++) {
-    // Skip nodes excluded from ScheduleDAG.
-    if (it->isBoundaryNode()) continue;
-    instr = it->getInstr();
-    // get defs for this MachineInstr
-    RegisterOperands ops;
-    ops.collect(*instr, *schedDag_->TRI, schedDag_->MRI, false, false);
-    int numDefs = ops.Defs.size() + ops.DeadDefs.size();
 
-    #ifdef IS_DEBUG_DEFS_AND_USES
-    Logger::Info("Inst %d %s has %d defs", 
-                 it->NodeNum, insts_[it->NodeNum]->GetOpCode(), numDefs);
-    #endif  
- 
-    // Create defs.
-		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.Defs.begin();
-        regIt != ops.Defs.end(); regIt++) {
-      unsigned resNo = regIt->RegUnit;
-      bool isPhysReg = schedDag_->TRI->isPhysicalRegister(resNo);
-      int regType = GetRegisterType_(resNo);
-      // Skip non-register results.
-      if (regType == INVALID_VALUE) { 
-        #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("resNo %d is not a reg",resNo);
-        #endif 
-        continue;
-			}
-			 Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
-       if (isPhysReg) reg->SetPhysicalNumber(resNo); 
-       insts_[it->NodeNum]->AddDef(reg);
-       reg->AddDef();
-       definedRegs[std::make_pair(instr, resNo)] = reg;
-    }
+    // vector of registers defined by this node
+    std::vector<unsigned> definedDefs;
+    for (SUnit::const_succ_iterator I = it->Succs.begin(), E = it->Succs.end();
+         I != E; ++I) {
 
-			// TODO(austin) fix this ugly mess
-		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.DeadDefs.begin();
-        regIt != ops.DeadDefs.end(); regIt++) {
-      unsigned resNo = regIt->RegUnit;
+      // Create defs
+      if(I->isArtificial() || !I->isAssignedRegDep() || !I->getKind() == SDep::Data) continue;
+			// make sure this def has not already been found with differnt edge
+      unsigned resNo = I->getReg();
+      bool regAlreadyFound = false;
+      for (int i = 0; i < definedDefs.size(); ++i) {
+        if(resNo == definedDefs[i]) {
+          regAlreadyFound = true;
+          break;
+        }
+      }
+      if(regAlreadyFound) continue;
+			definedDefs.push_back(resNo);
+
       bool isPhysReg = schedDag_->TRI->isPhysicalRegister(resNo);
       int regType = GetRegisterType_(resNo);
       // Skip non-register results.
       if (regType == INVALID_VALUE) {
         #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("resNo %d is not a reg",resNo);
+        Logger::Info("resNo %lu is not a reg",resNo);
         #endif
         continue;
-			}
-			Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
-      if (isPhysReg) reg->SetPhysicalNumber(resNo); 
+      }
+      Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
+      if (isPhysReg) reg->SetPhysicalNumber(resNo);
+      #ifdef IS_DEBUG_DEFS_AND_USES
+      if (isPhysReg)
+        Logger::Info("Adding Def for physical register: %lu NodeNum: %lu", resNo, it->NodeNum);
+      Logger::Info("Adding Def for virtual register: %lu NodeNum: %lu", resNo, it->NodeNum);
+      #endif
       insts_[it->NodeNum]->AddDef(reg);
       reg->AddDef();
-      definedRegs[std::make_pair(instr, resNo)] = reg;
+      definedRegs[std::make_pair(resNo, it->NodeNum)] = reg;
     }
 
     // Create uses.
-		for(SmallVector<RegisterMaskPair, 8>::iterator regIt = ops.Uses.begin();
-        regIt != ops.Uses.end(); regIt++) {
-      unsigned resNo = regIt->RegUnit;
-
-      if (definedRegs.find(std::make_pair(instr, resNo)) == definedRegs.end()) {
+    // Find register numbers for uses of this node
+    for(SUnit::const_succ_iterator I = it->Preds.begin(), E = it->Preds.end();
+        I != E; ++I) {
+      // TODO(austin) Only count data edges. Is this right?
+      if(I->isArtificial() || !I->isAssignedRegDep() || !I->getKind() == SDep::Data) continue;
+      unsigned resNo = I->getReg();
+      SUnit* src = I->getSUnit();
+      SUnit* dst = &(*it);
+      if (definedRegs.find(std::make_pair(resNo, src->NodeNum)) == definedRegs.end()) {
         #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("resNo %d is used but Not found", resNo);
+        Logger::Info("resNo %lu is used but Not found", resNo);
         #endif
         continue;
       }
-      Register* reg = definedRegs.find(std::make_pair(instr, resNo))->second;
-
-      //TODO(austin) implement
-      /*
-      // Ignore non-data edges.
-      bool isDataEdge = true;
-      for (SUnit::const_succ_iterator succIt = it.Succs.begin();
-           succIt != it.Succs.end();
-           it++) {
-        if (succIt->setSUnit()->NodeNum == (unsigned)dst->getNodeId() &&
-            succIt->getKind() != SDep::Data) {
-          isDataEdge = false;
-        }
-      }
-      if (!isDataEdge) continue;
-      */
-
-      // Finally add the use.
-      //if (src->getNodeId() != dst->getNodeId()) {
-      //TODO(austin) add debug output
-      if (!insts_[it->NodeNum]->FindUse(reg)) {
-        insts_[it->NodeNum]->AddUse(reg);
-        reg->AddUse();
-      }
-      //}
-    }
+      Register* reg = definedRegs.find(std::make_pair(resNo, src->NodeNum))->second;
+      if (src->NodeNum == it->NodeNum) continue;
+    	// Finally add the use.
+    	if (!insts_[it->NodeNum]->FindUse(reg)) {
+        #ifdef IS_DEBUG_DEFS_AND_USES
+        Logger::Info("Adding use for virtual register: %lu NodeNum: %lu", resNo, it->NodeNum);
+        #endif
+      	insts_[it->NodeNum]->AddUse(reg);
+      	reg->AddUse();
+    	}
+		}
   }
 }
 

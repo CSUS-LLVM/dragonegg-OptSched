@@ -719,10 +719,12 @@ InstCount LC_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* leaf,
 
   //Visit the nodes in topological order
   assert(graphType == DGT_SUB || rcrsvPrdcsrLst->GetFrstElmnt() == rootInst_);
-
+  if(rcrsvPrdcsrLst == NULL)
+    return 0;
   for (node = rcrsvPrdcsrLst->GetFrstElmnt();
        node != NULL;
        node = rcrsvPrdcsrLst->GetNxtElmnt()) {
+
     inst = (SchedInstruction*)node;
     assert(graphType == DGT_FULL || inst != rootInst_);
 

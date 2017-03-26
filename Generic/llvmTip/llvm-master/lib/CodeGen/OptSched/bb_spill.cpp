@@ -360,7 +360,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
   spillCosts_[crntStepNum_] = newSpillCost;
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
+  //Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
   #endif
 
   totSpillCost_ += newSpillCost;
@@ -455,7 +455,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
   crntStepNum_--;
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
+  //Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
   #endif
 }
 /*****************************************************************************/

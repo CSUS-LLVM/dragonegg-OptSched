@@ -140,10 +140,10 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
 
   FinishHurstc_();
 
-//  #ifdef IS_DEBUG_SOLN_DETAILS_1
+    #ifdef IS_DEBUG_SOLN_DETAILS_1
     Logger::Info("The list schedule is of length %d and spill cost %d. Tot cost = %d",
                  bestSchedLngth_, lstSched->GetSpillCost(), bestCost_);
-//  #endif
+    #endif
 
   #ifdef IS_DEBUG_PRINT_SCHEDS
     lstSched->Print(Logger::GetLogStream(), "Heuristic");
@@ -335,8 +335,8 @@ void SchedRegion::CmputLwrBounds_(bool useFileBounds) {
 bool SchedRegion::CmputUprBounds_(InstSchedule* lstSched, bool useFileBounds) {
   InstCount hurstcExecCost;
   hurstcCost_ = CmputNormCost_(lstSched, CCM_DYNMC, hurstcExecCost, true);
-//  hurstcCost_ = CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, true);
-//  hurstcSchedLngth_ = hurstcExecCost + GetCostLwrBound();
+  hurstcCost_ = CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, true);
+  hurstcSchedLngth_ = hurstcExecCost + GetCostLwrBound();
 
   if (useFileBounds) {
     hurstcCost_ = dataDepGraph_->GetFileCostUprBound();
@@ -360,9 +360,9 @@ void SchedRegion::HandlEnumrtrRslt_(FUNC_RESULT rslt,
                                     InstCount trgtLngth) {
   switch (rslt) {
     case RES_FAIL:
-//    #ifdef IS_DEBUG_ENUM_ITERS
+      #ifdef IS_DEBUG_ENUM_ITERS
       Logger::Info("No feasible solution of length %d was found.", trgtLngth);
-//    #endif
+      #endif
       break;
     case RES_SUCCESS:
     #ifdef IS_DEBUG_ENUM_ITERS
@@ -370,18 +370,18 @@ void SchedRegion::HandlEnumrtrRslt_(FUNC_RESULT rslt,
     #endif
       break;
     case RES_TIMEOUT:
-//    #ifdef IS_DEBUG_ENUM_ITERS
+      #ifdef IS_DEBUG_ENUM_ITERS
       Logger::Info("Enumeration timedout at length %d.", trgtLngth);
-//    #endif
+      #endif
       break;
     case RES_ERROR:
       Logger::Info("The processing of DAG \"%s\" was terminated with an error.",
                    dataDepGraph_->GetDagID(), rgnNum_);
       break;
     case RES_END:
-//    #ifdef IS_DEBUG_ENUM_ITERS
+      #ifdef IS_DEBUG_ENUM_ITERS
       Logger::Info("Enumeration ended at length %d.", trgtLngth);
-//    #endif
+      #endif
       break;
   }
 }
