@@ -10,11 +10,13 @@
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
+#include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
+#include <chrono>
 
 #define DEBUG_TYPE "optsched"
 
@@ -39,6 +41,12 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
   }
   return I;
 }
+
+using namespace std::chrono;
+milliseconds ms = duration_cast< milliseconds >(
+    system_clock::now().time_since_epoch()
+);
+std::chrono::milliseconds opt_sched::ScheduleDAGOptSched::startTime = ms;
 
 namespace opt_sched {
   ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext* C)
@@ -66,6 +74,11 @@ namespace opt_sched {
     }
 
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
+
+    std::chrono::milliseconds ms = std::chrono::duration_cast< std::chrono::milliseconds >(
+      std::chrono::system_clock::now().time_since_epoch()
+  	);
+  	Milliseconds startTime = ms.count();
 
 		// build DAG
 		buildSchedGraph(AA);
@@ -125,7 +138,7 @@ namespace opt_sched {
                                          sched);
     }
 
-    /*
+    
     if((!(rslt == RES_SUCCESS || rslt == RES_TIMEOUT) || sched == NULL)) {
 			Logger::Error("OptSched run failed: rslt=%d, sched=%p. Falling back.",
                   rslt, (void*)sched);
@@ -148,7 +161,7 @@ namespace opt_sched {
         }
       }
 		}
-    */
+    
     delete region;
   }
 
@@ -233,7 +246,7 @@ namespace opt_sched {
       // get the name of the function this scheduler was created for
       std::string functionName = context->MF->getFunction()->getName();
       // check the list of hot functions for the name of the current function
-      return hotFunctions.GetBool(functionName);
+      return hotFunctions.GetBool(functionName, false);
     }
     else if (optSchedOption == "NO") {
     	return false;

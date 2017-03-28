@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include <chrono>
 
 #define HEUR_NAME_CNT 8
 #define HEUR_NAME_MAX_SIZE 10
@@ -127,6 +128,8 @@ namespace opt_sched {
     public:
       ScheduleDAGOptSched(llvm::MachineSchedContext* C);
       ~ScheduleDAGOptSched() {}
+      // System time that the scheduler was created
+			static std::chrono::milliseconds startTime;
       // The fallback LLVM scheduler
       void defaultScheduler();
       // Schedule the current region using the OptScheduler

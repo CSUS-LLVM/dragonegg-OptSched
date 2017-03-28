@@ -335,8 +335,8 @@ void SchedRegion::CmputLwrBounds_(bool useFileBounds) {
 bool SchedRegion::CmputUprBounds_(InstSchedule* lstSched, bool useFileBounds) {
   InstCount hurstcExecCost;
   hurstcCost_ = CmputNormCost_(lstSched, CCM_DYNMC, hurstcExecCost, true);
-  hurstcCost_ = CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, true);
-  hurstcSchedLngth_ = hurstcExecCost + GetCostLwrBound();
+  //hurstcCost_ = CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, true);
+  //hurstcSchedLngth_ = hurstcExecCost + GetCostLwrBound();
 
   if (useFileBounds) {
     hurstcCost_ = dataDepGraph_->GetFileCostUprBound();

@@ -2974,9 +2974,9 @@ void InstSchedule::PrintInstList(FILE* file,
     }
   }
 
-//#ifdef IS_DEBUG
+  #ifdef IS_DEBUG
   fflush(file);
-//#endif
+  #endif
 }
 
 

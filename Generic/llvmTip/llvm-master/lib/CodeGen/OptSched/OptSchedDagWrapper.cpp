@@ -91,15 +91,17 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   #ifdef IS_DEBUG
   Logger::Info("Building opt_sched DAG out of llvm DAG"); 
   #endif
-  for (std::vector<SUnit>::iterator it = schedDag_->SUnits.begin();
-       it != schedDag_->SUnits.end();
-       it++) {
-  	it->dumpAll(schedDag_);
-  }
 
   // Create nodes.
   for (size_t i = 0; i < llvmNodes_.size(); i++) {
+
     const SUnit& unit = llvmNodes_[i];
+    #ifdef IS_DEBUG
+    unit.dumpAll(schedDag_);
+    #endif
+    // Make sure this is a real node
+    if(unit.isBoundaryNode() || !unit.isInstr()) continue;
+
     const MachineInstr* instr = unit.getInstr();
 
     // Make sure nodes are in numbered order.
@@ -126,19 +128,19 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
                 instType,
                 opCode.c_str(),
                 0,  // nodeID
-                unit.NodeQueueId + 1, 
-                unit.NodeQueueId + 1, 
+                0, 
+                0, 
                 0,  // fileInstLwrBound
                 0,  // fileInstUprBound
                 0);  // blkNum
     if (unit.isCall) includesCall_ = true;
-    if (unit.NumPreds == 0) {
+    if (isRootNode(unit)) {
       roots.push_back(unit.NodeNum); 
        #ifdef IS_DEBUG_BUILD_DAG
       Logger::Info("Pushing root node: %d", unit.NodeNum);
       #endif
     }
-    if (unit.NumSuccs == 0) { 
+    if (isLeafNode(unit)) { 
       leaves.push_back(unit.NodeNum); 
       #ifdef IS_DEBUG_BUILD_DAG
       Logger::Info("Pushing leaf node: %d", unit.NodeNum);
@@ -154,7 +156,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
          it != unit.Succs.end();
          it++) {
       // check if the successor is a boundary node
-      if(it->isArtificial()) continue;
+      if(it->isArtificial() || it->getSUnit()->isBoundaryNode() || !it->getSUnit()->isInstr()) continue;
 
       DependenceType depType;
       switch (it->getKind()) {
@@ -238,7 +240,7 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
     std::vector<unsigned> definedRegs;
     for (SUnit::const_succ_iterator I = it->Succs.begin(), E = it->Succs.end();
          I != E; ++I) {
-      if (I->isArtificial() || !I->isAssignedRegDep()) continue;
+      if (I->isArtificial() || !I->isAssignedRegDep() || !I->getSUnit()->isInstr() || I->getSUnit()->isBoundaryNode()) continue;
       // TODO(austin) clean up
       // make sure this def has not already been found with differnt edge
       unsigned resNo = I->getReg();
@@ -289,11 +291,12 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
     // vector of registers defined by this node
     std::vector<unsigned> definedDefs;
+    // Create defs
     for (SUnit::const_succ_iterator I = it->Succs.begin(), E = it->Succs.end();
          I != E; ++I) {
 
-      // Create defs
-      if(I->isArtificial() || !I->isAssignedRegDep() || !I->getKind() == SDep::Data) continue;
+      if (I->isArtificial() || !I->isAssignedRegDep() || !I->getSUnit()->isInstr() || I->getSUnit()->isBoundaryNode()) continue;
+
 			// make sure this def has not already been found with differnt edge
       unsigned resNo = I->getReg();
       bool regAlreadyFound = false;
@@ -316,11 +319,12 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
         continue;
       }
       Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
-      if (isPhysReg) reg->SetPhysicalNumber(resNo);
+      //if (isPhysReg) reg->SetPhysicalNumber(resNo);
       #ifdef IS_DEBUG_DEFS_AND_USES
       if (isPhysReg)
         Logger::Info("Adding Def for physical register: %lu NodeNum: %lu", resNo, it->NodeNum);
-      Logger::Info("Adding Def for virtual register: %lu NodeNum: %lu", resNo, it->NodeNum);
+      else
+        Logger::Info("Adding Def for virtual register: %lu NodeNum: %lu", resNo, it->NodeNum);
       #endif
       insts_[it->NodeNum]->AddDef(reg);
       reg->AddDef();
@@ -329,10 +333,17 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
     // Create uses.
     // Find register numbers for uses of this node
-    for(SUnit::const_succ_iterator I = it->Preds.begin(), E = it->Preds.end();
+    for(SUnit::const_pred_iterator I = it->Preds.begin(), E = it->Preds.end();
         I != E; ++I) {
+
       // TODO(austin) Only count data edges. Is this right?
-      if(I->isArtificial() || !I->isAssignedRegDep() || !I->getKind() == SDep::Data) continue;
+			// Confirm that this is a data edge with isCtrl
+      if (I->isArtificial() 
+          || !I->isAssignedRegDep() 
+          || !I->getSUnit()->isInstr() 
+          || I->isCtrl()
+          || I->getSUnit()->isBoundaryNode()) continue;
+
       unsigned resNo = I->getReg();
       SUnit* src = I->getSUnit();
       SUnit* dst = &(*it);
@@ -485,6 +496,26 @@ SUnit* LLVMDataDepGraph::GetSUnit(size_t index) const {
     // Artificial entry/exit node.
     return NULL;
   }
+}
+
+// Check if this is a root sunit
+bool LLVMDataDepGraph::isRootNode(const SUnit& unit) {
+  for(SUnit::const_pred_iterator I = unit.Preds.begin(), E = unit.Preds.end();
+             I != E; ++I) {
+  	if(I->isArtificial() || !I->getSUnit()->isInstr() || I->getSUnit()->isBoundaryNode()) continue;  
+		else return false;
+  }
+	return true;
+}
+
+// Check if this is a leaf sunit
+bool LLVMDataDepGraph::isLeafNode(const SUnit& unit) {
+  for(SUnit::const_succ_iterator I = unit.Succs.begin(), E = unit.Succs.end();
+             I != E; ++I) {
+    if(I->isArtificial() || !I->getSUnit()->isInstr() || I->getSUnit()->isBoundaryNode()) continue;
+    else return false;
+  }
+  return true;
 }
 
 } // end namespace opt_sched
