@@ -96,7 +96,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   for (size_t i = 0; i < llvmNodes_.size(); i++) {
 
     const SUnit& unit = llvmNodes_[i];
-    #ifdef IS_DEBUG
+    #ifdef IS_DEBUG_DAG
     unit.dumpAll(schedDag_);
     #endif
     // Make sure this is a real node
