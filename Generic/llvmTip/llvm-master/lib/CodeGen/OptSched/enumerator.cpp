@@ -449,6 +449,8 @@ Enumerator::Enumerator(DataDepGraph* dataDepGraph,
   if (memAllocBlkSize_ > MAX_MEMBLOCK_SIZE) {
     memAllocBlkSize_ = MAX_MEMBLOCK_SIZE;
   }
+  //TODO(austin) fix
+  memAllocBlkSize_ = MAX_MEMBLOCK_SIZE;
 
   if (memAllocBlkSize_ == 0) {
     memAllocBlkSize_ = 1;

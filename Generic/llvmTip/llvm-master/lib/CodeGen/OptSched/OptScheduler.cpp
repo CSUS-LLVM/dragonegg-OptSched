@@ -231,6 +231,8 @@ namespace opt_sched {
     lengthTimeout = schedIni.GetInt("LENGTH_TIMEOUT");
     if(schedIni.GetString("TIMEOUT_PER") == "INSTR")
       isTimeoutPerInstruction = true;
+    else
+      isTimeoutPerInstruction = false;
     minDagSize = schedIni.GetInt("MIN_DAG_SIZE");
     maxDagSize = schedIni.GetInt("MAX_DAG_SIZE");
     useFileBounds = schedIni.GetBool("USE_FILE_BOUNDS");
