@@ -10,11 +10,13 @@
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
+#include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
+#include <chrono>
 
 #define DEBUG_TYPE "optsched"
 
@@ -27,6 +29,24 @@ static llvm::cl::opt<std::string> ScheduleIniFile("optsched-sini", llvm::cl::Hid
 
 static llvm::cl::opt<std::string> HotfunctionsIniFile("optsched-hfini", llvm::cl::Hidden,
                                   llvm::cl::desc("Path to hot functions initialization file"));
+
+// If this iterator is a debug value, increment until reaching the End or a
+// non-debug instruction. static method from llvm/CodeGen/MachineScheduler.cpp
+static llvm::MachineBasicBlock::iterator
+nextIfDebug(llvm::MachineBasicBlock::iterator I,
+            llvm::MachineBasicBlock::const_iterator End) {
+	for(; I != End; ++I) {
+    if (!I->isDebugValue())
+      break;
+  }
+  return I;
+}
+
+using namespace std::chrono;
+milliseconds ms = duration_cast< milliseconds >(
+    system_clock::now().time_since_epoch()
+);
+std::chrono::milliseconds opt_sched::ScheduleDAGOptSched::startTime = ms;
 
 namespace opt_sched {
   ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext* C)
@@ -54,6 +74,11 @@ namespace opt_sched {
     }
 
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
+
+    std::chrono::milliseconds ms = std::chrono::duration_cast< std::chrono::milliseconds >(
+      std::chrono::system_clock::now().time_since_epoch()
+  	);
+  	Milliseconds startTime = ms.count();
 
 		// build DAG
 		buildSchedGraph(AA);
@@ -83,8 +108,83 @@ namespace opt_sched {
                                      fixLiveOut,
                                      maxSpillCost);
     region->BuildFromFile();
+
+    // Schedule
+		bool isEasy;
+    InstCount normBestCost = 0;
+    InstCount bestSchedLngth = 0;
+    InstCount normHurstcCost = 0;
+    InstCount hurstcSchedLngth = 0;
+    InstSchedule* sched = NULL;
+    FUNC_RESULT rslt;
+    if(isTimeoutPerInstruction) {
+      regionTimeout *= dag.GetInstCnt();
+      lengthTimeout *= dag.GetInstCnt();
+    }
+
+    if(dag.GetInstCnt() < minDagSize || dag.GetInstCnt() > maxDagSize) {
+      rslt = RES_FAIL;
+		Logger::Error("Dag skipped due to out-of-range size. DAG size = %d, \
+									valid range is [%d, %d]", dag.GetInstCnt(), minDagSize, maxDagSize);
+    } else {
+      rslt = region->FindOptimalSchedule(useFileBounds,
+                                         regionTimeout,
+                                         lengthTimeout,
+                                         isEasy,
+                                         normBestCost,
+                                         bestSchedLngth,
+                                         normHurstcCost,
+                                         hurstcSchedLngth,
+                                         sched);
+    }
+
+    
+    if((!(rslt == RES_SUCCESS || rslt == RES_TIMEOUT) || sched == NULL)) {
+			Logger::Error("OptSched run failed: rslt=%d, sched=%p. Falling back.",
+                  rslt, (void*)sched);
+			//TODO(austin) run fallback scheduler
+    } else {
+	    Logger::Info("OptSched succeeded.");	
+      // Convert back to LLVM.
+      // Advance past initial DebugValues.
+      CurrentTop = nextIfDebug(RegionBegin, RegionEnd);
+      CurrentBottom = RegionEnd;
+      InstCount cycle, slot;
+      for (InstCount i = sched->GetFrstInst(cycle, slot);
+           i != INVALID_VALUE;
+           i = sched->GetNxtInst(cycle, slot)) {
+        if (i == SCHD_STALL) {
+          ScheduleNode(NULL, cycle);
+        } else {
+          llvm::SUnit* unit = dag.GetSUnit(i);
+          if (unit && unit->isInstr()) ScheduleNode(unit, cycle);
+        }
+      }
+		}
+    
     delete region;
   }
+
+	void ScheduleDAGOptSched::ScheduleNode(llvm::SUnit *SU, unsigned CurCycle) {
+		#ifdef IS_DEBUG_CONVERT_LLVM
+  	Logger::Info("*** Scheduling [%lu]: ", CurCycle);
+		#endif
+  	if (SU) {
+      llvm::MachineInstr* instr = SU->getInstr();
+      if (CurrentTop == NULL){
+        Logger::Error("Currenttop is NULL");
+        return;
+      }
+      if (&*CurrentTop == instr)
+        CurrentTop = nextIfDebug(++CurrentTop, CurrentBottom);
+      else
+        moveInstruction(instr, CurrentTop);
+  	} else {
+			#ifdef IS_DEBUG_CONVERT_LLVM
+    	Logger::Info("Stall");
+			#endif
+  	}
+}
 
   // call the default "Generic Scheduler" on a region
   void ScheduleDAGOptSched::defaultScheduler() {
@@ -105,29 +205,35 @@ namespace opt_sched {
     // setup OptScheduler configuration options 
 		optSchedEnabled = isOptSchedEnabled();
     latencyPrecision = fetchLatencyPrecision();
-    maxDagSizeForLatencyPrecision = schedIni.GetInt("MAX_DAG_SIZE_FOR_PRECISE_LATENCY",
-                                                    10000);
-    treatOrderDepsAsDataDeps = schedIni.GetBool("TREAT_ORDER_DEPS_AS_DATA_DEPS", false);
+    maxDagSizeForLatencyPrecision = schedIni.GetInt("MAX_DAG_SIZE_FOR_PRECISE_LATENCY");
+    treatOrderDepsAsDataDeps = schedIni.GetBool("TREAT_ORDER_DEPS_AS_DATA_DEPS");
 
     // setup pruning
-		prune.rlxd = schedIni.GetBool("APPLY_RELAXED_PRUNING", true);
-  	prune.nodeSup = schedIni.GetBool("APPLY_NODE_SUPERIORITY", true);
-  	prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION", true);
-  	prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING", true);
+		prune.rlxd = schedIni.GetBool("APPLY_RELAXED_PRUNING");
+  	prune.nodeSup = schedIni.GetBool("APPLY_NODE_SUPERIORITY");
+  	prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION");
+  	prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING");
 	
 		histTableHashBits = static_cast<int16_t>(schedIni.GetInt("HIST_TABLE_HASH_BITS"));
-		verifySchedule = schedIni.GetBool("VERIFY_SCHEDULE", false);
-		enumerateStalls = schedIni.GetBool("ENUMERATE_STALLS", true);
+		verifySchedule = schedIni.GetBool("VERIFY_SCHEDULE");
+		enumerateStalls = schedIni.GetBool("ENUMERATE_STALLS");
 		spillCostFactor = schedIni.GetInt("SPILL_COST_FACTOR");
-		checkSpillCostSum = schedIni.GetBool("CHECK_SPILL_COST_SUM", true);
-		checkConflicts = schedIni.GetBool("CHECK_CONFLICTS", true);
-		fixLiveIn = schedIni.GetBool("FIX_LIVEIN", false);
-		fixLiveOut = schedIni.GetBool("FIX_LIVEOUT", false);
+		checkSpillCostSum = schedIni.GetBool("CHECK_SPILL_COST_SUM");
+		checkConflicts = schedIni.GetBool("CHECK_CONFLICTS");
+		fixLiveIn = schedIni.GetBool("FIX_LIVEIN");
+		fixLiveOut = schedIni.GetBool("FIX_LIVEOUT");
 		maxSpillCost = schedIni.GetInt("MAX_SPILL_COST");
 		lowerBoundAlgorithm = parseLowerBoundAlgorithm();
 		heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
 		enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
 	  spillCostFunction = parseSpillCostFunc();
+    regionTimeout = schedIni.GetInt("REGION_TIMEOUT");
+    lengthTimeout = schedIni.GetInt("LENGTH_TIMEOUT");
+    if(schedIni.GetString("TIMEOUT_PER") == "INSTR")
+      isTimeoutPerInstruction = true;
+    minDagSize = schedIni.GetInt("MIN_DAG_SIZE");
+    maxDagSize = schedIni.GetInt("MAX_DAG_SIZE");
+    useFileBounds = schedIni.GetBool("USE_FILE_BOUNDS");
   }
 
 	bool ScheduleDAGOptSched::isOptSchedEnabled() const {

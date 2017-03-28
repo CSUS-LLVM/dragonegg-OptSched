@@ -149,8 +149,7 @@ InstCount HistEnumTreeNode::GetMinTimeToExmn_(InstCount nodeTime,
   UDT_GLABEL maxLtncy = dataDepGraph->GetMaxLtncy();
   InstCount crntCycleNum = enumrtr->GetCycleNumFrmTime_(nodeTime);
   InstCount nxtCycleNum = crntCycleNum + 1;
-  InstCount minCycleNumToExmn = std::max(nxtCycleNum - maxLtncy,
-                                         static_cast<InstCount>(0));
+  InstCount minCycleNumToExmn = std::max(nxtCycleNum - maxLtncy, 0);
   InstCount minTimeToExmn = minCycleNumToExmn * issuRate + 1;
   return minTimeToExmn;
 }

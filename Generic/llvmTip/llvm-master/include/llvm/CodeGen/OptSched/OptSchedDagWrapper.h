@@ -59,6 +59,10 @@ class LLVMDataDepGraph : public DataDepGraph {
     int maxDagSizeForPrcisLtncy_;
 		// LLVM object with information about the machine we are targeting
 		const llvm::TargetMachine& target_;
+    // Check is SUnit is a root node
+    bool isRootNode(const llvm::SUnit& unit);
+    // Check is SUnit is a leaf node
+    bool isLeafNode(const llvm::SUnit& unit);
 
     // Converts the LLVM nodes saved in llvmNodes_ to opt_sched::DataDepGraph.
     // Should be called only once, by the constructor.

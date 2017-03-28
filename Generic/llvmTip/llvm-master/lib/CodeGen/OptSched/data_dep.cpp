@@ -875,14 +875,12 @@ SchedInstruction* DataDepGraph::CreateNode_(InstCount instNum,
 void DataDepGraph::CreateEdge(SchedInstruction* frmNode,
                               SchedInstruction* toNode,
                               int ltncy, DependenceType depType) {
-  #ifdef IS_DEBUG
+  #if defined(IS_DEBUG) || defined(IS_DEBUG_DAG)
     InstCount frmNodeNum = frmNode->GetNum();
     InstCount toNodeNum = toNode->GetNum();
   #endif
 
-  //#ifdef IS_DEBUG_DAG
-  //TODO(austin) remove
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_DAG
     Logger::Info("Creating extra edge from %d to %d of type %d and latency %d",
                  frmNodeNum, toNodeNum, depType, ltncy);
   #endif
@@ -893,9 +891,7 @@ void DataDepGraph::CreateEdge(SchedInstruction* frmNode,
   assert(toNodeNum < instCnt_);
   assert(nodes_[toNodeNum] != NULL);
 
-  //#ifdef IS_DEBUG_LATENCIES
-  //TODO(austin) remove
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_LATENCIES
     Stats::dependenceTypeLatencies.Add(GetDependenceTypeName(depType), ltncy);
     if (depType == DEP_DATA) {
       Stats::instructionTypeLatencies.Add(
@@ -909,9 +905,7 @@ void DataDepGraph::CreateEdge(SchedInstruction* frmNode,
   if (edge != NULL) {
     assert(toNode->FindPrdcsr(frmNode) == edge);
     crntLtncy = edge->label;
-    //#ifdef IS_DEBUG_DAG
-    //TODO(austin) remove
-    #ifdef IS_DEBUG
+    #ifdef IS_DEBUG_DAG
       Logger::Info("Found existing edge of label %d", crntLtncy);
     #endif
 
@@ -949,9 +943,7 @@ void DataDepGraph::CreateEdge_(InstCount frmNodeNum, InstCount toNodeNum,
   GraphNode* frmNode = nodes_[frmNodeNum];
   GraphNode* toNode = nodes_[toNodeNum];
 
-  //#ifdef IS_DEBUG_LATENCIES
-  //TODO(austin) remove
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_LATENCIES
     Stats::dependenceTypeLatencies.Add(GetDependenceTypeName(depType), ltncy);
     if (depType == DEP_DATA) {
       InstType inst = ((SchedInstruction*)frmNode)->GetInstType();
@@ -964,7 +956,7 @@ void DataDepGraph::CreateEdge_(InstCount frmNodeNum, InstCount toNodeNum,
 
   if (edge == NULL) {
     #ifdef IS_DEBUG_DAG
-    Logger::Info("Creating edge from %d to %d of type %d and latency %d",
+      Logger::Info("Creating edge from %d to %d of type %d and latency %d",
                     frmNodeNum, toNodeNum, depType, ltncy);
     #endif
     edge = new GraphEdge(frmNode, toNode, ltncy, depType);
@@ -975,8 +967,8 @@ void DataDepGraph::CreateEdge_(InstCount frmNodeNum, InstCount toNodeNum,
   } else {
     if (ltncy > edge->label) {
       #ifdef IS_DEBUG_DAG
-      Logger::Info("Setting latency of the edge from %d to %d to %d",
-                   frmNodeNum, toNodeNum, ltncy);
+        Logger::Info("Setting latency of the edge from %d to %d to %d",
+                      frmNodeNum, toNodeNum, ltncy);
       #endif
       edge->label = ltncy;
       edge->from->UpdtMaxEdgLbl(ltncy);
@@ -1267,7 +1259,7 @@ void DataDepGraph::CountDeps(InstCount& totDepCnt, InstCount& crossDepCnt) {
 
   for (InstCount i = 0; i < instCnt_; i++) {
     SchedInstruction* inst = insts_[i];
-    InstCount ltncy;
+    int ltncy;
 
     for (SchedInstruction* child = inst->GetFrstScsr(&ltncy);
          child != NULL;
@@ -2982,9 +2974,9 @@ void InstSchedule::PrintInstList(FILE* file,
     }
   }
 
-#ifdef IS_DEBUG
+  #ifdef IS_DEBUG
   fflush(file);
-#endif
+  #endif
 }
 
 

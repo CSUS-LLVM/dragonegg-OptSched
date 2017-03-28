@@ -22,4 +22,6 @@ add_llvm_library(LLVMOptSched
   stats.cpp
   )
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG -DIS_DEBUG_DAG -DIS_DEBUG_BUILD_DAG -DIS_DEBUG_COUNT_DEFS -DIS_DEBUG_DEFS_AND_USES")
+
 add_dependencies(LLVMOptSched intrinsics_gen)

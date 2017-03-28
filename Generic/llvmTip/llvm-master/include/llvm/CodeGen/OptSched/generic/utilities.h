@@ -2,7 +2,7 @@
 Description:  Contains a few generic utility functions.
 Author:       Ghassan Shobaki
 Created:      Oct. 1997
-Last Update:  Mar. 2011
+Last Update:  Mar. 2017
 *******************************************************************************/
 
 #ifndef OPTSCHED_GENERIC_UTILITIES_H
@@ -18,6 +18,7 @@ Last Update:  Mar. 2011
   #include <unistd.h>
 #endif
 #include "llvm/CodeGen/OptSched/generic/defines.h"
+#include "llvm/CodeGen/OptSched/OptScheduler.h"
 
 namespace opt_sched {
 
@@ -42,7 +43,7 @@ inline uint16_t Utilities::clcltBitsNeededToHoldNum(uint64_t value) {
 
 inline Milliseconds Utilities::GetProcessorTime() {
   Milliseconds currentTime;
-
+  /*
   // Unfortunately clock() from <ctime> was not reliable enough.
   #ifdef WIN32
     timeb timeBuf;
@@ -57,10 +58,14 @@ inline Milliseconds Utilities::GetProcessorTime() {
     long ticksPerSecond = sysconf(_SC_CLK_TCK);
     currentTime = (ticks * 1000) / ticksPerSecond;
   #endif
-
-  return currentTime - startTime;
+  */
+  using namespace std::chrono;
+	milliseconds ms = duration_cast< milliseconds >(
+    system_clock::now().time_since_epoch()
+	);
+	currentTime = ms.count();
+  return currentTime - ScheduleDAGOptSched::startTime.count();
 }
-
 } // end namespace opt_sched
 
 #endif

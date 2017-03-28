@@ -68,7 +68,7 @@ class SchedRegion {
     // TODO(max): Document.
     virtual FUNC_RESULT BuildFromFile() = 0;
     // TODO(max): Document.
-    virtual InstCount CmputCostLwrBound() = 0;
+    virtual int CmputCostLwrBound() = 0;
     // TODO(max): Document.
     virtual InstCount UpdtOptmlSched(InstSchedule* crntSched,
                                      LengthCostEnumerator* enumrtr) = 0;

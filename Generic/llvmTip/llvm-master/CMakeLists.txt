@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.4.3)
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIS_DEBUG")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 if(POLICY CMP0022)
   cmake_policy(SET CMP0022 NEW) # automatic when 2.8.12 is required

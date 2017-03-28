@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include <chrono>
 
 #define HEUR_NAME_CNT 8
 #define HEUR_NAME_MAX_SIZE 10
@@ -45,6 +46,22 @@ namespace opt_sched {
       LATENCY_PRECISION latencyPrecision;
       // The maximum DAG size to be scheduled using precise latency information.
       int maxDagSizeForLatencyPrecision;
+      // A time limit for the whole region (basic block) in milliseconds. 
+      // Defaults to no limit.
+      int regionTimeout;
+      // Whether to use the lower/upper bounds defined in the input file
+      bool useFileBounds;
+      // A time limit for each schedule length in milliseconds.
+      int lengthTimeout;
+      // How to interpret the timeout value? Timeout per instruction or
+      // timout per block
+      bool isTimeoutPerInstruction;
+      // The minimum number of instructions that a block can contain to be
+      // processed by the optimal scheduler
+      int minDagSize;
+      // The maximum number of instructions that a block can contain to be
+      // processed by the optimal scheduler
+      int maxDagSize;
       // Treat data dependencies of type ORDER as data dependencies
       bool treatOrderDepsAsDataDeps;
       // The number of bits in the hash table used in history-based domination.
@@ -105,10 +122,14 @@ namespace opt_sched {
       LATENCY_PRECISION fetchLatencyPrecision() const;
       // Get OptSched heuristic setting
       SchedPriorities parseHeuristic(const std::string &str) const;
+      // Add node to llvm schedule
+      void ScheduleNode(llvm::SUnit *SU, unsigned CurCycle);
 
     public:
       ScheduleDAGOptSched(llvm::MachineSchedContext* C);
       ~ScheduleDAGOptSched() {}
+      // System time that the scheduler was created
+			static std::chrono::milliseconds startTime;
       // The fallback LLVM scheduler
       void defaultScheduler();
       // Schedule the current region using the OptScheduler
