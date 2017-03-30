@@ -39,18 +39,18 @@ void LLVMMachineModel::convertMachineModel(ScheduleDAG* scheduleDag) {
        cls++) {
     RegTypeInfo regType;
     regType.name = regInfo->getRegClassName(*cls);
-    regType.count = (*cls)->getNumRegs();
-    // HACK: Special case for the x86 flags register.
-    if (mdlName_.find("x86") == 0 && (regType.name == "CCR" || regType.name == "FPCCR")) {
+    int pressureLimit = regInfo->getRegPressureLimit(&(**cls), scheduleDag->MF);
+    // set registers with 0 limit to 1 to support flags and special cases
+    if (pressureLimit > 0)
+      regType.count = pressureLimit;
+    else
       regType.count = 1;
-    }
-    if (regType.count > 0) {
-      // Only count types with non-zero limits.
-      regClassToType_[*cls] = registerTypes_.size();
-      regTypeToClass_[registerTypes_.size()] = *cls;
-      registerTypes_.push_back(regType);
-      //Logger::Info("Reg Type %s has a limit of %d",regType.name.c_str(), regType.count);
-    }
+    regClassToType_[*cls] = registerTypes_.size();
+    regTypeToClass_[registerTypes_.size()] = *cls;
+    registerTypes_.push_back(regType);
+    #ifdef IS_DEBUG_MM
+    Logger::Info("Reg Type %s has a limit of %d",regType.name.c_str(), regType.count);
+    #endif
   }
 
   // TODO(max99x): Get real instruction types.
