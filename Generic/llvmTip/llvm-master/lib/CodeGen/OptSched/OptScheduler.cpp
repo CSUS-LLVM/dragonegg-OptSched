@@ -68,9 +68,14 @@ namespace opt_sched {
   }
 
   void ScheduleDAGOptSched::schedule() {
-    if(!optSchedEnabled) {
+    if(!optSchedEnabled || isHeuristicISO) {
+      Logger::Info("Calling default scheduler");
       defaultScheduler();
-      return;
+      if(!isHeuristicISO) {
+    	  return;
+      } else {
+    	  Logger::Info("ISO is set to true, continuing to OptSched");
+      }
     }
 
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
@@ -224,7 +229,17 @@ namespace opt_sched {
 		fixLiveOut = schedIni.GetBool("FIX_LIVEOUT");
 		maxSpillCost = schedIni.GetInt("MAX_SPILL_COST");
 		lowerBoundAlgorithm = parseLowerBoundAlgorithm();
-		heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
+
+		std::string heuristic = schedIni.GetString("HEURISTIC");
+
+		if (heuristic == "ISO") {
+			isHeuristicISO = true;
+		}
+		else {
+			isHeuristicISO = false;
+			heuristicPriorities = parseHeuristic(heuristic);
+		}
+
 		enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
 	  spillCostFunction = parseSpillCostFunc();
     regionTimeout = schedIni.GetInt("REGION_TIMEOUT");

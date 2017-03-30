@@ -109,6 +109,8 @@ namespace opt_sched {
       SchedPriorities heuristicPriorities;
       // The heuristic used for the enumerator.
       SchedPriorities enumPriorities;
+      // Check if Heuristic is set to ISO.
+      bool isHeuristicISO;
       // Load config files for the OptScheduler and set flags
       void loadOptSchedConfig();
 			// Get lower bound algorithm
