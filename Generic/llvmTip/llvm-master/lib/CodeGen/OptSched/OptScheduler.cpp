@@ -7,6 +7,7 @@
 #include "llvm/CodeGen/OptSched/OptScheduler.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
@@ -42,12 +43,6 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
   return I;
 }
 
-using namespace std::chrono;
-milliseconds ms = duration_cast< milliseconds >(
-    system_clock::now().time_since_epoch()
-);
-std::chrono::milliseconds opt_sched::ScheduleDAGOptSched::startTime = ms;
-
 namespace opt_sched {
   ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext* C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
@@ -74,11 +69,6 @@ namespace opt_sched {
     }
 
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
-
-    std::chrono::milliseconds ms = std::chrono::duration_cast< std::chrono::milliseconds >(
-      std::chrono::system_clock::now().time_since_epoch()
-  	);
-  	Milliseconds startTime = ms.count();
 
 		// build DAG
 		buildSchedGraph(AA);
@@ -108,6 +98,9 @@ namespace opt_sched {
                                      fixLiveOut,
                                      maxSpillCost);
     region->BuildFromFile();
+    
+    // Setup time
+    Utilities::startTime = std::chrono::high_resolution_clock::now();
 
     // Schedule
 		bool isEasy;
