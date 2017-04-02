@@ -2,8 +2,8 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
-#include <fcntl.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 
 namespace opt_sched {

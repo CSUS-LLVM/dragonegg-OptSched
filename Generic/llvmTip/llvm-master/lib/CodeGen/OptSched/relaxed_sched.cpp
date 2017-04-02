@@ -702,7 +702,7 @@ InstCount LC_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* leaf,
   InstCount         rltvCP;
   DEP_GRAPH_TYPE      graphType = dataDepGraph_->GetType();
 
-  if (leaf == rootInst_) {
+  if (leaf == rootInst_ || rcrsvPrdcsrLst == NULL) {
     return 0;
   }
 
@@ -719,10 +719,10 @@ InstCount LC_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* leaf,
 
   //Visit the nodes in topological order
   assert(graphType == DGT_SUB || rcrsvPrdcsrLst->GetFrstElmnt() == rootInst_);
-
   for (node = rcrsvPrdcsrLst->GetFrstElmnt();
        node != NULL;
        node = rcrsvPrdcsrLst->GetNxtElmnt()) {
+
     inst = (SchedInstruction*)node;
     assert(graphType == DGT_FULL || inst != rootInst_);
 

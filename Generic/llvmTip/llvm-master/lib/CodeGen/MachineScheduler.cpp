@@ -3126,7 +3126,7 @@ void GenericScheduler::schedNode(SUnit *SU, bool IsTopNode) {
 
 // Create OptSched scheduler
 static ScheduleDAGInstrs *createOptSched(MachineSchedContext *C) {
-  return new opt_sched::OptScheduler(C);
+  return new opt_sched::ScheduleDAGOptSched(C);
 }
 
 /// Create the standard converging machine scheduler. This will be used as the

@@ -1,0 +1,49 @@
+This file describes how to use gdb to step though LLVM when compiling SPECCPU2006 and small test programs.
+
+You can use this method to debug either the base LLVM scheduler or the optimal scheduler.
+
+Make sure the code you want to debug is compiled with debugging symbols symbols by adding -g to CXX flags in the CMakeLists.txt file in the folder for the LLVM libraries you are interested in.
+
+for example in lib/CodeGen/OptSched add:
+
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG")
+
+For small test programs:
+
+To get the correct <plugin args> use the script “RunOptSched.sh” with the flag “-p” to print out the command to use dragonegg rather than run the command
+
+For example:
+
+./RunOptSched.sh -dopt -g++ -p test.cpp 
+
+Prints out:
+
+/usr/bin/g++-4.8 -fplugin=/home/austin/workspace/LLVM_DRAGONEGG/Generic/dragonegg/dragonegg.so -fplugin-arg-dragonegg-llvm-option=-optsched -O3 -fplugin-arg-dragonegg-llvm-option=-debug-only:optsched -fplugin-arg-dragonegg-llvm-option=-optsched-mcfg:/home/austin/workspace/LLVM_DRAGONEGG/Generic/OptSchedCfg/machine_model.cfg -fplugin-arg-dragonegg-llvm-option=-optsched-sini:/home/austin/workspace/LLVM_DRAGONEGG/Generic/OptSchedCfg/sched.ini -fplugin-arg-dragonegg-llvm-option=-optsched-hfini:/home/austin/workspace/LLVM_DRAGONEGG/Generic/OptSchedCfg/hotfuncs.ini test.cpp
+
+Copy the code and paste it into the gdb command:
+
+gdb --args <paste here without brackets>
+
+For SPECCPU2006 tests Copy the code between the name of the program and the compiler (drop test.cpp and /usr/bin/g++-4.8) and paste these arguments onto the end of end of the flags COPTIMIZE, CXXOPTIMIZE, FOPTIMIZE in your CPU2006 config/Intel_llvm_3.3.cfg file
+
+Than put the runspec command you want to run into a script and invoke gdb with:
+
+gdb --args /bin/bash <name of script>
+
+After starting gdb run these commands:
+
+set detach-on-fork off
+set target-async on
+set non-stop on
+set pagination off
+
+Set breakpoints with the break command
+
+Then run the compiler with:
+
+run
+
+After you hit your breakpoint switch the the inferior that is running LLVM (usually the one with the highest number) with:
+
+info inferiors
+inferior <number of inferior to switch to>
