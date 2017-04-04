@@ -60,7 +60,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext* context,
 
   std::snprintf(dagID_, MAX_NAMESIZE, "%s:%s",
                 context_->MF->getFunction()->getName().data(),
-                context_->MF->front().getBasicBlock()->getName().data());
+                schedDag_->getDAGName());
 
   std::snprintf(compiler_, MAX_NAMESIZE, "LLVM");
 

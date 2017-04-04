@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
+#include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
@@ -61,7 +62,8 @@ namespace opt_sched {
     // Load config files for the OptScheduler
     loadOptSchedConfig();
   }
-
+  
+  // schedule called for each basic block
   void ScheduleDAGOptSched::schedule() {
     if(!optSchedEnabled) {
       defaultScheduler();
@@ -70,11 +72,30 @@ namespace opt_sched {
 
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
 
+    // Setup time
+    Utilities::startTime = std::chrono::high_resolution_clock::now();
+
 		// build DAG
-		buildSchedGraph(AA);
+    // Initialize the register pressure tracker used by buildSchedGraph.
+  	RPTracker.init(&MF, RegClassInfo, LIS, BB, LiveRegionEnd,
+     	             ShouldTrackLaneMasks, /*TrackUntiedDefs=*/true);
+
+  	// Account for liveness generate by the region boundary.
+  	if (LiveRegionEnd != RegionEnd)
+    	RPTracker.recede();
+
+  	// Build the DAG, and compute current register pressure.
+  	buildSchedGraph(AA, &RPTracker, &SUPressureDiffs, LIS, ShouldTrackLaneMasks);
+
+  	// Initialize top/bottom trackers after computing region pressure.
+  	initRegPressure();
+
     // Ignore empty DAGs
     if(SUnits.empty())
       return;
+    
+	  RegPressure.dump(TRI);	
+    TopPressure.dump(TRI);
 
     // convert dag
     LLVMDataDepGraph dag(context, this, &model, latencyPrecision,
@@ -97,11 +118,10 @@ namespace opt_sched {
                                      fixLiveIn,
                                      fixLiveOut,
                                      maxSpillCost);
+
+    // count defs, add defs and uses, out output edges
     region->BuildFromFile();
     
-    // Setup time
-    Utilities::startTime = std::chrono::high_resolution_clock::now();
-
     // Schedule
 		bool isEasy;
     InstCount normBestCost = 0;
@@ -110,10 +130,16 @@ namespace opt_sched {
     InstCount hurstcSchedLngth = 0;
     InstSchedule* sched = NULL;
     FUNC_RESULT rslt;
+
     if(isTimeoutPerInstruction) {
-      regionTimeout *= dag.GetInstCnt();
-      lengthTimeout *= dag.GetInstCnt();
+      // Re-calculate timeout values if timeout setting is per instruction
+      // becuase we want a unique value per DAG size
+      regionTimeout = schedIni.GetInt("REGION_TIMEOUT") * dag.GetInstCnt();
+      lengthTimeout = schedIni.GetInt("LENGTH_TIMEOUT") * dag.GetInstCnt();
     }
+
+    // Setup time before schedule
+    Utilities::startTime = std::chrono::high_resolution_clock::now();
 
     if(dag.GetInstCnt() < minDagSize || dag.GetInstCnt() > maxDagSize) {
       rslt = RES_FAIL;
