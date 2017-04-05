@@ -72,9 +72,6 @@ namespace opt_sched {
 
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
 
-    // Setup time
-    Utilities::startTime = std::chrono::high_resolution_clock::now();
-
 		// build DAG
     // Initialize the register pressure tracker used by buildSchedGraph.
   	RPTracker.init(&MF, RegClassInfo, LIS, BB, LiveRegionEnd,
@@ -89,14 +86,11 @@ namespace opt_sched {
 
   	// Initialize top/bottom trackers after computing region pressure.
   	initRegPressure();
-
+    
     // Ignore empty DAGs
     if(SUnits.empty())
       return;
     
-	  RegPressure.dump(TRI);	
-    TopPressure.dump(TRI);
-
     // convert dag
     LLVMDataDepGraph dag(context, this, &model, latencyPrecision,
                          treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision);
@@ -138,7 +132,7 @@ namespace opt_sched {
       lengthTimeout = schedIni.GetInt("LENGTH_TIMEOUT") * dag.GetInstCnt();
     }
 
-    // Setup time before schedule
+    // Setup time before scheduling
     Utilities::startTime = std::chrono::high_resolution_clock::now();
 
     if(dag.GetInstCnt() < minDagSize || dag.GetInstCnt() > maxDagSize) {
