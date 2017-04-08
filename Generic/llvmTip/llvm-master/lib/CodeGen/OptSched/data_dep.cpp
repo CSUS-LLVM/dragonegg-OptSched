@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <iostream>
 #include <cstdlib>
 #include <algorithm>
 
@@ -8,6 +9,8 @@
 #include "llvm/CodeGen/OptSched/basic/machine_model.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
 
 namespace opt_sched {
 
@@ -2930,7 +2933,7 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
   InstCount slotInCycle = 0;
   InstCount cycleNum = 0;
   InstCount i;
-
+  
   out << '\n' << label << " Schedule";
 
   for (i = 0; i < crntSlotNum_; i++) {
@@ -2951,8 +2954,23 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
   }
 
   out << '\n' << " Register Pressures";
+  LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
-    out << "\nReg type " << i << ":  peak pressure: " << peakRegPressures_[i] << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
+    if (peakRegPressures_[i] > 0)
+      out << "\nReg type " << llvmModel->registerInfo->getRegClassName(llvmModel->GetRegClass(i)) \
+          << ":  peak pressure: " << peakRegPressures_[i] << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
+  }
+  out << '\n';
+}
+
+void InstSchedule::PrintRegPressures(std::ostream& out) {
+  out << '\n' << "OptSched : Register Pressures";
+	InstCount i;
+  LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
+  for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
+    if (peakRegPressures_[i] > 0)
+      out << "\nReg type " << llvmModel->registerInfo->getRegClassName(llvmModel->GetRegClass(i)) \
+          << ":  peak pressure: " << peakRegPressures_[i] << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
   }
   out << '\n';
 }
@@ -3002,6 +3020,10 @@ bool InstSchedule::Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph) {
 
   if (!VerifySlots_(machMdl, dataDepGraph)) return false;
   if (!VerifyDataDeps_(dataDepGraph)) return false;
+  
+  #ifdef IS_DEBUG_PEAK_PRESSURE 
+	PrintRegPressures(std::cout);
+  #endif
 
   Logger::Info("Schedule verified successfully");
   return true;

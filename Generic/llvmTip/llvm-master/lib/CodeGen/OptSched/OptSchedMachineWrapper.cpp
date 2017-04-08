@@ -32,14 +32,14 @@ void LLVMMachineModel::convertMachineModel(ScheduleDAG* scheduleDag) {
  // Clear The registerTypes list to read registers limits from the LLVM machine model
   registerTypes_.clear();
 
-  // TODO(max99x): Improve register pressure limit estimates.
-  const TargetRegisterInfo* regInfo = scheduleDag->TRI;
-  for (TargetRegisterClass::sc_iterator cls = regInfo->regclass_begin();
-       cls != regInfo->regclass_end();
+  registerInfo = scheduleDag->TRI;
+  for (TargetRegisterClass::sc_iterator cls = registerInfo->regclass_begin();
+       cls != registerInfo->regclass_end();
        cls++) {
     RegTypeInfo regType;
-    regType.name = regInfo->getRegClassName(*cls);
-    int pressureLimit = regInfo->getRegPressureLimit(&(**cls), scheduleDag->MF);
+    regType.name = registerInfo->getRegClassName(*cls);
+    int pressureLimit = registerInfo->getRegPressureLimit(&(**cls), scheduleDag->MF);
+    //unsigned pressureLimit = (*cls)->getNumRegs();
     // set registers with 0 limit to 1 to support flags and special cases
     if (pressureLimit > 0)
       regType.count = pressureLimit;
@@ -80,12 +80,13 @@ void LLVMMachineModel::convertMachineModel(ScheduleDAG* scheduleDag) {
         Logger::Info("Issue Rate: %d. Issue Slot Count: %d", issueRate_, issueSlotCnt_);
         Logger::Info("Issue Types Count: %d", issueTypes_.size());
         for(int x = 0; x < issueTypes_.size(); x++)
-                Logger::Info("Type %s has %d slots", issueTypes_[x].name.c_str(), issueTypes_[x].slotsCount);
+          Logger::Info("Type %s has %d slots", issueTypes_[x].name.c_str(), issueTypes_[x].slotsCount);
+
         Logger::Info("Instructions Type Count: %d", instTypes_.size());
         for(int y = 0; y < instTypes_.size(); y++)
-                Logger::Info("Instruction %s is of issue type %s and has a latency of %d", 
-                                                instTypes_[y].name.c_str(), issueTypes_[instTypes_[y].issuType].name.c_str(),
-                                                instTypes_[y].ltncy);
+          Logger::Info("Instruction %s is of issue type %s and has a latency of %d", 
+                        instTypes_[y].name.c_str(), issueTypes_[instTypes_[y].issuType].name.c_str(),
+                        instTypes_[y].ltncy);
   #endif
 }
 

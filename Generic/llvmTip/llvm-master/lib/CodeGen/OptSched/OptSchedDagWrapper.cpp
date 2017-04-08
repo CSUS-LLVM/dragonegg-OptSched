@@ -38,6 +38,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext* context,
                                    ScheduleDAGMILive* llvmDag,
                                    LLVMMachineModel* machMdl,
                                    LATENCY_PRECISION ltncyPrcsn,
+                                   MachineBasicBlock* BB,
                                    bool treatOrderDepsAsDataDeps,
                                    int maxDagSizeForPrcisLtncy)
     : DataDepGraph(machMdl, ltncyPrcsn),
@@ -60,7 +61,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext* context,
 
   std::snprintf(dagID_, MAX_NAMESIZE, "%s:%s",
                 context_->MF->getFunction()->getName().data(),
-                schedDag_->getDAGName());
+                BB->getName());
 
   std::snprintf(compiler_, MAX_NAMESIZE, "LLVM");
 
@@ -255,12 +256,22 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
 
       definedRegs.push_back(resNo);
 
-     int regType = GetRegisterType_(resNo);
-     // Skip non-register results.
-     if (regType == INVALID_VALUE) continue;
-     regDefCounts[regType]++;
+      int regType = GetRegisterType_(resNo);
+      // Skip non-register results.
+      if (regType == INVALID_VALUE) continue;
+     	regDefCounts[regType]++;
+      
+      //TODO remove
+      PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+      unsigned Weight = PSetI.getWeight();
+      
+      dbgs() << "Weight for: " << llvmMachMdl_->GetRegTypeName(regType).c_str() << " : " << Weight << "\n";
+      for (; PSetI.isValid(); ++PSetI) {
+				dbgs() << "This register belongs to the set: " << schedDag_->TRI->getRegPressureSetName(*PSetI) << "\n";
+			}
+    }
 
-      for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
+    for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
         #ifdef IS_DEBUG_COUNT_DEFS
           if (regDefCounts[i]) {
             Logger::Info("Reg Type %s -> %d registers",
@@ -268,8 +279,7 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
           }
         #endif
         regFiles[i].SetRegCnt(regDefCounts[i]);
-      }
-    }
+   	}
   }
 }
 
@@ -475,13 +485,21 @@ int LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   if (schedDag_->TRI->isPhysicalRegister(resNo)) {
     regClass = TRI.getMinimalPhysRegClass(resNo);
     if (regClass == NULL) return INVALID_VALUE;
-    return llvmMachMdl_->GetRegType(regClass, &TRI);
+    //TODO remove
+    PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+    std::string name;
+    name = schedDag_->TRI->getRegPressureSetName(*PSetI);
+    return llvmMachMdl_->GetRegTypeByName(name.c_str());
   } 
   
   else if(schedDag_->TRI->isVirtualRegister(resNo)) {
     regClass = schedDag_->MRI.getRegClass(resNo);
     if (regClass == NULL) return INVALID_VALUE;
-    return llvmMachMdl_->GetRegType(regClass, &TRI);
+    //TODO remove 
+    PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+    std::string name;
+    name = schedDag_->TRI->getRegPressureSetName(*PSetI);
+    return llvmMachMdl_->GetRegTypeByName(name.c_str());
   }
 
   else {

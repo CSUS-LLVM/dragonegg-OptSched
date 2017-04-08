@@ -708,6 +708,7 @@ class InstSchedule {
     void SetSpillCandidateCount(int cnflctCnt);
 
     void Print(std::ostream& out, char const * const title);
+    void PrintRegPressures(std::ostream& out);
     void PrintInstList(FILE* file, DataDepGraph* dataDepGraph, char* title);
     bool Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph);
     void PrintClassData();

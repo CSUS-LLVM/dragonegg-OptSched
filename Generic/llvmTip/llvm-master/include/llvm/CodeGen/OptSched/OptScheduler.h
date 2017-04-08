@@ -124,6 +124,8 @@ namespace opt_sched {
       SchedPriorities parseHeuristic(const std::string &str) const;
       // Add node to llvm schedule
       void ScheduleNode(llvm::SUnit *SU, unsigned CurCycle);
+		  // Setup dag and calculate register pressue in region
+      void SetupLLVMDag();
 
     public:
       ScheduleDAGOptSched(llvm::MachineSchedContext* C);

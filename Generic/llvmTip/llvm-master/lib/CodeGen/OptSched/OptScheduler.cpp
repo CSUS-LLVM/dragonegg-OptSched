@@ -12,6 +12,7 @@
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
@@ -62,6 +63,23 @@ namespace opt_sched {
     // Load config files for the OptScheduler
     loadOptSchedConfig();
   }
+
+  void ScheduleDAGOptSched::SetupLLVMDag() {
+    // build DAG
+    // Initialize the register pressure tracker used by buildSchedGraph.
+    RPTracker.init(&MF, RegClassInfo, LIS, BB, LiveRegionEnd,
+                   ShouldTrackLaneMasks, /*TrackUntiedDefs=*/true);
+
+    // Account for liveness generate by the region boundary.
+    if (LiveRegionEnd != RegionEnd)
+      RPTracker.recede();
+
+    // Build the DAG, and compute current register pressure.
+    buildSchedGraph(AA, &RPTracker, &SUPressureDiffs, LIS, ShouldTrackLaneMasks);
+
+    // Initialize top/bottom trackers after computing region pressure.
+    initRegPressure();
+  }
   
   // schedule called for each basic block
   void ScheduleDAGOptSched::schedule() {
@@ -72,27 +90,30 @@ namespace opt_sched {
 
     DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
 
-		// build DAG
-    // Initialize the register pressure tracker used by buildSchedGraph.
-  	RPTracker.init(&MF, RegClassInfo, LIS, BB, LiveRegionEnd,
-     	             ShouldTrackLaneMasks, /*TrackUntiedDefs=*/true);
+   	SetupLLVMDag(); 
 
-  	// Account for liveness generate by the region boundary.
-  	if (LiveRegionEnd != RegionEnd)
-    	RPTracker.recede();
-
-  	// Build the DAG, and compute current register pressure.
-  	buildSchedGraph(AA, &RPTracker, &SUPressureDiffs, LIS, ShouldTrackLaneMasks);
-
-  	// Initialize top/bottom trackers after computing region pressure.
-  	initRegPressure();
-    
     // Ignore empty DAGs
     if(SUnits.empty())
       return;
+
+    // Dump max pressure
+    #ifdef IS_DEBUG_PEAK_PRESSURE
+    Logger::Info("LLVM max pressure before scheduling");
+		const std::vector<unsigned> &RegionPressure =
+    RPTracker.getPressure().MaxSetPressure;
+		for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
+    	unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
+    	if (RegionPressure[i] > 0) {
+     		llvm::dbgs() << TRI->getRegPressureSetName(i)
+            << " Limit " << Limit
+            << " Actual " << RegionPressure[i] << "\n";
+      	RegionCriticalPSets.push_back(llvm::PressureChange(i));
+      }
+  	}
+    #endif
     
     // convert dag
-    LLVMDataDepGraph dag(context, this, &model, latencyPrecision,
+    LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB,
                          treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision);
 		// create region
 	  SchedRegion* region = new BBWithSpill(&model,
@@ -174,7 +195,23 @@ namespace opt_sched {
         }
       }
 		}
-    
+	
+    #ifdef IS_DEBUG_PEAK_PRESSURE
+		// recalculate register pressure
+   	SetupLLVMDag(); 
+
+    Logger::Info("LLVM max pressure after scheduling");
+		for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
+    	unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
+    	if (RegionPressure[i] > 0) {
+      	llvm::dbgs() << TRI->getRegPressureSetName(i)
+            << " Limit " << Limit
+            << " Actual " << RegionPressure[i] << "\n";
+      	RegionCriticalPSets.push_back(llvm::PressureChange(i));
+      }
+  	}
+    #endif
+
     delete region;
   }
 

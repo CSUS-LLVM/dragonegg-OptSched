@@ -25,6 +25,7 @@ class LLVMDataDepGraph : public DataDepGraph {
                      llvm::ScheduleDAGMILive* llvmDag,
                      LLVMMachineModel* machMdl,
                      LATENCY_PRECISION ltncyPrcsn,
+                     llvm::MachineBasicBlock* BB,
                      bool treatOrderDepsAsDataDeps,
                      int maxDagSizeForPrcisLtncy);
     ~LLVMDataDepGraph() {}

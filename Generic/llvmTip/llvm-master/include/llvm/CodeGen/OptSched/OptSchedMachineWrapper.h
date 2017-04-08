@@ -22,11 +22,13 @@ class LLVMMachineModel : public MachineModel {
     // Convert information about the target machine into the
     // optimal scheduler machine model
     void convertMachineModel(llvm::ScheduleDAG* scheduleDag);
-    ~LLVMMachineModel() {}
-
+    // Pointer to register info for target
+    const llvm::TargetRegisterInfo* registerInfo;
     int GetRegType(const llvm::TargetRegisterClass* cls, 
                    const llvm::TargetRegisterInfo* regInfo) const;
     const llvm::TargetRegisterClass* GetRegClass(int type) const;
+
+    ~LLVMMachineModel() {}
 
   protected:
     std::map<const llvm::TargetRegisterClass*, int> regClassToType_;
