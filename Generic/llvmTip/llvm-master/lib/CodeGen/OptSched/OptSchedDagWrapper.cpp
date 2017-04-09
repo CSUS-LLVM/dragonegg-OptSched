@@ -486,20 +486,23 @@ int LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
     regClass = TRI.getMinimalPhysRegClass(resNo);
     if (regClass == NULL) return INVALID_VALUE;
     //TODO remove
-    PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
-    std::string name;
-    name = schedDag_->TRI->getRegPressureSetName(*PSetI);
-    return llvmMachMdl_->GetRegTypeByName(name.c_str());
+    //TODO remove 
+    // Testing getting pressure set instead of reg class
+    //PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+    //std::string name;
+    //name = schedDag_->TRI->getRegPressureSetName(*PSetI);
+		return llvmMachMdl_->GetRegType(regClass, &TRI);
   } 
   
   else if(schedDag_->TRI->isVirtualRegister(resNo)) {
     regClass = schedDag_->MRI.getRegClass(resNo);
     if (regClass == NULL) return INVALID_VALUE;
     //TODO remove 
-    PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
-    std::string name;
-    name = schedDag_->TRI->getRegPressureSetName(*PSetI);
-    return llvmMachMdl_->GetRegTypeByName(name.c_str());
+    // Testing getting pressure set instead of reg class
+    //PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+    //std::string name;
+    //name = schedDag_->TRI->getRegPressureSetName(*PSetI);
+    return llvmMachMdl_->GetRegType(regClass, &TRI);
   }
 
   else {
