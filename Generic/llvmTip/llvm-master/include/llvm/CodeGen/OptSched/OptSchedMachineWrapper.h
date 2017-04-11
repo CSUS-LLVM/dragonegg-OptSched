@@ -24,16 +24,8 @@ class LLVMMachineModel : public MachineModel {
     void convertMachineModel(llvm::ScheduleDAG* scheduleDag);
     // Pointer to register info for target
     const llvm::TargetRegisterInfo* registerInfo;
-    int GetRegType(const llvm::TargetRegisterClass* cls, 
-                   const llvm::TargetRegisterInfo* regInfo) const;
-    const llvm::TargetRegisterClass* GetRegClass(int type) const;
 
     ~LLVMMachineModel() {}
-
-  protected:
-    std::map<const llvm::TargetRegisterClass*, int> regClassToType_;
-    std::map<int, const llvm::TargetRegisterClass*> regTypeToClass_;
-
 };
 
 } // end namespace opt_sched

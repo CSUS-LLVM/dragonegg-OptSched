@@ -2957,7 +2957,7 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
     if (peakRegPressures_[i] > 0)
-      out << "\nReg type " << llvmModel->registerInfo->getRegClassName(llvmModel->GetRegClass(i)) \
+      out << "\nReg type " << llvmModel->GetRegTypeName(i) \
           << ":  peak pressure: " << peakRegPressures_[i] << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
   }
   out << '\n';
@@ -2969,8 +2969,9 @@ void InstSchedule::PrintRegPressures(std::ostream& out) {
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
     if (peakRegPressures_[i] > 0)
-      out << "\nReg type " << llvmModel->registerInfo->getRegClassName(llvmModel->GetRegClass(i)) \
-          << ":  peak pressure: " << peakRegPressures_[i] << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
+      out << "\nReg type " << llvmModel->GetRegTypeName(i) \
+          << ":  peak pressure: " << peakRegPressures_[i] \
+          << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
   }
   out << '\n';
 }

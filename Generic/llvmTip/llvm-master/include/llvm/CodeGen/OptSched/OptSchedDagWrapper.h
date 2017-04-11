@@ -64,6 +64,10 @@ class LLVMDataDepGraph : public DataDepGraph {
     bool isRootNode(const llvm::SUnit& unit);
     // Check is SUnit is a leaf node
     bool isLeafNode(const llvm::SUnit& unit);
+    // Add live in registers as root node defs
+    void addLiveInDefUse(RegisterFile regFiles[], std::vector<int>& regIndices);
+    // Add liveout registers as uses in artificial leaf node
+    void addLiveOutUse(Register* reg, unsigned resNo);
 
     // Converts the LLVM nodes saved in llvmNodes_ to opt_sched::DataDepGraph.
     // Should be called only once, by the constructor.

@@ -33,23 +33,18 @@ void LLVMMachineModel::convertMachineModel(ScheduleDAG* scheduleDag) {
   registerTypes_.clear();
 
   registerInfo = scheduleDag->TRI;
-  for (TargetRegisterClass::sc_iterator cls = registerInfo->regclass_begin();
-       cls != registerInfo->regclass_end();
-       cls++) {
+  for (int pSet = 0; pSet < registerInfo->getNumRegPressureSets(); ++pSet) {
     RegTypeInfo regType;
-    regType.name = registerInfo->getRegClassName(*cls);
-    int pressureLimit = registerInfo->getRegPressureLimit(&(**cls), scheduleDag->MF);
-    //unsigned pressureLimit = (*cls)->getNumRegs();
+    regType.name = registerInfo->getRegPressureSetName(pSet);
+    int pressureLimit = registerInfo->getRegPressureSetLimit(scheduleDag->MF, pSet);
     // set registers with 0 limit to 1 to support flags and special cases
     if (pressureLimit > 0)
       regType.count = pressureLimit;
     else
       regType.count = 1;
-    regClassToType_[*cls] = registerTypes_.size();
-    regTypeToClass_[registerTypes_.size()] = *cls;
     registerTypes_.push_back(regType);
     #ifdef IS_DEBUG_MM
-    Logger::Info("Reg Type %s has a limit of %d",regType.name.c_str(), regType.count);
+    Logger::Info("Pressure set %s has a limit of %d",regType.name.c_str(), regType.count);
     #endif
   }
 
@@ -88,22 +83,6 @@ void LLVMMachineModel::convertMachineModel(ScheduleDAG* scheduleDag) {
                         instTypes_[y].name.c_str(), issueTypes_[instTypes_[y].issuType].name.c_str(),
                         instTypes_[y].ltncy);
   #endif
-}
-
-int LLVMMachineModel::GetRegType(const llvm::TargetRegisterClass* cls,
-                                 const llvm::TargetRegisterInfo* regInfo) const {
-  // HACK: Map x86 virtual RFP registers to VR128.
-  if (mdlName_.find("x86") == 0 && std::string(regInfo->getRegClassName(cls), 3) == "RFP") {
-    Logger::Info("Mapping RFP into VR128");
-    return GetRegTypeByName("VR128");
-  }
-  assert(regClassToType_.find(cls) != regClassToType_.end());
-  return regClassToType_.find(cls)->second;
-}
-
-const llvm::TargetRegisterClass* LLVMMachineModel::GetRegClass(int type) const {
-  assert(regTypeToClass_.find(type) != regTypeToClass_.end());
-  return regTypeToClass_.find(type)->second;
 }
 
 } // end namespace opt_sched

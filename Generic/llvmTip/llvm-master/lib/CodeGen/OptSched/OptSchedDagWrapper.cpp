@@ -235,145 +235,110 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
 void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   std::vector<int> regDefCounts(machMdl_->GetRegTypeCnt());
+
+  // count live-in as defs in root node
+  for (const RegisterMaskPair &L : schedDag_->getRegPressure().LiveInRegs) {
+    unsigned resNo = L.RegUnit;
+    int regType = GetRegisterType_(resNo);
+    // Skip non-register results.
+    if (regType == INVALID_VALUE) continue;
+    regDefCounts[regType]++; 
+  }
+
   for (std::vector<SUnit>::iterator it = llvmNodes_.begin(); 
        it != llvmNodes_.end(); it++) {
-    // Vector of registers defined by this node
-    std::vector<unsigned> definedRegs;
-    for (SUnit::const_succ_iterator I = it->Succs.begin(), E = it->Succs.end();
-         I != E; ++I) {
-      if (I->isArtificial() || !I->isAssignedRegDep() || !I->getSUnit()->isInstr() || I->getSUnit()->isBoundaryNode()) continue;
-      // TODO(austin) clean up
-      // make sure this def has not already been found with differnt edge
-      unsigned resNo = I->getReg();
-      bool regAlreadyFound = false;
-      for (int i = 0; i < definedRegs.size(); ++i) {
-        if(resNo == definedRegs[i]) {
-          regAlreadyFound = true; 
-          break;
-        }
-      }
-      if(regAlreadyFound) continue;
-
-      definedRegs.push_back(resNo);
-
+    MachineInstr* MI = it->getInstr();
+    // Get all defs for this instruction
+    RegisterOperands RegOpers;
+    RegOpers.collect(*MI, *schedDag_->TRI, schedDag_->MRI, false, false);
+    for(const RegisterMaskPair &P : RegOpers.Defs) {
+      unsigned resNo = P.RegUnit;
       int regType = GetRegisterType_(resNo);
       // Skip non-register results.
       if (regType == INVALID_VALUE) continue;
-     	regDefCounts[regType]++;
-      
-      //TODO remove
-      PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
-      unsigned Weight = PSetI.getWeight();
-      
-      dbgs() << "Weight for: " << llvmMachMdl_->GetRegTypeName(regType).c_str() << " : " << Weight << "\n";
-      for (; PSetI.isValid(); ++PSetI) {
-				dbgs() << "This register belongs to the set: " << schedDag_->TRI->getRegPressureSetName(*PSetI) << "\n";
-			}
+      regDefCounts[regType]++;
     }
-
-    for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
-        #ifdef IS_DEBUG_COUNT_DEFS
-          if (regDefCounts[i]) {
-            Logger::Info("Reg Type %s -> %d registers",
-                          llvmMachMdl_->GetRegTypeName(i).c_str(), regDefCounts[i]);
-          }
-        #endif
-        regFiles[i].SetRegCnt(regDefCounts[i]);
-   	}
   }
+
+  for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
+    #ifdef IS_DEBUG_COUNT_DEFS
+    if (regDefCounts[i]) {
+      Logger::Info("Reg Type %s -> %d registers",
+                    llvmMachMdl_->GetRegTypeName(i).c_str(), regDefCounts[i]);
+    }
+    #endif
+    regFiles[i].SetRegCnt(regDefCounts[i]);
+ 	}
 }
 
 void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   // The index of the last "assigned" register for each register type.  
   std::vector<int> regIndices(machMdl_->GetRegTypeCnt());
-  // Maps reg number to the Node where the reg was defined and the OptSched Register 
-  // associated with the register
-  std::map<std::pair<unsigned, unsigned>, Register*> definedRegs;
 
-  // NOTE: We want track physical register definitions even for cases where the
-  // two nodes participating in the dependency are in the same SUnit (and
-  // therefore always scheduled together), as we need to know when physical
-  // registers are clobbered. However, for such cases we act as if the register
-  // was never used.
-  std::vector<SUnit>::iterator it;
-	for (it = llvmNodes_.begin(); 
-       it != llvmNodes_.end(); it++) {
+  addLiveInDefUse(regFiles, regIndices);
 
-    // vector of registers defined by this node
-    std::vector<unsigned> definedDefs;
-    // Create defs
-    for (SUnit::const_succ_iterator I = it->Succs.begin(), E = it->Succs.end();
-         I != E; ++I) {
+  std::vector<SUnit>::iterator startNode;
+	for (startNode = llvmNodes_.begin(); 
+       startNode != llvmNodes_.end(); ++startNode) {
+    // The machine instruction we are processing
+    MachineInstr* MI = startNode->getInstr(); 
 
-      if (I->isArtificial() || !I->isAssignedRegDep() || !I->getSUnit()->isInstr() || I->getSUnit()->isBoundaryNode()) continue;
+    // Collect def/use information for this machine instruction
+    RegisterOperands RegOpers;
+    RegOpers.collect(*MI, *schedDag_->TRI, schedDag_->MRI, false, false);
 
-			// make sure this def has not already been found with differnt edge
-      unsigned resNo = I->getReg();
-      bool regAlreadyFound = false;
-      for (int i = 0; i < definedDefs.size(); ++i) {
-        if(resNo == definedDefs[i]) {
-          regAlreadyFound = true;
-          break;
-        }
-      }
-      if(regAlreadyFound) continue;
-			definedDefs.push_back(resNo);
-
-      bool isPhysReg = schedDag_->TRI->isPhysicalRegister(resNo);
+    // First add def then find all uses of that register
+    for(const RegisterMaskPair &P : RegOpers.Defs) {
+      unsigned resNo = P.RegUnit;
       int regType = GetRegisterType_(resNo);
       // Skip non-register results.
-      if (regType == INVALID_VALUE) {
-        #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("resNo %lu is not a reg",resNo);
-        #endif
-        continue;
-      }
+      if (regType == INVALID_VALUE) continue;
+
+      // add def
       Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
-      //if (isPhysReg) reg->SetPhysicalNumber(resNo);
       #ifdef IS_DEBUG_DEFS_AND_USES
-      if (isPhysReg)
-        Logger::Info("Adding Def for physical register: %lu NodeNum: %lu", resNo, it->NodeNum);
-      else
-        Logger::Info("Adding Def for virtual register: %lu NodeNum: %lu", resNo, it->NodeNum);
+      Logger::Info("Adding Def for register: %lu NodeNum: %lu", resNo, startNode->NodeNum);
       #endif
-      insts_[it->NodeNum]->AddDef(reg);
-      reg->AddDef();
-      definedRegs[std::make_pair(resNo, it->NodeNum)] = reg;
-    }
+			insts_[startNode->NodeNum]->AddDef(reg);
+			reg->AddDef();
 
-    // Create uses.
-    // Find register numbers for uses of this node
-    for(SUnit::const_pred_iterator I = it->Preds.begin(), E = it->Preds.end();
-        I != E; ++I) {
+      bool foundUse = false;
+			// add all uses of this register
+  		std::vector<SUnit>::iterator curNode = startNode;
+      for (++curNode;
+					 curNode != llvmNodes_.end(); ++curNode) {
+				MachineInstr* curMI = curNode->getInstr();
+    		RegOpers.collect(*curMI, *schedDag_->TRI, schedDag_->MRI, false, false);
+				// add use
+				for (const RegisterMaskPair &U : RegOpers.Uses) {
+					if (U.RegUnit == resNo) {
+            foundUse = true;
+						if (!insts_[curNode->NodeNum]->FindUse(reg)) {
+        			#ifdef IS_DEBUG_DEFS_AND_USES
+        			Logger::Info("Adding use for register: %lu NodeNum: %lu def at %lu", 
+                            resNo, curNode->NodeNum, startNode->NodeNum);
+        			#endif
+        			insts_[curNode->NodeNum]->AddUse(reg);
+        			reg->AddUse();
+      			}
+					}
+				}
 
-      // TODO(austin) Only count data edges. Is this right?
-			// Confirm that this is a data edge with isCtrl
-      if (I->isArtificial() 
-          || !I->isAssignedRegDep() 
-          || !I->getSUnit()->isInstr() 
-          || I->isCtrl()
-          || I->getSUnit()->isBoundaryNode()) continue;
-
-      unsigned resNo = I->getReg();
-      SUnit* src = I->getSUnit();
-      SUnit* dst = &(*it);
-      if (definedRegs.find(std::make_pair(resNo, src->NodeNum)) == definedRegs.end()) {
-        #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("resNo %lu is used but Not found", resNo);
-        #endif
-        continue;
+        // Check if this instruction redefines the register that we are collecting
+        // def/use information for. If it does we break and consider this a seperate
+        // register in our model
+				bool regIsRedefined = false;
+				for (const RegisterMaskPair &D : RegOpers.Defs) {
+					if (D.RegUnit == resNo) {
+						regIsRedefined = true;
+						break;
+					}
+				}
+        if (regIsRedefined) break;
       }
-      Register* reg = definedRegs.find(std::make_pair(resNo, src->NodeNum))->second;
-      if (src->NodeNum == it->NodeNum) continue;
-    	// Finally add the use.
-    	if (!insts_[it->NodeNum]->FindUse(reg)) {
-        #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("Adding use for virtual register: %lu NodeNum: %lu", resNo, it->NodeNum);
-        #endif
-      	insts_[it->NodeNum]->AddUse(reg);
-      	reg->AddUse();
-    	}
-		}
+      if (!foundUse)
+        addLiveOutUse(reg, resNo); 
+    }
   }
 }
 
@@ -485,27 +450,27 @@ int LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   if (schedDag_->TRI->isPhysicalRegister(resNo)) {
     regClass = TRI.getMinimalPhysRegClass(resNo);
     if (regClass == NULL) return INVALID_VALUE;
-    //TODO remove
-    //TODO remove 
     // Testing getting pressure set instead of reg class
-    //PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
-    //std::string name;
-    //name = schedDag_->TRI->getRegPressureSetName(*PSetI);
-		return llvmMachMdl_->GetRegType(regClass, &TRI);
+    PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+    std::string name;
+    name = schedDag_->TRI->getRegPressureSetName(*PSetI);
+    return llvmMachMdl_->GetRegTypeByName(name.c_str());
   } 
   
   else if(schedDag_->TRI->isVirtualRegister(resNo)) {
     regClass = schedDag_->MRI.getRegClass(resNo);
     if (regClass == NULL) return INVALID_VALUE;
-    //TODO remove 
     // Testing getting pressure set instead of reg class
-    //PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
-    //std::string name;
-    //name = schedDag_->TRI->getRegPressureSetName(*PSetI);
-    return llvmMachMdl_->GetRegType(regClass, &TRI);
+    PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+    std::string name;
+    name = schedDag_->TRI->getRegPressureSetName(*PSetI);
+    return llvmMachMdl_->GetRegTypeByName(name.c_str());
   }
 
   else {
+    #ifdef IS_DEBUG_REG_TYPES
+    Logger::Info("Could not find a type for resNo %lu", resNo);
+    #endif
     return INVALID_VALUE;
   }
 }
@@ -539,4 +504,76 @@ bool LLVMDataDepGraph::isLeafNode(const SUnit& unit) {
   return true;
 }
 
+// Add life-in registers as defs for artificial root node
+void LLVMDataDepGraph::addLiveInDefUse(RegisterFile regFiles[], std::vector<int>& regIndices) {
+  // index of root node in insts_
+  int rootIndex = llvmNodes_.size();
+
+  for (const RegisterMaskPair &L : schedDag_->getRegPressure().LiveInRegs) {
+    // find defs/uses for this register
+    unsigned resNo = L.RegUnit;
+
+		int regType = GetRegisterType_(resNo);
+    // Skip non-register results.
+    if (regType == INVALID_VALUE) continue;
+		// add def to root node
+    Register* reg = regFiles[regType].GetReg(regIndices[regType]++);
+    #ifdef IS_DEBUG_DEFS_AND_USES
+    Logger::Info("Adding Def for register: %lu NodeNum: %lu", resNo, rootIndex);
+    #endif
+    insts_[rootIndex]->AddDef(reg);
+    reg->AddDef();
+ 		
+    bool foundUse = false;
+    std::vector<SUnit>::iterator curNode;
+    for (curNode = llvmNodes_.begin();
+       curNode != llvmNodes_.end(); ++curNode) {  
+		  RegisterOperands RegOpers;
+			MachineInstr* curMI = curNode->getInstr();
+      RegOpers.collect(*curMI, *schedDag_->TRI, schedDag_->MRI, false, false);
+      // add use
+      for (const RegisterMaskPair &U : RegOpers.Uses) {
+        if (U.RegUnit == resNo) {
+          foundUse = true;
+          if (!insts_[curNode->NodeNum]->FindUse(reg)) {
+            #ifdef IS_DEBUG_DEFS_AND_USES
+            Logger::Info("Adding use for register: %lu NodeNum: %lu def at %lu",
+                          resNo, curNode->NodeNum, rootIndex);
+            #endif
+            insts_[curNode->NodeNum]->AddUse(reg);
+            reg->AddUse();
+          }
+        }
+      }
+
+      // Check if this instruction redefines the register that we are collecting
+      // def/use information for. If it does we break and consider this a seperate
+      // register in our model
+      bool regIsRedefined = false;
+      for (const RegisterMaskPair &D : RegOpers.Defs) {
+        if (D.RegUnit == resNo) {
+          regIsRedefined = true;
+          break;
+        }
+      }
+      if (regIsRedefined) break;
+    }
+    // if the reg is not used it is liveout
+    if (!foundUse)
+      addLiveOutUse(reg, resNo);
+  }
+}
+
+// Add liveout registers as uses in artificial leaf node
+void LLVMDataDepGraph::addLiveOutUse(Register* reg, unsigned resNo) {
+  int leafIndex = llvmNodes_.size() + 1;
+  if (!insts_[leafIndex]->FindUse(reg)) {
+    #ifdef IS_DEBUG_DEFS_AND_USES
+    Logger::Info("Adding use for register: %lu NodeNum: %lu def at liveout",
+                 resNo, leafIndex);
+    #endif
+    insts_[leafIndex]->AddUse(reg);
+    reg->AddUse();
+  }
+}
 } // end namespace opt_sched
