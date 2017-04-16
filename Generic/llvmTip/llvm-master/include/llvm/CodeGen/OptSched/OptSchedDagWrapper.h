@@ -25,6 +25,7 @@ class LLVMDataDepGraph : public DataDepGraph {
                      llvm::ScheduleDAGMILive* llvmDag,
                      LLVMMachineModel* machMdl,
                      LATENCY_PRECISION ltncyPrcsn,
+                     llvm::MachineBasicBlock* BB,
                      bool treatOrderDepsAsDataDeps,
                      int maxDagSizeForPrcisLtncy);
     ~LLVMDataDepGraph() {}
@@ -67,8 +68,8 @@ class LLVMDataDepGraph : public DataDepGraph {
     // Converts the LLVM nodes saved in llvmNodes_ to opt_sched::DataDepGraph.
     // Should be called only once, by the constructor.
     void ConvertLLVMNodes_();
-    // Returns the register type of a given machine instruction result.
-    int GetRegisterType_(const unsigned resNo) const;
+    // Returns the register pressure set types of an instruction result.
+    std::vector<int> GetRegisterType_(const unsigned resNo) const;
 
     // Holds a register live range, mapping a producer to a set of consumers.
     struct LiveRange {

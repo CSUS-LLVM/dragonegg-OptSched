@@ -47,3 +47,58 @@ After you hit your breakpoint switch the the inferior that is running LLVM (usua
 
 info inferiors
 inferior <number of inferior to switch to>
+
+========================== Basic Debug through Eclipse ==========================
+Note: 
+	- A command starting with # is run as root, command starting with $ is run as local user.
+	- You must still follow install instructions for the repository.
+
+Preresiquites:
+1. Install and Compile LLVM_DRAGONEGG by running the CompileLLVMandDRAGONEGG.sh.
+   Eclipse needs (for now) that script to compile.
+
+2. Install these two packages by running these commands:
+	# apt-get install default-jdk
+	# apt-get install gdb-multiarch
+
+3. Download Eclipse C/C++ Edition (Eclipse Neon) which can be found here:
+	http://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/neon/3/eclipse-cpp-neon-3-linux-gtk-x86_64.tar.gz
+4. Extract the package to somewhere you'll remember, I used /var/opt/eclipse. Make sure you own the directory you extract eclipse to. You can do this by running the command:
+	# chown {your username} /path/to/dir
+	Example:
+	$ sudo chown james /var/opt/eclipse
+
+5. Open eclipse (its just a binary file named "eclipse" inside the extracted archive), set workspace to any folder you have permission to read/write to, and go to workbench (click workbench up at the top right corner in the center window).
+
+6. Import the LLVM project by right-clicking in Project Explorer plane and clicking the Import option in the context menu. A dialog will pop up with what project type to import, Click on C/C++ -> Existing Code as Makefile Project. After hitting next, Give the project a name, and set the Existing Code Location to /path/to/llvm/repository/LLVM_DRAGONEGG/Generic/llvmTip/llvm-master and select Cross GCC for Toolchain for Indexer Settings. Click finish to import the project
+	
+7. Create a new Remote debug configuration by clicking (at the top) the arrow next to the bug icon and clicking the Debug Configurations... option.
+
+8. Click on C/C++ Remote Application in the left pane, and click on the Paper with a plus icon at the top of that same pane (New Launch Configuration button).
+
+9a. In the Main Tab:
+	C/C++ Application - Click on Search Project and choose a.out and the Qualifier with CompilerIdCXX in it
+	Build (if required) before launching section - Disable auto build option
+	Using GDB (DSF) ... At the bottom of the Main tab - Click the Select Other... hyperlink and choose Use Configuration Specific settings and for the launcher GDB (DSF) Manual Remote Debugging Launcher.
+
+9b. In the Debugger Tab:
+	GDB Command File: /path/to/llvm/LLVM_DRAGONEGG/.gdbinit (it will be hidden because of . at beginning of name)
+	Make sure only Automatically debug forked processes is checked.
+	In the Connection subtab, Make sure Type is TCP, Host Name or IP address is localhost and that you __remember__ the port number, we'll call it $DebugPort. It will be important soon.
+
+10. Make sure any files you want to debug have the [SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG")] inside of the CMakeLists.txt file contained within the folder. See instructions at beginning of this txt file for more details.
+
+11. Run the CompileLLVMAndDragonegg.sh after any changes to code and before debugging.
+
+12. Get the command string for running the OptSched by running the RunOptSched with the -p switch:
+	./RunOptSched.sh -dopt -g++ -p test.cpp 
+
+13. Copy the output of that command and paste it after this:
+	$ gdbserver localhost:$DebugPort {output of RunOptSched here} it should look something like this:
+	$ gdbserver localhost:2001 /usr/bin/g++-4.8 -fplugin=/home/james/LLVM_DRAGONEGG/Generic/dragonegg/dragonegg.so -fplugin-arg-dragonegg-llvm-option=-optsched -O3 -fplugin-arg-dragonegg-llvm-option=-debug-only:optsched -fplugin-arg-dragonegg-llvm-option=-optsched-mcfg:/home/james/LLVM_DRAGONEGG/Generic/OptSchedCfg/machine_model.cfg -fplugin-arg-dragonegg-llvm-option=-optsched-sini:/home/james/LLVM_DRAGONEGG/Generic/OptSchedCfg/sched.ini -fplugin-arg-dragonegg-llvm-option=-optsched-hfini:/home/james/LLVM_DRAGONEGG/Generic/OptSchedCfg/hotfuncs.ini test.cpp
+
+14. Run that command and it will wait for a GDB Debugger to connect. We will use eclipse to use GDB to debug.
+
+15. Set your breakpoints in the LLVM Compiler code/OptSched/etc... and click the Debug button at the top. It will Pause the program as soon as it attaches to the gdbserver. Click the Resume Button at the top (the button with the Green Arrow and yellow bar to the left of it).
+
+16. Debug as usual in eclipse, all debugging functions should work just fine.

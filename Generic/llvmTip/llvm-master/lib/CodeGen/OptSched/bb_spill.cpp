@@ -272,7 +272,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
   useCnt = inst->GetUses(uses);
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  Logger::Info("Updating reg pressure after scheduling Inst %d", inst->GetNum());
+  //Logger::Info("Updating reg pressure after scheduling Inst %d", inst->GetNum());
   #endif
 
   // Update Live regs after uses
@@ -286,7 +286,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
      Logger::Fatal("Reg %d of type %d is used without being defined", regNum, regType); 
 
    #ifdef IS_DEBUG_REG_PRESSURE
-   Logger::Info("Inst %d uses reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, use->GetUseCnt());
+   //Logger::Info("Inst %d uses reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, use->GetUseCnt());
    #endif    
 
     use->AddCrntUse();
@@ -295,7 +295,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       liveRegs_[regType].SetBit(regNum, false);
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
+      //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
@@ -311,7 +311,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
     physRegNum = def->GetPhysicalNumber(); 
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    Logger::Info("Inst %d defines reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, def->GetUseCnt()); 
+    //Logger::Info("Inst %d defines reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, def->GetUseCnt()); 
     #endif
    
     if (def->GetUseCnt() > 0) {
@@ -322,7 +322,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       liveRegs_[regType].SetBit(regNum, true);
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
+      //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
@@ -339,7 +339,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       peakRegPressures_[i] = liveRegs;
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    Logger::Info("Reg type %d has %d live regs", i, liveRegs);
+    //Logger::Info("Reg type %d has %d live regs", i, liveRegs);
     #endif
 
     if (spillCostFunc_ == SCF_PEAK_PER_TYPE)
@@ -360,7 +360,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
   spillCosts_[crntStepNum_] = newSpillCost;
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  //Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
+  Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
   #endif
 
   totSpillCost_ += newSpillCost;
@@ -385,7 +385,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
   bool isLive;
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  Logger::Info("Updating reg pressure after unscheduling Inst %d", inst->GetNum());
+  //Logger::Info("Updating reg pressure after unscheduling Inst %d", inst->GetNum());
   #endif
 
   defCnt = inst->GetDefs(defs);
@@ -399,8 +399,8 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     physRegNum = def->GetPhysicalNumber();
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    Logger::Info("Inst %d defines reg %d of type %d and %d uses", 
-                 inst->GetNum(), regNum, regType, def->GetUseCnt());    
+    //Logger::Info("Inst %d defines reg %d of type %d and %d uses", 
+    //             inst->GetNum(), regNum, regType, def->GetUseCnt());    
     #endif
 
     if (def->GetUseCnt() > 0) {
@@ -408,7 +408,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
       liveRegs_[regType].SetBit(regNum, false);
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
+      //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
@@ -424,8 +424,8 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     physRegNum = use->GetPhysicalNumber();
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    Logger::Info("Inst %d uses reg %d of type %d and %d uses", 
-                 inst->GetNum(), regNum, regType, use->GetUseCnt());    
+    //Logger::Info("Inst %d uses reg %d of type %d and %d uses", 
+    //             inst->GetNum(), regNum, regType, use->GetUseCnt());    
     #endif
 
     isLive = use->IsLive();
@@ -436,8 +436,8 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
       liveRegs_[regType].SetBit(regNum, true);
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", 
-                   regType, liveRegs_[regType].GetOneCnt());
+      //Logger::Info("Reg type %d now has %d live regs", 
+      //             regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
