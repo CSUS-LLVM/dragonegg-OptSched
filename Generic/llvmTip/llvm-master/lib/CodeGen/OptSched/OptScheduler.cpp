@@ -53,6 +53,7 @@ namespace opt_sched {
 ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
       context(C), model(MachineModelConfigFile) {
+
   // valid heuristic names
   std::strcpy(hurstcNames[(int)LSH_CP], "CP");
   std::strcpy(hurstcNames[(int)LSH_LUC], "LUC");
@@ -62,8 +63,20 @@ ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
   std::strcpy(hurstcNames[(int)LSH_ISO], "ISO");
   std::strcpy(hurstcNames[(int)LSH_SC], "SC");
   std::strcpy(hurstcNames[(int)LSH_LS], "LS");
+
+  // Convert machine model
+  model.convertMachineModel(this, RegClassInfo);
+
   // Load config files for the OptScheduler
   loadOptSchedConfig();
+
+  if (enableMutations) {
+    // load mutations for dag
+    addMutation(llvm::createCopyConstrainDAGMutation(TII, TRI));
+    addMutation(llvm::createLoadClusterDAGMutation(TII, TRI));
+    addMutation(llvm::createStoreClusterDAGMutation(TII, TRI));
+    addMutation(createMacroFusionDAGMutation(TII, TRI));
+  }
 }
 
 void ScheduleDAGOptSched::SetupLLVMDag() {
@@ -91,15 +104,20 @@ void ScheduleDAGOptSched::schedule() {
   }
 
   DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
-
+  
+  // build LLVM DAG
   SetupLLVMDag();
+  // Init topo for fast search for cycles and/or mutations
+  Topo.InitDAGTopologicalSorting();
+  
+  // apply mutations
+  if (enableMutations) {
+    postprocessDAG();
+  }
 
   // Ignore empty DAGs
   if (SUnits.empty())
     return;
-
-  // Convert machine model
-  model.convertMachineModel(this, this->RegClassInfo);
 
 // Dump max pressure
 #ifdef IS_DEBUG_PEAK_PRESSURE
@@ -117,7 +135,7 @@ void ScheduleDAGOptSched::schedule() {
 #endif
 
   // convert dag
-  LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB,
+  LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB, Topo,
                        treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision);
   // create region
   SchedRegion *region = new BBWithSpill(
@@ -126,7 +144,7 @@ void ScheduleDAGOptSched::schedule() {
       enumerateStalls, spillCostFactor, spillCostFunction, checkSpillCostSum,
       checkConflicts, fixLiveIn, fixLiveOut, maxSpillCost);
 
-  // count defs, add defs and uses, out output edges
+  // count defs, add defs and uses
   region->BuildFromFile();
 
   // Schedule
@@ -254,6 +272,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   histTableHashBits =
       static_cast<int16_t>(schedIni.GetInt("HIST_TABLE_HASH_BITS"));
   verifySchedule = schedIni.GetBool("VERIFY_SCHEDULE");
+  enableMutations = schedIni.GetBool("LLVM_MUTATIONS");
   enumerateStalls = schedIni.GetBool("ENUMERATE_STALLS");
   spillCostFactor = schedIni.GetInt("SPILL_COST_FACTOR");
   checkSpillCostSum = schedIni.GetBool("CHECK_SPILL_COST_SUM");

@@ -1,9 +1,6 @@
 /*******************************************************************************
 Description:  A wrapper that convert an LLVM ScheduleDAG to an OptSched
               DataDepGraph.
-Author:       Max Shawabkeh
-Created:      Apr. 2011
-Last Update:  Mar. 2017
 *******************************************************************************/
 
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
@@ -14,6 +11,7 @@ Last Update:  Mar. 2017
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
+#include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
@@ -39,10 +37,11 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext *context,
                                    LLVMMachineModel *machMdl,
                                    LATENCY_PRECISION ltncyPrcsn,
                                    MachineBasicBlock *BB,
+                                   ScheduleDAGTopologicalSort &Topo,
                                    bool treatOrderDepsAsDataDeps,
                                    int maxDagSizeForPrcisLtncy)
     : DataDepGraph(machMdl, ltncyPrcsn), llvmNodes_(llvmDag->SUnits),
-      context_(context), schedDag_(llvmDag), target_(llvmDag->TM) {
+      context_(context), schedDag_(llvmDag), topo_(Topo), target_(llvmDag->TM) {
   llvmMachMdl_ = static_cast<LLVMMachineModel *>(machMdl_);
   dagFileFormat_ = DFF_BB;
   isTraceFormat_ = false;
@@ -151,9 +150,8 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
     const MachineInstr *instr = unit.getInstr();
     for (SUnit::const_succ_iterator it = unit.Succs.begin();
          it != unit.Succs.end(); it++) {
-      // check if the successor is a boundary node
-      if (it->isArtificial() || it->getSUnit()->isBoundaryNode() ||
-          !it->getSUnit()->isInstr())
+     // check if the successor is a boundary node
+     if (it->getSUnit()->isBoundaryNode())
         continue;
 
       DependenceType depType;
@@ -201,6 +199,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
     }
   }
 
+  // add edges between equivalent instructions
+  PreOrderEquivalentInstr();
+
   size_t maxNodeNum = llvmNodes_.size() - 1;
 
   // Create artificial root.
@@ -215,8 +216,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
                   0,  // fileInstLwrBound
                   0,  // fileInstUprBound
                   0); // blkNum
-  for (size_t i = 0; i < roots.size(); i++) {
-    CreateEdge_(rootNum, roots[i], 0, DEP_OTHER);
+  for (size_t i = 0; i < llvmNodes_.size(); i++) {
+    if (insts_[i]->GetPrdcsrCnt() == 0)
+      CreateEdge_(rootNum, i, 0, DEP_OTHER);
   }
 
   // Create artificial leaf.
@@ -224,12 +226,13 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   CreateNode_(leafNum, "artificial", machMdl_->GetInstTypeByName("artificial"),
               "__optsched_exit",
               0, // nodeID
-              llvmNodes_.size() + 1, llvmNodes_.size() + 1,
+              0, 0,
               0,  // fileInstLwrBound
               0,  // fileInstUprBound
               0); // blkNum
-  for (size_t i = 0; i < leaves.size(); i++) {
-    CreateEdge_(leaves[i], leafNum, 0, DEP_OTHER);
+  for (size_t i = 0; i < llvmNodes_.size(); i++) {
+    if (insts_[i]->GetScsrCnt() == 0)
+      CreateEdge_(i, leafNum, 0, DEP_OTHER);
   }
   AdjstFileSchedCycles_();
   PrintEdgeCntPerLtncyInfo();
@@ -355,6 +358,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   // index of leaf node in insts_
   int leafIndex = llvmNodes_.size() + 1;
 
+  // add live-out registers as uses in artificial leaf instruction
   for (const RegisterMaskPair &O : schedDag_->getRegPressure().LiveOutRegs) {
     unsigned resNo = O.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
@@ -373,102 +377,161 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   }
 }
 
-void LLVMDataDepGraph::AddOutputEdges() {
-  // Maps physical register number to their live ranges.
-  std::map<int, std::vector<LiveRange>> ranges;
-  // Maps each {physical register number and user node} to their live range.
-  std::map<std::pair<int, SchedInstruction *>, SchedInstruction *> sources;
+void LLVMDataDepGraph::PreOrderEquivalentInstr() {
+  // a list indexed by depth that holds a list of all nodes that exist at that
+  // depth in the graph
+  std::vector<std::list<int>> depthList;
 
-  // Find live ranges.
-  for (int i = 0; i < GetInstCnt(); i++) {
-    SchedInstruction *inst = GetInstByIndx(i);
-    Register **defs;
-    int defsCount = inst->GetDefs(defs);
-    for (int j = 0; j < defsCount; j++) {
-      Register *reg = defs[j];
-      if (reg->IsPhysical()) {
-        int regNumber = reg->GetPhysicalNumber();
-        ranges[regNumber].push_back(LiveRange());
-        LiveRange &range = ranges[regNumber].back();
-        range.producer = inst;
-        for (SchedInstruction *succ = inst->GetFrstScsr(); succ != NULL;
-             succ = inst->GetNxtScsr()) {
-          if (succ->FindUse(reg)) {
-            range.consumers.push_back(succ);
-            sources[std::make_pair(regNumber, succ)] = inst;
-          }
-        }
-      }
-    }
+  // add nodes to lists organized by their depth in the graph
+  for (size_t i = 0; i < llvmNodes_.size(); i++) {
+    int nodeNum = llvmNodes_[i].NodeNum;
+    int depth = llvmNodes_[i].getDepth();
+
+    if (depth + 1 > depthList.size())
+      depthList.resize(depth + 1);
+
+    depthList[depth].push_back(nodeNum);
+
+#ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Node %d is at depth %d", nodeNum, depth);
+#endif
   }
 
-#ifdef IS_DEBUG_OUT_EDGES
-  for (std::map<int, vector<LiveRange>>::iterator it = ranges.begin();
-       it != ranges.end(); it++) {
-    Logger::Info("Ranges for %d:", it->first);
-    for (unsigned i = 0; i < it->second.size(); i++) {
-      Logger::Info("  Producer [%p] %s", it->second[i].producer,
-                   it->second[i].producer->GetOpCode());
-      for (unsigned j = 0; j < it->second[i].consumers.size(); j++) {
-        Logger::Info("    Consumer [%p] %s", it->second[i].consumers[j],
-                     it->second[i].consumers[j]->GetOpCode());
+  for (size_t i = 0; i < depthList.size(); i++) {
+    // look for equivalent nodes at a given depth in the DAG and add edges
+    // between them
+    while (!depthList[i].empty()) {
+      std::list<int>::iterator start, next;
+      start = next = depthList[i].begin();
+      next++;
+
+      while (next != depthList[i].end()) {
+        const SUnit& startNode = llvmNodes_[*start];
+        const SUnit& nextNode = llvmNodes_[*next];
+        // Do not create edge if nodes are equivalent but there is a path from next node to
+        // start node. This will create a cycle.
+        if (nodesAreEquivalent(startNode, nextNode) && !topo_.IsReachable(&startNode, &nextNode)) {
+#if defined(IS_DEBUG_BUILD_DAG) || defined(IS_DEBUG_PRE_ORDER)
+          Logger::Info("Nodes %d and %d are equivalent", *start, *next);
+#endif
+          CreateEdge_(*start, *next, 0, DEP_OTHER);
+          // remove node from list after edge is created
+          depthList[i].erase(start);
+          start = next;
+        }
+        next++;
       }
+      depthList[i].erase(start);
     }
   }
-#endif
+}
 
-  // Create the output edges.
-  std::map<std::pair<int, SchedInstruction *>, SchedInstruction *>::iterator it;
-  for (it = sources.begin(); it != sources.end(); it++) {
-    int R = it->first.first;
-    SchedInstruction *U = it->first.second;
-    SchedInstruction *P1 = it->second;
-    vector<LiveRange> &regRanges = ranges[R];
-    std::stack<SchedInstruction *> ancestors;
-    std::set<SchedInstruction *> seen;
+bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
+                                          const SUnit &dstNode) {
+  // sets of node numbers of successors and predecessors for both nodes
+  std::set<int> srcPreds, dstPreds, srcSuccs, dstSuccs;
+  // def and use lists for both nodes
+  std::vector<int> srcDefs, dstDefs, srcUses, dstUses;
 
-    for (SchedInstruction *predecessor = U->GetFrstPrdcsr();
-         predecessor != NULL; predecessor = U->GetNxtPrdcsr()) {
-      ancestors.push(predecessor);
-      seen.insert(predecessor);
-    }
+  MachineInstr *srcMI = srcNode.getInstr();
+  MachineInstr *dstMI = dstNode.getInstr();
+  RegisterOperands srcRegOpers;
+  RegisterOperands dstRegOpers;
 
-    while (!ancestors.empty()) {
-      SchedInstruction *P2 = ancestors.top();
-      ancestors.pop();
-      if (P1 == P2)
-        continue;
-      bool foundConflict = false;
-      for (unsigned i = 0; i < regRanges.size(); i++) {
-        if (regRanges[i].producer == P2) {
-// TODO(max): Get output dependency latency from machine model.
-#ifdef IS_DEBUG_OUTEDGES
-          Logger::Info("Output edge from [%p] %s to [%p] %s on register %d", P2,
-                       P2->GetOpCode(), P1, P1->GetOpCode(), R);
-#endif
-          CreateEdge(P2, P1, 0, DEP_OUTPUT);
+  // compare issue types
+  if (insts_[srcNode.NodeNum]->GetIssueType() !=
+      insts_[dstNode.NodeNum]->GetIssueType())
+    return false;
 
-#ifdef IS_DEBUG_OUTEDGES
-          Logger::Info("Creating an output edge from %d to %d", P2->GetNum(),
-                       P1->GetNum());
-#endif
+  // collect def/use information for source instruction
+  srcRegOpers.collect(*srcMI, *schedDag_->TRI, schedDag_->MRI, false, false);
+  // collect def/use information for destination instruction
+  dstRegOpers.collect(*dstMI, *schedDag_->TRI, schedDag_->MRI, false, false);
 
-          foundConflict = true;
-          break;
-        }
-      }
-
-      if (!foundConflict) {
-        for (SchedInstruction *predecessor = P2->GetFrstPrdcsr();
-             predecessor != NULL; predecessor = P2->GetNxtPrdcsr()) {
-          if (seen.find(predecessor) != seen.end())
-            continue;
-          ancestors.push(predecessor);
-          seen.insert(predecessor);
-        }
-      }
-    }
+  // find successors for source node
+  for (SUnit::const_succ_iterator I = srcNode.Succs.begin(),
+                                  E = srcNode.Succs.end();
+       I != E; ++I) {
+    SUnit *succ = I->getSUnit();
+    srcSuccs.insert(succ->NodeNum);
   }
+
+  // find successors for destination node
+  for (SUnit::const_succ_iterator I = dstNode.Succs.begin(),
+                                  E = dstNode.Succs.end();
+       I != E; ++I) {
+    SUnit *succ = I->getSUnit();
+    dstPreds.insert(succ->NodeNum);
+  }
+
+  if (srcSuccs != dstSuccs)
+    return false;
+
+  // find predecessors for source node
+  for (SUnit::const_succ_iterator I = srcNode.Preds.begin(),
+                                  E = srcNode.Preds.end();
+       I != E; ++I) {
+    SUnit *pred = I->getSUnit();
+    srcSuccs.insert(pred->NodeNum);
+  }
+
+  // find predecessors for destination node
+  for (SUnit::const_succ_iterator I = dstNode.Preds.begin(),
+                                  E = dstNode.Preds.end();
+       I != E; ++I) {
+    SUnit *pred = I->getSUnit();
+    dstPreds.insert(pred->NodeNum);
+  }
+
+  if (srcPreds != dstPreds)
+    return false;
+
+  // find defs for source instruction
+  for (const RegisterMaskPair &D : srcRegOpers.Defs) {
+    unsigned resNo = D.RegUnit;
+    std::vector<int> regTypes = GetRegisterType_(resNo);
+    for (int regType : regTypes)
+      srcDefs.push_back(regType);
+  }
+
+  // find defs for destination instruction
+  for (const RegisterMaskPair &D : dstRegOpers.Defs) {
+    unsigned resNo = D.RegUnit;
+    std::vector<int> regTypes = GetRegisterType_(resNo);
+    for (int regType : regTypes)
+      dstDefs.push_back(regType);
+  }
+
+  std::sort(srcDefs.begin(), srcDefs.end());
+  std::sort(dstDefs.begin(), dstDefs.end());
+
+  if (srcDefs != dstDefs)
+    return false;
+
+  // find uses for source instruction
+  for (const RegisterMaskPair &U : srcRegOpers.Uses) {
+    unsigned resNo = U.RegUnit;
+    std::vector<int> regTypes = GetRegisterType_(resNo);
+    for (int regType : regTypes)
+      srcUses.push_back(regType);
+  }
+
+  // find uses for destination instruction
+  for (const RegisterMaskPair &U : dstRegOpers.Uses) {
+    unsigned resNo = U.RegUnit;
+    std::vector<int> regTypes = GetRegisterType_(resNo);
+    for (int regType : regTypes)
+      dstUses.push_back(regType);
+  }
+
+  std::sort(srcUses.begin(), srcUses.end());
+  std::sort(dstUses.begin(), dstUses.end());
+
+  if (srcUses != dstUses)
+    return false;
+
+  // all tests passed return true
+  return true;
 }
 
 std::vector<int>
@@ -479,13 +542,10 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
 
   // Check if is a physical register
   if (schedDag_->TRI->isPhysicalRegister(resNo)) {
-    regClass = TRI.getMinimalPhysRegClass(resNo);
-    if (!regClass)
-      return pSetTypes;
 
-    unsigned weight = TRI.getRegClassWeight(regClass).RegWeight;
+    unsigned weight = TRI.getRegUnitWeight(resNo);
     // get pressure sets associated with this regsiter class
-    for (const int *PSet = TRI.getRegClassPressureSets(regClass); *PSet != -1;
+    for (const int *PSet = TRI.getRegUnitPressureSets(resNo); *PSet != -1;
          ++PSet) {
       const char *pSetName = TRI.getRegPressureSetName(*PSet);
       int type = llvmMachMdl_->GetRegTypeByName(pSetName);
@@ -500,7 +560,7 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
     }
   }
 
-  else if (schedDag_->TRI->isVirtualRegister(resNo)) {
+  if (schedDag_->TRI->isVirtualRegister(resNo)) {
     regClass = schedDag_->MRI.getRegClass(resNo);
     if (!regClass)
       return pSetTypes;
@@ -544,8 +604,7 @@ SUnit *LLVMDataDepGraph::GetSUnit(size_t index) const {
 bool LLVMDataDepGraph::isRootNode(const SUnit &unit) {
   for (SUnit::const_pred_iterator I = unit.Preds.begin(), E = unit.Preds.end();
        I != E; ++I) {
-    if (I->isArtificial() || !I->getSUnit()->isInstr() ||
-        I->getSUnit()->isBoundaryNode())
+    if (I->getSUnit()->isBoundaryNode())
       continue;
     else
       return false;
@@ -557,8 +616,7 @@ bool LLVMDataDepGraph::isRootNode(const SUnit &unit) {
 bool LLVMDataDepGraph::isLeafNode(const SUnit &unit) {
   for (SUnit::const_succ_iterator I = unit.Succs.begin(), E = unit.Succs.end();
        I != E; ++I) {
-    if (I->isArtificial() || !I->getSUnit()->isInstr() ||
-        I->getSUnit()->isBoundaryNode())
+    if (I->getSUnit()->isBoundaryNode())
       continue;
     else
       return false;

@@ -72,6 +72,8 @@ namespace opt_sched {
 			// In certain cases, such as having unpipelined instructions, this may
 			// result in a better schedule. Defaults to YES
       bool enumerateStalls;
+      // Whether to apply LLVM mutations to the DAG before scheduling
+      bool enableMutations;
       // The weight of the spill cost in the objective function. This factor
       // defines the importance of spill cost relative to schedule length. A good
       // value for this factor should be found experimentally, but is is expected
