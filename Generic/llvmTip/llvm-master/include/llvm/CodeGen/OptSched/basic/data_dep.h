@@ -267,9 +267,8 @@ class DataDepGraph : public DirAcycGraph, public DataDepStruct {
     void SetHard(bool isHard);
     bool IsHard() { return isHard_; }
 
-	virtual void CountDefs(RegisterFile regFiles[])=0;
-	virtual void AddDefsAndUses(RegisterFile regFiles[])=0;
-	virtual void AddOutputEdges();
+	  virtual void CountDefs(RegisterFile regFiles[])=0;
+	  virtual void AddDefsAndUses(RegisterFile regFiles[])=0;
 
     int GetEntryInstCnt() { return entryInstCnt_;}
     int GetExitInstCnt() { return exitInstCnt_;}
@@ -708,6 +707,7 @@ class InstSchedule {
     void SetSpillCandidateCount(int cnflctCnt);
 
     void Print(std::ostream& out, char const * const title);
+    void PrintRegPressures(std::ostream& out);
     void PrintInstList(FILE* file, DataDepGraph* dataDepGraph, char* title);
     bool Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph);
     void PrintClassData();

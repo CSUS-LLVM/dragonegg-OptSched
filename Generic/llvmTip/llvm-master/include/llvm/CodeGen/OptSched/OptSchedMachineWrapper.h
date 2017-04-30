@@ -11,6 +11,7 @@ Last Update:  Mar. 2017
 #include "llvm/CodeGen/OptSched/basic/machine_model.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include <map>
 
@@ -21,17 +22,11 @@ class LLVMMachineModel : public MachineModel {
     LLVMMachineModel(const string configFile);
     // Convert information about the target machine into the
     // optimal scheduler machine model
-    void convertMachineModel(llvm::ScheduleDAG* scheduleDag);
+    void convertMachineModel(const llvm::ScheduleDAGMILive* scheduleDag, const llvm::RegisterClassInfo* regClassInfo);
+    // Pointer to register info for target
+    const llvm::TargetRegisterInfo* registerInfo;
+
     ~LLVMMachineModel() {}
-
-    int GetRegType(const llvm::TargetRegisterClass* cls, 
-                   const llvm::TargetRegisterInfo* regInfo) const;
-    const llvm::TargetRegisterClass* GetRegClass(int type) const;
-
-  protected:
-    std::map<const llvm::TargetRegisterClass*, int> regClassToType_;
-    std::map<int, const llvm::TargetRegisterClass*> regTypeToClass_;
-
 };
 
 } // end namespace opt_sched

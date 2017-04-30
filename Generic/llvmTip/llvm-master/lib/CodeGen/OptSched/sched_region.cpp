@@ -140,7 +140,7 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
 
   FinishHurstc_();
 
-    #ifdef IS_DEBUG_SOLN_DETAILS_1
+    #ifdef IS_DEBUG
     Logger::Info("The list schedule is of length %d and spill cost %d. Tot cost = %d",
                  bestSchedLngth_, lstSched->GetSpillCost(), bestCost_);
     #endif

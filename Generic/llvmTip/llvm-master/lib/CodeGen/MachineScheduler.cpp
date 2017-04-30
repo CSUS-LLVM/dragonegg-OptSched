@@ -701,8 +701,8 @@ void ScheduleDAGMI::schedule() {
   // This may initialize a DFSResult to be used for queue priority.
   SchedImpl->initialize(this);
 
-  DEBUG(for (unsigned su = 0, e = SUnits.size(); su != e; ++su)
-          SUnits[su].dumpAll(this));
+  //DEBUG(for (unsigned su = 0, e = SUnits.size(); su != e; ++su)
+  //        SUnits[su].dumpAll(this));
   if (ViewMISchedDAGs) viewGraph();
 
   // Initialize ready queues now that the DAG and priority data are finalized.
@@ -1018,6 +1018,7 @@ void ScheduleDAGMILive::updatePressureDiffs(
 
         PressureDiff &PDiff = getPressureDiff(&SU);
         PDiff.addPressureChange(Reg, Decrement, &MRI);
+        /*
         DEBUG(
           dbgs() << "  UpdateRegP: SU(" << SU.NodeNum << ") "
                  << PrintReg(Reg, TRI) << ':' << PrintLaneMask(P.LaneMask)
@@ -1025,10 +1026,11 @@ void ScheduleDAGMILive::updatePressureDiffs(
           dbgs() << "              to ";
           PDiff.dump(*TRI);
         );
+        */
       }
     } else {
       assert(P.LaneMask != 0);
-      DEBUG(dbgs() << "  LiveReg: " << PrintVRegOrUnit(Reg, TRI) << "\n");
+      //DEBUG(dbgs() << "  LiveReg: " << PrintVRegOrUnit(Reg, TRI) << "\n");
       // This may be called before CurrentBottom has been initialized. However,
       // BotRPTracker must have a valid position. We want the value live into the
       // instruction or live out of the block, so ask for the previous
@@ -1056,12 +1058,14 @@ void ScheduleDAGMILive::updatePressureDiffs(
           if (LRQ.valueIn() == VNI) {
             PressureDiff &PDiff = getPressureDiff(SU);
             PDiff.addPressureChange(Reg, true, &MRI);
+            /*
             DEBUG(
               dbgs() << "  UpdateRegP: SU(" << SU->NodeNum << ") "
                      << *SU->getInstr();
               dbgs() << "              to ";
               PDiff.dump(*TRI);
             );
+            */
           }
         }
       }
