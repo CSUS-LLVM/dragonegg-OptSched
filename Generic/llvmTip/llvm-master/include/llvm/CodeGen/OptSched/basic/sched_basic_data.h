@@ -84,9 +84,9 @@ const int SCHD_STALL = -2;
 
 // TODO(max): Eliminate these limits.
 // The maximum number of register definition per instruction node.
-const int MAX_DEFS_PER_INSTR = 100;
+const int MAX_DEFS_PER_INSTR = 1024;
 // The maximum number of register usages per instruction node.
-const int MAX_USES_PER_INSTR = 100;
+const int MAX_USES_PER_INSTR = 1024;
 
 // Forward declarations used to reduce the number of #includes.
 class DataDepGraph;
@@ -416,6 +416,8 @@ class SchedInstruction : public GraphNode {
     int16_t GetUseCnt() {return useCnt_;}
     int16_t CmputLastUseCnt();
     int16_t GetLastUseCnt() {return lastUseCnt_;}
+
+    InstType GetCrtclPathFrmRoot() {return crtclPathFrmRoot_;}
 
     friend class SchedRange;
 
