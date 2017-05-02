@@ -8,6 +8,8 @@
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
 #include "llvm/CodeGen/OptSched/enum/enumerator.h"
+#include <cstdio>
+#include <iostream>
 
 namespace opt_sched {
 
@@ -108,12 +110,11 @@ ListScheduler* BBWithSpill::AllocLstSchdulr_() {
 FUNC_RESULT BBWithSpill::BuildFromFile() {
   dataDepGraph_->CountDefs(regFiles_);
   dataDepGraph_->AddDefsAndUses(regFiles_);
-  dataDepGraph_->AddOutputEdges();
 
   for (int i = 0; i < regTypeCnt_; i++) {
     liveRegs_[i].Construct(regFiles_[i].GetRegCnt());
   }
-
+  
   return RES_SUCCESS;
 }
 /*****************************************************************************/
@@ -401,7 +402,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     #ifdef IS_DEBUG_REG_PRESSURE
     //Logger::Info("Inst %d defines reg %d of type %d and %d uses", 
     //             inst->GetNum(), regNum, regType, def->GetUseCnt());    
-    #endif
+    #endif 
 
     if (def->GetUseCnt() > 0) {
       assert(liveRegs_[regType].GetBit(regNum));

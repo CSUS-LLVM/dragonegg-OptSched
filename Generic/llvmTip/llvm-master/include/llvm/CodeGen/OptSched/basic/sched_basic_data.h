@@ -417,6 +417,8 @@ class SchedInstruction : public GraphNode {
     int16_t CmputLastUseCnt();
     int16_t GetLastUseCnt() {return lastUseCnt_;}
 
+    InstType GetCrtclPathFrmRoot() {return crtclPathFrmRoot_;}
+
     friend class SchedRange;
 
   protected:

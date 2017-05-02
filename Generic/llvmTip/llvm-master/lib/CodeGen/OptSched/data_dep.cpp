@@ -1339,9 +1339,11 @@ void DataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   }
 }*/
 
+/*
 void DataDepGraph::AddOutputEdges() {
   // Nothing to do. By default output edges are predefined.
 }
+*/
 
 void DataDepGraph::PrintEdgeCntPerLtncyInfo() {
   int totEdgeCnt = 0;

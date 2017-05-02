@@ -26,6 +26,7 @@ class LLVMDataDepGraph : public DataDepGraph {
                      LLVMMachineModel* machMdl,
                      LATENCY_PRECISION ltncyPrcsn,
                      llvm::MachineBasicBlock* BB,
+                     llvm::ScheduleDAGTopologicalSort& Topo,
                      bool treatOrderDepsAsDataDeps,
                      int maxDagSizeForPrcisLtncy);
     ~LLVMDataDepGraph() {}
@@ -39,8 +40,9 @@ class LLVMDataDepGraph : public DataDepGraph {
     // Counts the number of definitions and usages for each register and updates
     // instructions to point to the registers they define/use.
     virtual void AddDefsAndUses(RegisterFile regFiles[]);
-    // Creates the output edges missing from LLVM's ScheduleDAG.
-    virtual void AddOutputEdges();
+    // Find instructions that are equivalent and order them arbitrary to reduce
+    // complexity
+    virtual void PreOrderEquivalentInstr();
 
   protected:
     // A convenience machMdl_ pointer casted to LLVMMachineModel*.
@@ -54,6 +56,8 @@ class LLVMDataDepGraph : public DataDepGraph {
     llvm::ScheduleDAGMILive* schedDag_;
 		// Precision of latency info
     LATENCY_PRECISION ltncyPrcsn_;
+    // A topological ordering for SUnits which permits fast IsReachable and similar queries
+    llvm::ScheduleDAGTopologicalSort& topo_;
     // An option to treat data dependencies of type ORDER as data dependencies
     bool treatOrderDepsAsDataDeps_;
     // The maximum DAG size to be scheduled using precise latency information
@@ -64,6 +68,8 @@ class LLVMDataDepGraph : public DataDepGraph {
     bool isRootNode(const llvm::SUnit& unit);
     // Check is SUnit is a leaf node
     bool isLeafNode(const llvm::SUnit& unit);
+    // Check if two nodes are equivalent and if we can order them arbitrarily
+    bool nodesAreEquivalent(const llvm::SUnit& srcNode, const llvm::SUnit& dstNode);
 
     // Converts the LLVM nodes saved in llvmNodes_ to opt_sched::DataDepGraph.
     // Should be called only once, by the constructor.
