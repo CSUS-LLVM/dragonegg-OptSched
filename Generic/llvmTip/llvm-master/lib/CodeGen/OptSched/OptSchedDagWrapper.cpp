@@ -429,9 +429,9 @@ void LLVMDataDepGraph::PreOrderEquivalentInstr() {
 bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                           const SUnit &dstNode) {
   // sets of node numbers of successors and predecessors for both nodes
-  std::set<int> srcPreds, dstPreds, srcSuccs, dstSuccs;
+  std::set<unsigned long> srcPreds, dstPreds, srcSuccs, dstSuccs;
   // def and use lists for both nodes
-  std::vector<int> srcDefs, dstDefs, srcUses, dstUses;
+  std::vector<unsigned long> srcDefs, dstDefs, srcUses, dstUses;
 
   MachineInstr *srcMI = srcNode.getInstr();
   MachineInstr *dstMI = dstNode.getInstr();
@@ -453,6 +453,9 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                   E = srcNode.Succs.end();
        I != E; ++I) {
     SUnit *succ = I->getSUnit();
+    #ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Source Instr: %d has succ %d", srcNode.NodeNum, succ->NodeNum);
+    #endif
     srcSuccs.insert(succ->NodeNum);
   }
 
@@ -461,25 +464,34 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                   E = dstNode.Succs.end();
        I != E; ++I) {
     SUnit *succ = I->getSUnit();
-    dstPreds.insert(succ->NodeNum);
+    #ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Destination Instr: %d has succ %d", dstNode.NodeNum, succ->NodeNum);
+    #endif
+    dstSuccs.insert(succ->NodeNum);
   }
 
   if (srcSuccs != dstSuccs)
     return false;
 
   // find predecessors for source node
-  for (SUnit::const_succ_iterator I = srcNode.Preds.begin(),
+  for (SUnit::const_pred_iterator I = srcNode.Preds.begin(),
                                   E = srcNode.Preds.end();
        I != E; ++I) {
     SUnit *pred = I->getSUnit();
-    srcSuccs.insert(pred->NodeNum);
+    #ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Source Instr: %d has pred %d", srcNode.NodeNum, pred->NodeNum);
+    #endif
+    srcPreds.insert(pred->NodeNum);
   }
 
   // find predecessors for destination node
-  for (SUnit::const_succ_iterator I = dstNode.Preds.begin(),
+  for (SUnit::const_pred_iterator I = dstNode.Preds.begin(),
                                   E = dstNode.Preds.end();
        I != E; ++I) {
     SUnit *pred = I->getSUnit();
+    #ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Destination Instr: %d has pred %d", dstNode.NodeNum, pred->NodeNum);
+    #endif
     dstPreds.insert(pred->NodeNum);
   }
 
@@ -490,16 +502,24 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
   for (const RegisterMaskPair &D : srcRegOpers.Defs) {
     unsigned resNo = D.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes)
-      srcDefs.push_back(regType);
+    for (int regType : regTypes) {
+     #ifdef IS_DEBUG_PRE_ORDER
+     Logger::Info("Source Instr: %d defines reg of type %s", srcNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
+     #endif
+     srcDefs.push_back(regType);
+    }
   }
 
   // find defs for destination instruction
   for (const RegisterMaskPair &D : dstRegOpers.Defs) {
     unsigned resNo = D.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes)
+    for (int regType : regTypes) {
+      #ifdef IS_DEBUG_PRE_ORDER
+      Logger::Info("Destination Instr: %d defines reg of type %s", dstNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
+      #endif
       dstDefs.push_back(regType);
+    }
   }
 
   std::sort(srcDefs.begin(), srcDefs.end());
@@ -512,16 +532,24 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
   for (const RegisterMaskPair &U : srcRegOpers.Uses) {
     unsigned resNo = U.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes)
+    for (int regType : regTypes) {
+      #ifdef IS_DEBUG_PRE_ORDER
+      Logger::Info("Source Instr: %d uses reg of type %s", srcNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
+      #endif
       srcUses.push_back(regType);
+    }
   }
 
   // find uses for destination instruction
   for (const RegisterMaskPair &U : dstRegOpers.Uses) {
     unsigned resNo = U.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes)
+    for (int regType : regTypes) {
+      #ifdef IS_DEBUG_PRE_ORDER
+      Logger::Info("Source Instr: %d uses reg of type %s", dstNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
+      #endif
       dstUses.push_back(regType);
+    }
   }
 
   std::sort(srcUses.begin(), srcUses.end());
@@ -539,6 +567,7 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   const TargetRegisterInfo &TRI = *schedDag_->TRI;
   const TargetRegisterClass *regClass;
   std::vector<int> pSetTypes;
+  
 
   // Check if is a physical register
   if (schedDag_->TRI->isPhysicalRegister(resNo)) {
