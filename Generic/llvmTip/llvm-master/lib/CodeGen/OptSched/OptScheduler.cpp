@@ -103,8 +103,8 @@ void ScheduleDAGOptSched::schedule() {
     return;
   }
 
-  DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");
-  
+ Logger::Info("********** Opt Scheduling **********\n");
+
   // build LLVM DAG
   SetupLLVMDag();
   // Init topo for fast search for cycles and/or mutations

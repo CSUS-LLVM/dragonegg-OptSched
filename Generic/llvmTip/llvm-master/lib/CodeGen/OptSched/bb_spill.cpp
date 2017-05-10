@@ -140,6 +140,13 @@ void BBWithSpill::CmputSchedUprBound_() {
   //than the known one
   int maxLngthIncrmnt = (bestCost_ - 1) / schedCostFactor_;
 
+  if(machMdl_->IsSimple() && dataDepGraph_->GetMaxLtncy() <= 1) {
+    #if defined(IS_DEBUG_DAG) || defined(IS_DEBUG_SIMPLE_DAGS)
+    Logger::Info("Simple DAG with max latency of one or less.");
+    #endif
+    maxLngthIncrmnt = 0;
+  }
+
   assert(maxLngthIncrmnt >= 0);
 
   //Any schedule longer than this will have a cost that is greater than or

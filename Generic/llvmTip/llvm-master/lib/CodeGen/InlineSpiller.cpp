@@ -1038,8 +1038,7 @@ void InlineSpiller::spillAll() {
 }
 
 void InlineSpiller::spill(LiveRangeEdit &edit) {
-  ++NumSpilledRanges;
-  gNumSpilledRanges = NumSpilledRanges;
+  ++gNumSpilledRanges;
   
   Edit = &edit;
   assert(!TargetRegisterInfo::isStackSlot(edit.getReg())

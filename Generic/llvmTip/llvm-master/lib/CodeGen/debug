@@ -1,0 +1,804 @@
+AggressiveAntiDepBreaker.cpp-  }
+AggressiveAntiDepBreaker.cpp-
+AggressiveAntiDepBreaker.cpp:#ifndef NDEBUG
+AggressiveAntiDepBreaker.cpp-  // If DebugDiv > 0 then only rename (renamecnt % DebugDiv) == DebugMod
+AggressiveAntiDepBreaker.cpp-  if (DebugDiv > 0) {
+--
+AggressiveAntiDepBreaker.cpp-  }
+AggressiveAntiDepBreaker.cpp-
+AggressiveAntiDepBreaker.cpp:#ifndef NDEBUG
+AggressiveAntiDepBreaker.cpp-  DEBUG(dbgs() << "\n===== Aggressive anti-dependency breaking\n");
+AggressiveAntiDepBreaker.cpp-  DEBUG(dbgs() << "Available regs:");
+--
+AllocationOrder.cpp-    }
+AllocationOrder.cpp-  });
+AllocationOrder.cpp:#ifndef NDEBUG
+AllocationOrder.cpp-  for (unsigned I = 0, E = Hints.size(); I != E; ++I)
+AllocationOrder.cpp-    assert(is_contained(Order, Hints[I]) &&
+--
+BranchRelaxation.cpp-/// verify - check BBOffsets, BBSizes, alignment of islands
+BranchRelaxation.cpp-void BranchRelaxation::verify() {
+BranchRelaxation.cpp:#ifndef NDEBUG
+BranchRelaxation.cpp-  unsigned PrevNum = MF->begin()->getNumber();
+BranchRelaxation.cpp-  for (MachineBasicBlock &MBB : *MF) {
+--
+CallingConvLower.cpp-    ISD::ArgFlagsTy ArgFlags = Ins[i].Flags;
+CallingConvLower.cpp-    if (Fn(i, ArgVT, ArgVT, CCValAssign::Full, ArgFlags, *this)) {
+CallingConvLower.cpp:#ifndef NDEBUG
+CallingConvLower.cpp-      dbgs() << "Formal argument #" << i << " has unhandled type "
+CallingConvLower.cpp-             << EVT(ArgVT).getEVTString() << '\n';
+--
+CallingConvLower.cpp-    ISD::ArgFlagsTy ArgFlags = Outs[i].Flags;
+CallingConvLower.cpp-    if (Fn(i, VT, VT, CCValAssign::Full, ArgFlags, *this)) {
+CallingConvLower.cpp:#ifndef NDEBUG
+CallingConvLower.cpp-      dbgs() << "Return operand #" << i << " has unhandled type "
+CallingConvLower.cpp-             << EVT(VT).getEVTString() << '\n';
+--
+CallingConvLower.cpp-    ISD::ArgFlagsTy ArgFlags = Outs[i].Flags;
+CallingConvLower.cpp-    if (Fn(i, ArgVT, ArgVT, CCValAssign::Full, ArgFlags, *this)) {
+CallingConvLower.cpp:#ifndef NDEBUG
+CallingConvLower.cpp-      dbgs() << "Call operand #" << i << " has unhandled type "
+CallingConvLower.cpp-             << EVT(ArgVT).getEVTString() << '\n';
+--
+CallingConvLower.cpp-    ISD::ArgFlagsTy ArgFlags = Flags[i];
+CallingConvLower.cpp-    if (Fn(i, ArgVT, ArgVT, CCValAssign::Full, ArgFlags, *this)) {
+CallingConvLower.cpp:#ifndef NDEBUG
+CallingConvLower.cpp-      dbgs() << "Call operand #" << i << " has unhandled type "
+CallingConvLower.cpp-             << EVT(ArgVT).getEVTString() << '\n';
+--
+CallingConvLower.cpp-    ISD::ArgFlagsTy Flags = Ins[i].Flags;
+CallingConvLower.cpp-    if (Fn(i, VT, VT, CCValAssign::Full, Flags, *this)) {
+CallingConvLower.cpp:#ifndef NDEBUG
+CallingConvLower.cpp-      dbgs() << "Call result #" << i << " has unhandled type "
+CallingConvLower.cpp-             << EVT(VT).getEVTString() << '\n';
+--
+CallingConvLower.cpp-void CCState::AnalyzeCallResult(MVT VT, CCAssignFn Fn) {
+CallingConvLower.cpp-  if (Fn(0, VT, VT, CCValAssign::Full, ISD::ArgFlagsTy(), *this)) {
+CallingConvLower.cpp:#ifndef NDEBUG
+CallingConvLower.cpp-    dbgs() << "Call result has unhandled type "
+CallingConvLower.cpp-           << EVT(VT).getEVTString() << '\n';
+--
+CallingConvLower.cpp-  while (HaveRegParm) {
+CallingConvLower.cpp-    if (Fn(0, VT, VT, CCValAssign::Full, Flags, *this)) {
+CallingConvLower.cpp:#ifndef NDEBUG
+CallingConvLower.cpp-      dbgs() << "Call has unhandled type " << EVT(VT).getEVTString()
+CallingConvLower.cpp-             << " while computing remaining regparms\n";
+--
+CodeGenPrepare.cpp-    return false;
+CodeGenPrepare.cpp-
+CodeGenPrepare.cpp:#ifndef NDEBUG
+CodeGenPrepare.cpp-  // Someday m_UAddWithOverflow may get smarter, but this is a safe assumption
+CodeGenPrepare.cpp-  // for now:
+--
+CodeGenPrepare.cpp-};
+CodeGenPrepare.cpp-
+CodeGenPrepare.cpp:#ifndef NDEBUG
+CodeGenPrepare.cpp-static inline raw_ostream &operator<<(raw_ostream &OS, const ExtAddrMode &AM) {
+CodeGenPrepare.cpp-  AM.print(OS);
+--
+CodeGenPrepare.cpp-}
+CodeGenPrepare.cpp-
+CodeGenPrepare.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+CodeGenPrepare.cpp-LLVM_DUMP_METHOD void ExtAddrMode::dump() const {
+CodeGenPrepare.cpp-  print(dbgs());
+--
+CriticalAntiDepBreaker.cpp-  }
+CriticalAntiDepBreaker.cpp-
+CriticalAntiDepBreaker.cpp:#ifndef NDEBUG
+CriticalAntiDepBreaker.cpp-  {
+CriticalAntiDepBreaker.cpp-    DEBUG(dbgs() << "Critical path has total latency "
+--
+IfConversion.cpp-}
+IfConversion.cpp-
+IfConversion.cpp:#ifndef NDEBUG
+IfConversion.cpp-static void verifySameBranchInstructions(
+IfConversion.cpp-    MachineBasicBlock *MBB1,
+--
+IfConversion.cpp-  // The branches have been checked to match, so it is safe to remove the branch
+IfConversion.cpp-  // in BB1 and rely on the copy in BB2
+IfConversion.cpp:#ifndef NDEBUG
+IfConversion.cpp-  // Unanalyzable branches must match exactly. Check that now.
+IfConversion.cpp-  if (!BBI1->IsBrAnalyzable)
+--
+IfConversion.cpp-    MaySpec = false;
+IfConversion.cpp-    if (!TII->PredicateInstruction(I, Cond)) {
+IfConversion.cpp:#ifndef NDEBUG
+IfConversion.cpp-      dbgs() << "Unable to predicate " << I << "!\n";
+IfConversion.cpp-#endif
+--
+IfConversion.cpp-    if (!TII->isPredicated(I) && !MI->isDebugValue()) {
+IfConversion.cpp-      if (!TII->PredicateInstruction(*MI, Cond)) {
+IfConversion.cpp:#ifndef NDEBUG
+IfConversion.cpp-        dbgs() << "Unable to predicate " << I << "!\n";
+IfConversion.cpp-#endif
+--
+InlineSpiller.cpp-                                       MachineInstr &CopyMI) {
+InlineSpiller.cpp-  SlotIndex Idx = LIS.getInstructionIndex(CopyMI);
+InlineSpiller.cpp:#ifndef NDEBUG
+InlineSpiller.cpp-  VNInfo *VNI = SpillLI.getVNInfoAt(Idx.getRegSlot());
+InlineSpiller.cpp-  assert(VNI && VNI->def == Idx.getRegSlot() && "Not defined by copy");
+--
+InlineSpiller.cpp-}
+InlineSpiller.cpp-
+InlineSpiller.cpp:#if !defined(NDEBUG)
+InlineSpiller.cpp-// Dump the range of instructions from B to E with their slot indexes.
+InlineSpiller.cpp-static void dumpMachineInstrRangeWithSlotIndex(MachineBasicBlock::iterator B,
+--
+InlineSpiller.cpp-         "Orders have different size with WorkSet");
+InlineSpiller.cpp-
+InlineSpiller.cpp:#ifndef NDEBUG
+InlineSpiller.cpp-  DEBUG(dbgs() << "Orders size is " << Orders.size() << "\n");
+InlineSpiller.cpp-  SmallVector<MachineDomTreeNode *, 32>::reverse_iterator RIt = Orders.rbegin();
+--
+LexicalScopes.cpp-/// dump - Print data structures.
+LexicalScopes.cpp-void LexicalScope::dump(unsigned Indent) const {
+LexicalScopes.cpp:#ifndef NDEBUG
+LexicalScopes.cpp-  raw_ostream &err = dbgs();
+LexicalScopes.cpp-  err.indent(Indent);
+--
+LiveDebugVariables.cpp-}
+LiveDebugVariables.cpp-
+LiveDebugVariables.cpp:#ifndef NDEBUG
+LiveDebugVariables.cpp-LLVM_DUMP_METHOD void LiveDebugVariables::dump() {
+LiveDebugVariables.cpp-  if (pImpl)
+--
+LiveIntervalAnalysis.cpp-                "Live Interval Analysis", false, false)
+LiveIntervalAnalysis.cpp-
+LiveIntervalAnalysis.cpp:#ifndef NDEBUG
+LiveIntervalAnalysis.cpp-static cl::opt<bool> EnablePrecomputePhysRegs(
+LiveIntervalAnalysis.cpp-  "precompute-phys-liveness", cl::Hidden,
+--
+LiveIntervalAnalysis.cpp-#else
+LiveIntervalAnalysis.cpp-static bool EnablePrecomputePhysRegs = false;
+LiveIntervalAnalysis.cpp:#endif // NDEBUG
+LiveIntervalAnalysis.cpp-
+LiveIntervalAnalysis.cpp-namespace llvm {
+--
+LiveIntervalAnalysis.cpp-}
+LiveIntervalAnalysis.cpp-
+LiveIntervalAnalysis.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LiveIntervalAnalysis.cpp-void LiveIntervals::dumpInstrs() const {
+LiveIntervalAnalysis.cpp-  printInstrs(dbgs());
+--
+LiveInterval.cpp-}
+LiveInterval.cpp-
+LiveInterval.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LiveInterval.cpp-LLVM_DUMP_METHOD void LiveRange::Segment::dump() const {
+LiveInterval.cpp-  dbgs() << *this << '\n';
+--
+LiveInterval.cpp-}
+LiveInterval.cpp-
+LiveInterval.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LiveInterval.cpp-LLVM_DUMP_METHOD void LiveRange::dump() const {
+LiveInterval.cpp-  dbgs() << *this << '\n';
+--
+LiveInterval.cpp-#endif
+LiveInterval.cpp-
+LiveInterval.cpp:#ifndef NDEBUG
+LiveInterval.cpp-void LiveRange::verify() const {
+LiveInterval.cpp-  for (const_iterator I = begin(), E = end(); I != E; ++I) {
+--
+LiveIntervalUnion.cpp-}
+LiveIntervalUnion.cpp-
+LiveIntervalUnion.cpp:#ifndef NDEBUG
+LiveIntervalUnion.cpp-// Verify the live intervals in this union and add them to the visited set.
+LiveIntervalUnion.cpp-void LiveIntervalUnion::verify(LiveVirtRegBitSet& VisitedVRegs) {
+--
+LiveIntervalUnion.cpp-    VisitedVRegs.set(SI.value()->reg);
+LiveIntervalUnion.cpp-}
+LiveIntervalUnion.cpp:#endif //!NDEBUG
+LiveIntervalUnion.cpp-
+LiveIntervalUnion.cpp-// Scan the vector of interfering virtual registers in this union. Assume it's
+--
+LivePhysRegs.cpp-/// Dumps the currently live registers to the debug output.
+LivePhysRegs.cpp-LLVM_DUMP_METHOD void LivePhysRegs::dump() const {
+LivePhysRegs.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LivePhysRegs.cpp-  dbgs() << "  " << *this;
+LivePhysRegs.cpp-#endif
+--
+LiveRangeCalc.cpp-    MachineBasicBlock *MBB = MF->getBlockNumbered(WorkList[i]);
+LiveRangeCalc.cpp-
+LiveRangeCalc.cpp:#ifndef NDEBUG
+LiveRangeCalc.cpp-    if (MBB->pred_empty()) {
+LiveRangeCalc.cpp-      MBB->getParent()->verify();
+--
+LiveVariables.cpp-
+LiveVariables.cpp-LLVM_DUMP_METHOD void LiveVariables::VarInfo::dump() const {
+LiveVariables.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LiveVariables.cpp-  dbgs() << "  Alive in blocks: ";
+LiveVariables.cpp-  for (SparseBitVector<>::iterator I = AliveBlocks.begin(),
+--
+LiveVariables.cpp-  }
+LiveVariables.cpp-
+LiveVariables.cpp:#ifndef NDEBUG
+LiveVariables.cpp-  for (unsigned i = 0, e = VRInfo.Kills.size(); i != e; ++i)
+LiveVariables.cpp-    assert(VRInfo.Kills[i]->getParent() != MBB && "entry should be at end!");
+--
+LiveVariables.cpp-  // function.  If so, it is due to a bug in the instruction selector or some
+LiveVariables.cpp-  // other part of the code generator if this happens.
+LiveVariables.cpp:#ifndef NDEBUG
+LiveVariables.cpp-  for(MachineFunction::iterator i = MF->begin(), e = MF->end(); i != e; ++i)
+LiveVariables.cpp-    assert(Visited.count(&*i) != 0 && "unreachable basic block found");
+--
+MachineBasicBlock.cpp-}
+MachineBasicBlock.cpp-
+MachineBasicBlock.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineBasicBlock.cpp-LLVM_DUMP_METHOD void MachineBasicBlock::dump() const {
+MachineBasicBlock.cpp-  print(dbgs());
+--
+MachineBasicBlock.cpp-
+MachineBasicBlock.cpp-void MachineBasicBlock::validateSuccProbs() const {
+MachineBasicBlock.cpp:#ifndef NDEBUG
+MachineBasicBlock.cpp-  int64_t Sum = 0;
+MachineBasicBlock.cpp-  for (auto Prob : Probs)
+--
+MachineBasicBlock.cpp-             Probs.size() &&
+MachineBasicBlock.cpp-         "The sum of successors's probabilities exceeds one.");
+MachineBasicBlock.cpp:#endif // NDEBUG
+MachineBasicBlock.cpp-}
+MachineBasicBlock.cpp-
+--
+MachineBlockFrequencyInfo.cpp-#define DEBUG_TYPE "block-freq"
+MachineBlockFrequencyInfo.cpp-
+MachineBlockFrequencyInfo.cpp:#ifndef NDEBUG
+MachineBlockFrequencyInfo.cpp-
+MachineBlockFrequencyInfo.cpp-static cl::opt<GVDAGType> ViewMachineBlockFreqPropagationDAG(
+--
+MachineBlockFrequencyInfo.cpp-    MBFI.reset(new ImplType);
+MachineBlockFrequencyInfo.cpp-  MBFI->calculate(F, MBPI, MLI);
+MachineBlockFrequencyInfo.cpp:#ifndef NDEBUG
+MachineBlockFrequencyInfo.cpp-  if (ViewMachineBlockFreqPropagationDAG != GVDT_None &&
+MachineBlockFrequencyInfo.cpp-      (ViewBlockFreqFuncName.empty() ||
+--
+MachineBlockFrequencyInfo.cpp-void MachineBlockFrequencyInfo::view() const {
+MachineBlockFrequencyInfo.cpp-// This code is only for debugging.
+MachineBlockFrequencyInfo.cpp:#ifndef NDEBUG
+MachineBlockFrequencyInfo.cpp-  ViewGraph(const_cast<MachineBlockFrequencyInfo *>(this),
+MachineBlockFrequencyInfo.cpp-            "MachineBlockFrequencyDAGs");
+--
+MachineBlockFrequencyInfo.cpp-  errs() << "MachineBlockFrequencyInfo::view is only available in debug builds "
+MachineBlockFrequencyInfo.cpp-            "on systems with Graphviz or gv!\n";
+MachineBlockFrequencyInfo.cpp:#endif // NDEBUG
+MachineBlockFrequencyInfo.cpp-}
+MachineBlockFrequencyInfo.cpp-
+--
+MachineBlockPlacement.cpp-  }
+MachineBlockPlacement.cpp-
+MachineBlockPlacement.cpp:#ifndef NDEBUG
+MachineBlockPlacement.cpp-  /// \brief Dump the blocks in this chain.
+MachineBlockPlacement.cpp-  LLVM_DUMP_METHOD void dump() {
+--
+MachineBlockPlacement.cpp-      MBB->dump();
+MachineBlockPlacement.cpp-  }
+MachineBlockPlacement.cpp:#endif // NDEBUG
+MachineBlockPlacement.cpp-
+MachineBlockPlacement.cpp-  /// \brief Count of predecessors of any block within the chain which have not
+--
+MachineBlockPlacement.cpp-                    "Branch Probability Basic Block Placement", false, false)
+MachineBlockPlacement.cpp-
+MachineBlockPlacement.cpp:#ifndef NDEBUG
+MachineBlockPlacement.cpp-/// \brief Helper to print the name of a MBB.
+MachineBlockPlacement.cpp-///
+--
+MachineBlockPlacement.cpp-  buildChain(&F->front(), FunctionChain);
+MachineBlockPlacement.cpp-
+MachineBlockPlacement.cpp:#ifndef NDEBUG
+MachineBlockPlacement.cpp-  typedef SmallPtrSet<MachineBasicBlock *, 16> FunctionBlockSetType;
+MachineBlockPlacement.cpp-#endif
+--
+MachineFunction.cpp-}
+MachineFunction.cpp-
+MachineFunction.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineFunction.cpp-LLVM_DUMP_METHOD void MachineFunction::dump() const {
+MachineFunction.cpp-  print(dbgs());
+--
+MachineFunction.cpp-void MachineFunction::viewCFG() const
+MachineFunction.cpp-{
+MachineFunction.cpp:#ifndef NDEBUG
+MachineFunction.cpp-  ViewGraph(this, "mf" + getName());
+MachineFunction.cpp-#else
+MachineFunction.cpp-  errs() << "MachineFunction::viewCFG is only available in debug builds on "
+MachineFunction.cpp-         << "systems with Graphviz or gv!\n";
+MachineFunction.cpp:#endif // NDEBUG
+MachineFunction.cpp-}
+MachineFunction.cpp-
+MachineFunction.cpp-void MachineFunction::viewCFGOnly() const
+MachineFunction.cpp-{
+MachineFunction.cpp:#ifndef NDEBUG
+MachineFunction.cpp-  ViewGraph(this, "mf" + getName(), true);
+MachineFunction.cpp-#else
+MachineFunction.cpp-  errs() << "MachineFunction::viewCFGOnly is only available in debug builds on "
+MachineFunction.cpp-         << "systems with Graphviz or gv!\n";
+MachineFunction.cpp:#endif // NDEBUG
+MachineFunction.cpp-}
+MachineFunction.cpp-
+--
+MachineFunction.cpp-}
+MachineFunction.cpp-
+MachineFunction.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineFunction.cpp-void MachineFrameInfo::dump(const MachineFunction &MF) const {
+MachineFunction.cpp-  print(MF, dbgs());
+--
+MachineFunction.cpp-}
+MachineFunction.cpp-
+MachineFunction.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineFunction.cpp-LLVM_DUMP_METHOD void MachineJumpTableInfo::dump() const { print(dbgs()); }
+MachineFunction.cpp-#endif
+--
+MachineFunction.cpp-}
+MachineFunction.cpp-
+MachineFunction.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineFunction.cpp-LLVM_DUMP_METHOD void MachineConstantPool::dump() const { print(dbgs()); }
+MachineFunction.cpp-#endif
+--
+MachineFunctionPass.cpp-  MachineFunctionProperties &MFProps = MF.getProperties();
+MachineFunctionPass.cpp-
+MachineFunctionPass.cpp:#ifndef NDEBUG
+MachineFunctionPass.cpp-  if (!MFProps.verifyRequiredProperties(RequiredProperties)) {
+MachineFunctionPass.cpp-    errs() << "MachineFunctionProperties required by " << getPassName()
+--
+MachineInstr.cpp-  }
+MachineInstr.cpp-
+MachineInstr.cpp:#ifndef NDEBUG
+MachineInstr.cpp-  bool isMetaDataOp = Op.getType() == MachineOperand::MO_Metadata;
+MachineInstr.cpp-  // OpNo now points as the desired insertion point.  Unless this is a variadic
+--
+MachineInstr.cpp-  untieRegOperand(OpNo);
+MachineInstr.cpp-
+MachineInstr.cpp:#ifndef NDEBUG
+MachineInstr.cpp-  // Moving tied operands would break the ties.
+MachineInstr.cpp-  for (unsigned i = OpNo + 1, e = getNumOperands(); i != e; ++i)
+--
+MachineInstr.cpp-
+MachineInstr.cpp-LLVM_DUMP_METHOD void MachineInstr::dump() const {
+MachineInstr.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineInstr.cpp-  dbgs() << "  " << *this;
+MachineInstr.cpp-#endif
+--
+MachineLoopInfo.cpp-}
+MachineLoopInfo.cpp-
+MachineLoopInfo.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineLoopInfo.cpp-LLVM_DUMP_METHOD void MachineLoop::dump() const {
+MachineLoopInfo.cpp-  print(dbgs());
+--
+MachinePipeliner.cpp-                        cl::Hidden, cl::init(true));
+MachinePipeliner.cpp-
+MachinePipeliner.cpp:#ifndef NDEBUG
+MachinePipeliner.cpp-static cl::opt<int> SwpLoopLimit("pipeliner-max", cl::Hidden, cl::init(-1));
+MachinePipeliner.cpp-#endif
+--
+MachinePipeliner.cpp-  RegisterClassInfo RegClassInfo;
+MachinePipeliner.cpp-
+MachinePipeliner.cpp:#ifndef NDEBUG
+MachinePipeliner.cpp-  static int NumTries;
+MachinePipeliner.cpp-#endif
+--
+MachinePipeliner.cpp-unsigned SwingSchedulerDAG::Circuits::MaxPaths = 5;
+MachinePipeliner.cpp-char MachinePipeliner::ID = 0;
+MachinePipeliner.cpp:#ifndef NDEBUG
+MachinePipeliner.cpp-int MachinePipeliner::NumTries = 0;
+MachinePipeliner.cpp-#endif
+--
+MachinePipeliner.cpp-    Changed |= scheduleLoop(*InnerLoop);
+MachinePipeliner.cpp-
+MachinePipeliner.cpp:#ifndef NDEBUG
+MachinePipeliner.cpp-  // Stop trying after reaching the limit (if any).
+MachinePipeliner.cpp-  int Limit = SwpLoopLimit;
+--
+MachineRegionInfo.cpp-}
+MachineRegionInfo.cpp-
+MachineRegionInfo.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineRegionInfo.cpp-LLVM_DUMP_METHOD void MachineRegionInfoPass::dump() const {
+MachineRegionInfo.cpp-  RI.dump();
+--
+MachineRegisterInfo.cpp-
+MachineRegisterInfo.cpp-void MachineRegisterInfo::clearVirtRegTypes() {
+MachineRegisterInfo.cpp:#ifndef NDEBUG
+MachineRegisterInfo.cpp-  // Verify that the size of the now-constrained vreg is unchanged.
+MachineRegisterInfo.cpp-  for (auto &VRegToType : getVRegToType()) {
+--
+MachineRegisterInfo.cpp-/// clearVirtRegs - Remove all virtual registers (after physreg assignment).
+MachineRegisterInfo.cpp-void MachineRegisterInfo::clearVirtRegs() {
+MachineRegisterInfo.cpp:#ifndef NDEBUG
+MachineRegisterInfo.cpp-  for (unsigned i = 0, e = getNumVirtRegs(); i != e; ++i) {
+MachineRegisterInfo.cpp-    unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+--
+MachineRegisterInfo.cpp-
+MachineRegisterInfo.cpp-void MachineRegisterInfo::verifyUseList(unsigned Reg) const {
+MachineRegisterInfo.cpp:#ifndef NDEBUG
+MachineRegisterInfo.cpp-  bool Valid = true;
+MachineRegisterInfo.cpp-  for (MachineOperand &M : reg_operands(Reg)) {
+--
+MachineRegisterInfo.cpp-
+MachineRegisterInfo.cpp-void MachineRegisterInfo::verifyUseLists() const {
+MachineRegisterInfo.cpp:#ifndef NDEBUG
+MachineRegisterInfo.cpp-  for (unsigned i = 0, e = getNumVirtRegs(); i != e; ++i)
+MachineRegisterInfo.cpp-    verifyUseList(TargetRegisterInfo::index2VirtReg(i));
+--
+MachineRegisterInfo.cpp-}
+MachineRegisterInfo.cpp-
+MachineRegisterInfo.cpp:#ifndef NDEBUG
+MachineRegisterInfo.cpp-void MachineRegisterInfo::dumpUses(unsigned Reg) const {
+MachineRegisterInfo.cpp-  for (MachineInstr &I : use_instructions(Reg))
+--
+MachineScheduler.cpp-}
+MachineScheduler.cpp-
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-static cl::opt<bool> ViewMISchedDAGs("view-misched-dags", cl::Hidden,
+MachineScheduler.cpp-  cl::desc("Pop up a window to show MISched dags after they are processed"));
+--
+MachineScheduler.cpp-#else
+MachineScheduler.cpp-static bool ViewMISchedDAGs = false;
+MachineScheduler.cpp:#endif // NDEBUG
+MachineScheduler.cpp-
+MachineScheduler.cpp-/// Avoid quadratic complexity in unusually large basic blocks by limiting the
+--
+MachineScheduler.cpp-    Scheduler.startBlock(&*MBB);
+MachineScheduler.cpp-
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-    if (SchedOnlyFunc.getNumOccurrences() && SchedOnlyFunc != MF->getName())
+MachineScheduler.cpp-      continue;
+--
+MachineScheduler.cpp-    return;
+MachineScheduler.cpp-  }
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-  if (SuccSU->NumPredsLeft == 0) {
+MachineScheduler.cpp-    dbgs() << "*** Scheduling failed! ***\n";
+--
+MachineScheduler.cpp-    return;
+MachineScheduler.cpp-  }
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-  if (PredSU->NumSuccsLeft == 0) {
+MachineScheduler.cpp-    dbgs() << "*** Scheduling failed! ***\n";
+--
+MachineScheduler.cpp-
+MachineScheduler.cpp-bool ScheduleDAGMI::checkSchedLimit() {
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-  if (NumInstrsScheduled == MISchedCutoff && MISchedCutoff != ~0U) {
+MachineScheduler.cpp-    CurrentTop = CurrentBottom;
+--
+MachineScheduler.cpp-}
+MachineScheduler.cpp-
+MachineScheduler.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+MachineScheduler.cpp-void ScheduleDAGMI::dumpSchedule() const {
+MachineScheduler.cpp-  for (MachineBasicBlock::iterator MI = begin(), ME = end(); MI != ME; ++MI) {
+--
+MachineScheduler.cpp-  IsResourceLimited = false;
+MachineScheduler.cpp-  ReservedCycles.clear();
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-  // Track the maximum number of stall cycles that could arise either from the
+MachineScheduler.cpp-  // latency of a DAG edge or the number of cycles that a processor resource is
+--
+MachineScheduler.cpp-      unsigned NRCycle = getNextResourceCycle(PI->ProcResourceIdx, PI->Cycles);
+MachineScheduler.cpp-      if (NRCycle > CurrCycle) {
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-        MaxObservedStall = std::max(PI->Cycles, MaxObservedStall);
+MachineScheduler.cpp-#endif
+--
+MachineScheduler.cpp-  assert(SU->getInstr() && "Scheduled SUnit must have instr");
+MachineScheduler.cpp-
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-  // ReadyCycle was been bumped up to the CurrCycle when this node was
+MachineScheduler.cpp-  // scheduled, but CurrCycle may have been eagerly advanced immediately after
+--
+MachineScheduler.cpp-}
+MachineScheduler.cpp-
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-// This is useful information to dump after bumpNode.
+MachineScheduler.cpp-// Note that the Queue contents are more useful before pickNodeFromQueue.
+--
+MachineScheduler.cpp-}
+MachineScheduler.cpp-
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-const char *GenericSchedulerBase::getReasonStr(
+MachineScheduler.cpp-  GenericSchedulerBase::CandReason Reason) {
+--
+MachineScheduler.cpp-  } else {
+MachineScheduler.cpp-    DEBUG(traceCandidate(BotCand));
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-    if (VerifyScheduling) {
+MachineScheduler.cpp-      SchedCandidate TCand;
+--
+MachineScheduler.cpp-  } else {
+MachineScheduler.cpp-    DEBUG(traceCandidate(TopCand));
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-    if (VerifyScheduling) {
+MachineScheduler.cpp-      SchedCandidate TCand;
+--
+MachineScheduler.cpp-//===----------------------------------------------------------------------===//
+MachineScheduler.cpp-
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-namespace {
+MachineScheduler.cpp-/// Apply a less-than relation on the node order, which corresponds to the
+--
+MachineScheduler.cpp-  "shuffle", "Shuffle machine instructions alternating directions",
+MachineScheduler.cpp-  createInstructionShuffler);
+MachineScheduler.cpp:#endif // !NDEBUG
+MachineScheduler.cpp-
+MachineScheduler.cpp-//===----------------------------------------------------------------------===//
+--
+MachineScheduler.cpp-//===----------------------------------------------------------------------===//
+MachineScheduler.cpp-
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-namespace llvm {
+MachineScheduler.cpp-
+--
+MachineScheduler.cpp-};
+MachineScheduler.cpp-} // namespace llvm
+MachineScheduler.cpp:#endif // NDEBUG
+MachineScheduler.cpp-
+MachineScheduler.cpp-/// viewGraph - Pop up a ghostview window with the reachable parts of the DAG
+--
+MachineScheduler.cpp-///
+MachineScheduler.cpp-void ScheduleDAGMI::viewGraph(const Twine &Name, const Twine &Title) {
+MachineScheduler.cpp:#ifndef NDEBUG
+MachineScheduler.cpp-  ViewGraph(this, Name, false, Title);
+MachineScheduler.cpp-#else
+MachineScheduler.cpp-  errs() << "ScheduleDAGMI::viewGraph is only available in debug builds on "
+MachineScheduler.cpp-         << "systems with Graphviz or gv!\n";
+MachineScheduler.cpp:#endif  // NDEBUG
+MachineScheduler.cpp-}
+MachineScheduler.cpp-
+--
+MachineTraceMetrics.cpp-  if (!MF)
+MachineTraceMetrics.cpp-    return;
+MachineTraceMetrics.cpp:#ifndef NDEBUG
+MachineTraceMetrics.cpp-  assert(BlockInfo.size() == MF->getNumBlockIDs() && "Outdated BlockInfo size");
+MachineTraceMetrics.cpp-  for (unsigned i = 0; i != TS_NumStrategies; ++i)
+--
+MachineTraceMetrics.cpp-
+MachineTraceMetrics.cpp-void MachineTraceMetrics::Ensemble::verify() const {
+MachineTraceMetrics.cpp:#ifndef NDEBUG
+MachineTraceMetrics.cpp-  assert(BlockInfo.size() == MTM.MF->getNumBlockIDs() &&
+MachineTraceMetrics.cpp-         "Outdated BlockInfo size");
+--
+PatchableFunction.cpp-    return false;
+PatchableFunction.cpp-
+PatchableFunction.cpp:#ifndef NDEBUG
+PatchableFunction.cpp-  Attribute PatchAttr = MF.getFunction()->getFnAttribute("patchable-function");
+PatchableFunction.cpp-  StringRef PatchType = PatchAttr.getValueAsString();
+--
+PostRASchedulerList.cpp-}
+PostRASchedulerList.cpp-
+PostRASchedulerList.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+PostRASchedulerList.cpp-/// dumpSchedule - dump the scheduled Sequence.
+PostRASchedulerList.cpp-void SchedulePostRATDList::dumpSchedule() const {
+--
+PostRASchedulerList.cpp-  // Loop over all of the basic blocks
+PostRASchedulerList.cpp-  for (auto &MBB : Fn) {
+PostRASchedulerList.cpp:#ifndef NDEBUG
+PostRASchedulerList.cpp-    // If DebugDiv > 0 then only schedule MBB with (ID % DebugDiv) == DebugMod
+PostRASchedulerList.cpp-    if (DebugDiv > 0) {
+--
+PostRASchedulerList.cpp-    return;
+PostRASchedulerList.cpp-  }
+PostRASchedulerList.cpp:#ifndef NDEBUG
+PostRASchedulerList.cpp-  if (SuccSU->NumPredsLeft == 0) {
+PostRASchedulerList.cpp-    dbgs() << "*** Scheduling failed! ***\n";
+--
+PostRASchedulerList.cpp-  }
+PostRASchedulerList.cpp-
+PostRASchedulerList.cpp:#ifndef NDEBUG
+PostRASchedulerList.cpp-  unsigned ScheduledNodes = VerifyScheduledDAG(/*isBottomUp=*/false);
+PostRASchedulerList.cpp-  unsigned Noops = 0;
+--
+PostRASchedulerList.cpp-  assert(Sequence.size() - Noops == ScheduledNodes &&
+PostRASchedulerList.cpp-         "The number of nodes scheduled doesn't match the expected number!");
+PostRASchedulerList.cpp:#endif // NDEBUG
+PostRASchedulerList.cpp-}
+PostRASchedulerList.cpp-
+--
+RegAllocGreedy.cpp-  uint8_t CutOffInfo;
+RegAllocGreedy.cpp-
+RegAllocGreedy.cpp:#ifndef NDEBUG
+RegAllocGreedy.cpp-  static const char *const StageName[];
+RegAllocGreedy.cpp-#endif
+--
+RegAllocGreedy.cpp-char RAGreedy::ID = 0;
+RegAllocGreedy.cpp-
+RegAllocGreedy.cpp:#ifndef NDEBUG
+RegAllocGreedy.cpp-const char *const RAGreedy::StageName[] = {
+RegAllocGreedy.cpp-    "RS_New",
+--
+RegAllocGreedy.cpp-  SmallVectorImpl<unsigned> &ActiveBlocks = Cand.ActiveBlocks;
+RegAllocGreedy.cpp-  unsigned AddedTo = 0;
+RegAllocGreedy.cpp:#ifndef NDEBUG
+RegAllocGreedy.cpp-  unsigned Visited = 0;
+RegAllocGreedy.cpp-#endif
+--
+RegAllocGreedy.cpp-        // This is a new through block. Add it to SpillPlacer later.
+RegAllocGreedy.cpp-        ActiveBlocks.push_back(Block);
+RegAllocGreedy.cpp:#ifndef NDEBUG
+RegAllocGreedy.cpp-        ++Visited;
+RegAllocGreedy.cpp-#endif
+--
+RegAllocPBQP.cpp-                cl::init(false), cl::Hidden);
+RegAllocPBQP.cpp-
+RegAllocPBQP.cpp:#ifndef NDEBUG
+RegAllocPBQP.cpp-static cl::opt<bool>
+RegAllocPBQP.cpp-PBQPDumpGraphs("pbqp-dump-graphs",
+--
+RegAllocPBQP.cpp-  findVRegIntervalsToAlloc(MF, LIS);
+RegAllocPBQP.cpp-
+RegAllocPBQP.cpp:#ifndef NDEBUG
+RegAllocPBQP.cpp-  const Function &F = *MF.getFunction();
+RegAllocPBQP.cpp-  std::string FullyQualifiedName =
+--
+RegAllocPBQP.cpp-      ConstraintsRoot->apply(G);
+RegAllocPBQP.cpp-
+RegAllocPBQP.cpp:#ifndef NDEBUG
+RegAllocPBQP.cpp-      if (PBQPDumpGraphs) {
+RegAllocPBQP.cpp-        std::ostringstream RS;
+--
+RegisterCoalescer.cpp-          LI.clearSubRanges();
+RegisterCoalescer.cpp-        } else {
+RegisterCoalescer.cpp:#ifndef NDEBUG
+RegisterCoalescer.cpp-          LaneBitmask MaxMask = MRI->getMaxLaneMaskForVReg(Reg);
+RegisterCoalescer.cpp-          // If subranges are still supported, then the same subregs
+--
+RegisterPressure.cpp-  CurrSetPressure.swap(SavedPressure);
+RegisterPressure.cpp-
+RegisterPressure.cpp:#ifndef NDEBUG
+RegisterPressure.cpp-  if (!PDiff)
+RegisterPressure.cpp-    return;
+--
+RegisterScavenging.cpp-
+RegisterScavenging.cpp-  // Verify uses and defs.
+RegisterScavenging.cpp:#ifndef NDEBUG
+RegisterScavenging.cpp-  for (const MachineOperand &MO : MI.operands()) {
+RegisterScavenging.cpp-    if (!MO.isReg())
+--
+RegisterScavenging.cpp-    }
+RegisterScavenging.cpp-  }
+RegisterScavenging.cpp:#endif // NDEBUG
+RegisterScavenging.cpp-
+RegisterScavenging.cpp-  // Commit the changes.
+--
+ScheduleDAG.cpp-#define DEBUG_TYPE "pre-RA-sched"
+ScheduleDAG.cpp-
+ScheduleDAG.cpp:#ifndef NDEBUG
+ScheduleDAG.cpp-static cl::opt<bool> StressSchedOpt(
+ScheduleDAG.cpp-  "stress-sched", cl::Hidden, cl::init(false),
+--
+ScheduleDAG.cpp-      TRI(mf.getSubtarget().getRegisterInfo()), MF(mf),
+ScheduleDAG.cpp-      MRI(mf.getRegInfo()), EntrySU(), ExitSU() {
+ScheduleDAG.cpp:#ifndef NDEBUG
+ScheduleDAG.cpp-  StressSched = StressSchedOpt;
+ScheduleDAG.cpp-#endif
+--
+ScheduleDAG.cpp-}
+ScheduleDAG.cpp-
+ScheduleDAG.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+ScheduleDAG.cpp-/// SUnit - Scheduling unit. It's an wrapper around either a single SDNode or
+ScheduleDAG.cpp-/// a group of nodes flagged together.
+--
+ScheduleDAG.cpp-#endif
+ScheduleDAG.cpp-
+ScheduleDAG.cpp:#ifndef NDEBUG
+ScheduleDAG.cpp-/// VerifyScheduledDAG - Verify that all SUnits were scheduled and that
+ScheduleDAG.cpp-/// their state is consistent. Return the number of scheduled nodes.
+--
+ScheduleDAG.cpp-  Visited.resize(DAGSize);
+ScheduleDAG.cpp-
+ScheduleDAG.cpp:#ifndef NDEBUG
+ScheduleDAG.cpp-  // Check correctness of the ordering
+ScheduleDAG.cpp-  for (unsigned i = 0, e = DAGSize; i != e; ++i) {
+--
+ScheduleDAGInstrs.cpp-
+ScheduleDAGInstrs.cpp-static void dumpSUList(ScheduleDAGInstrs::SUList &L) {
+ScheduleDAGInstrs.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+ScheduleDAGInstrs.cpp-  dbgs() << "{ ";
+ScheduleDAGInstrs.cpp-  for (const SUnit *su : L) {
+--
+ScheduleDAGInstrs.cpp-
+ScheduleDAGInstrs.cpp-void ScheduleDAGInstrs::dumpNode(const SUnit *SU) const {
+ScheduleDAGInstrs.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+ScheduleDAGInstrs.cpp-  SU->getInstr()->dump();
+ScheduleDAGInstrs.cpp-#endif
+--
+ScheduleDAGPrinter.cpp-void ScheduleDAG::viewGraph(const Twine &Name, const Twine &Title) {
+ScheduleDAGPrinter.cpp-  // This code is only for debugging!
+ScheduleDAGPrinter.cpp:#ifndef NDEBUG
+ScheduleDAGPrinter.cpp-  ViewGraph(this, Name, false, Title);
+ScheduleDAGPrinter.cpp-#else
+ScheduleDAGPrinter.cpp-  errs() << "ScheduleDAG::viewGraph is only available in debug builds on "
+ScheduleDAGPrinter.cpp-         << "systems with Graphviz or gv!\n";
+ScheduleDAGPrinter.cpp:#endif  // NDEBUG
+ScheduleDAGPrinter.cpp-}
+ScheduleDAGPrinter.cpp-
+--
+ScoreboardHazardRecognizer.cpp-}
+ScoreboardHazardRecognizer.cpp-
+ScoreboardHazardRecognizer.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+ScoreboardHazardRecognizer.cpp-LLVM_DUMP_METHOD void ScoreboardHazardRecognizer::Scoreboard::dump() const {
+ScoreboardHazardRecognizer.cpp-  dbgs() << "Scoreboard:\n";
+--
+SlotIndexes.cpp-}
+SlotIndexes.cpp-
+SlotIndexes.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+SlotIndexes.cpp-LLVM_DUMP_METHOD void SlotIndexes::dump() const {
+SlotIndexes.cpp-  for (IndexList::const_iterator itr = indexList.begin();
+--
+SlotIndexes.cpp-}
+SlotIndexes.cpp-
+SlotIndexes.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+SlotIndexes.cpp-// Dump a SlotIndex to stderr.
+SlotIndexes.cpp-LLVM_DUMP_METHOD void SlotIndex::dump() const {
+--
+SplitKit.cpp-}
+SplitKit.cpp-
+SplitKit.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+SplitKit.cpp-LLVM_DUMP_METHOD void SplitEditor::dump() const {
+SplitKit.cpp-  if (RegAssign.empty()) {
+--
+StackColoring.cpp-}
+StackColoring.cpp-
+StackColoring.cpp:#ifndef NDEBUG
+StackColoring.cpp-
+StackColoring.cpp-LLVM_DUMP_METHOD void StackColoring::dumpBV(const char *tag,
+--
+StackColoring.cpp-}
+StackColoring.cpp-
+StackColoring.cpp:#endif // not NDEBUG
+StackColoring.cpp-
+StackColoring.cpp-static inline int getStartOrEndSlot(const MachineInstr &MI)
+--
+StackColoring.cpp-        // zone are are okay, despite the fact that we don't have a good way
+StackColoring.cpp-        // for validating all of the usages of the calculation.
+StackColoring.cpp:#ifndef NDEBUG
+StackColoring.cpp-        bool TouchesMemory = I.mayLoad() || I.mayStore();
+StackColoring.cpp-        // If we *don't* protect the user from escaped allocas, don't bother
+--
+StackMaps.cpp-    : MI(MI), HasDef(MI->getOperand(0).isReg() && MI->getOperand(0).isDef() &&
+StackMaps.cpp-                     !MI->getOperand(0).isImplicit()) {
+StackMaps.cpp:#ifndef NDEBUG
+StackMaps.cpp-  unsigned CheckStartIdx = 0, e = MI->getNumOperands();
+StackMaps.cpp-  while (CheckStartIdx < e && MI->getOperand(CheckStartIdx).isReg() &&
+--
+StackMaps.cpp-                      opers.isAnyReg() && opers.hasDef());
+StackMaps.cpp-
+StackMaps.cpp:#ifndef NDEBUG
+StackMaps.cpp-  // verify anyregcc
+StackMaps.cpp-  auto &Locations = CSInfos.back().Locations;
+--
+StackSlotColoring.cpp-  std::stable_sort(SSIntervals.begin(), SSIntervals.end(), IntervalSorter());
+StackSlotColoring.cpp-
+StackSlotColoring.cpp:#ifndef NDEBUG
+StackSlotColoring.cpp-  for (unsigned i = 0, e = SSIntervals.size(); i != e; ++i)
+StackSlotColoring.cpp-    DEBUG(SSIntervals[i]->dump());
+--
+TargetInstrInfo.cpp-                                                 LiveIntervals *LIS) const {
+TargetInstrInfo.cpp-  assert(LoadMI.canFoldAsLoad() && "LoadMI isn't foldable!");
+TargetInstrInfo.cpp:#ifndef NDEBUG
+TargetInstrInfo.cpp-  for (unsigned i = 0, e = Ops.size(); i != e; ++i)
+TargetInstrInfo.cpp-    assert(MI.getOperand(Ops[i]).isUse() && "Folding load into def!");
+--
+TargetRegisterInfo.cpp-}
+TargetRegisterInfo.cpp-
+TargetRegisterInfo.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+TargetRegisterInfo.cpp-void
+TargetRegisterInfo.cpp-TargetRegisterInfo::dumpReg(unsigned Reg, unsigned SubRegIndex,
+--
+TargetSchedule.cpp-    return SCDesc;
+TargetSchedule.cpp-
+TargetSchedule.cpp:#ifndef NDEBUG
+TargetSchedule.cpp-  unsigned NIter = 0;
+TargetSchedule.cpp-#endif
+--
+TargetSchedule.cpp-  // If DefIdx does not exist in the model (e.g. implicit defs), then return
+TargetSchedule.cpp-  // unit latency (defaultDefLatency may be too conservative).
+TargetSchedule.cpp:#ifndef NDEBUG
+TargetSchedule.cpp-  if (SCDesc->isValid() && !DefMI->getOperand(DefOperIdx).isImplicit()
+TargetSchedule.cpp-      && !DefMI->getDesc().OpInfo[DefOperIdx].isOptionalDef()
+--
+TwoAddressInstructionPass.cpp-           "cannot make instruction into two-address form");
+TwoAddressInstructionPass.cpp-
+TwoAddressInstructionPass.cpp:#ifndef NDEBUG
+TwoAddressInstructionPass.cpp-    // First, verify that we don't have a use of "a" in the instruction
+TwoAddressInstructionPass.cpp-    // (a = b + a for example) because our transformation will not
+--
+VirtRegMap.cpp-}
+VirtRegMap.cpp-
+VirtRegMap.cpp:#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+VirtRegMap.cpp-LLVM_DUMP_METHOD void VirtRegMap::dump() const {
+VirtRegMap.cpp-  print(dbgs());
