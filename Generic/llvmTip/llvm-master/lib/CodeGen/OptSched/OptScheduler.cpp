@@ -21,6 +21,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include <chrono>
+#include <algorithm>
 
 #define DEBUG_TYPE "optsched"
 
@@ -103,13 +104,57 @@ void ScheduleDAGOptSched::schedule() {
     return;
   }
 
- Logger::Info("********** Opt Scheduling **********\n");
 
-  // build LLVM DAG
+/*iso
+if iso - call fallback scheduler
+karan
+loop through the instructions in basic block - scheduledinstr BB - BB->getSunit().nodeNum = counter
+change the sunit order to new order scheduledag::sunit vector
+*/
+int num = 0, unit = 0 ;
+
+if (isHeuristicISO) {
+
+    defaultScheduler();
+
+    for (llvm::MachineBasicBlock::instr_iterator
+	   I = BB->instr_begin(), E = BB->instr_end() ; I != E ; ++I) {
+
+
+	    	llvm::MachineInstr& instr = *I;
+	      	llvm::SUnit* su = getSUnit (&instr);
+
+
+		if(su != NULL && !su->isBoundaryNode()) {
+			num = su->NodeNum;
+			Logger::Info("Node num %d", num);
+
+
+			if(num == SUnits[unit].NodeNum)
+				continue;
+
+			std::swap(SUnits[unit], SUnits[num]);
+	#ifdef IS_DEBUG_ISO
+			Logger::Info("Swapping %d with %d for ISO", SUnits[unit].NodeNum, SUnits[num].NodeNum);
+	#endif
+			SUnits[unit].NodeNum = unit;
+
+			unit++;
+
+		}
+
+    }
+ }
+//    return;
+  else {
+
+  DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");  
+ // build LLVM DAG
   SetupLLVMDag();
   // Init topo for fast search for cycles and/or mutations
   Topo.InitDAGTopologicalSorting();
-  
+
+}
   // apply mutations
   if (enableMutations) {
     postprocessDAG();
@@ -282,6 +327,11 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   maxSpillCost = schedIni.GetInt("MAX_SPILL_COST");
   lowerBoundAlgorithm = parseLowerBoundAlgorithm();
   heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
+
+  if(schedIni.GetString("HEURISTIC") == "ISO") {
+	isHeuristicISO = true;
+  }
+	
   enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
   spillCostFunction = parseSpillCostFunc();
   regionTimeout = schedIni.GetInt("REGION_TIMEOUT");
