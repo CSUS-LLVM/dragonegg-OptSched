@@ -1,3 +1,4 @@
+
 add_llvm_library(LLVMOptSched
   OptScheduler.cpp
   bb_spill.cpp
@@ -23,6 +24,6 @@ add_llvm_library(LLVMOptSched
   stats.cpp
   )
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIS_DEBUG -DIS_DEBUG_SIMPLE_DAGS")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG -DIS_DEBUG_ISO")
 
 add_dependencies(LLVMOptSched intrinsics_gen)
