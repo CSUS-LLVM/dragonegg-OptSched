@@ -122,34 +122,36 @@ if (isHeuristicISO) {
 
 
 	    	llvm::MachineInstr& instr = *I;
-	      	llvm::SUnit* su = getSUnit (&instr);
+	     	llvm::SUnit* su = getSUnit (&instr);
 
 
 		if(su != NULL && !su->isBoundaryNode()) {
 			num = su->NodeNum;
+	    #ifdef IS_DEBUG_ISO
 			Logger::Info("Node num %d", num);
+	    #endif
 
 
-			if(num == SUnits[unit].NodeNum)
+			if(num == SUnits[unit].NodeNum) {
+			  SUnits[unit].NodeNum = unit;
+        unit++;
 				continue;
+      }
 
 			std::swap(SUnits[unit], SUnits[num]);
 	#ifdef IS_DEBUG_ISO
 			Logger::Info("Swapping %d with %d for ISO", SUnits[unit].NodeNum, SUnits[num].NodeNum);
 	#endif
 			SUnits[unit].NodeNum = unit;
-
 			unit++;
-
 		}
-
     }
  }
 //    return;
   else {
 
-  DEBUG(llvm::dbgs() << "********** Opt Scheduling **********\n");  
- // build LLVM DAG
+  Logger::Info("********** Opt Scheduling **********\n");
+  // build LLVM DAG
   SetupLLVMDag();
   // Init topo for fast search for cycles and/or mutations
   Topo.InitDAGTopologicalSorting();
@@ -327,11 +329,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   maxSpillCost = schedIni.GetInt("MAX_SPILL_COST");
   lowerBoundAlgorithm = parseLowerBoundAlgorithm();
   heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
-
-  if(schedIni.GetString("HEURISTIC") == "ISO") {
-	isHeuristicISO = true;
-  }
-	
+  isHeuristicISO = schedIni.GetString("HEURISTIC") == "ISO";
   enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
   spillCostFunction = parseSpillCostFunc();
   regionTimeout = schedIni.GetInt("REGION_TIMEOUT");
