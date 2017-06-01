@@ -57,8 +57,9 @@ BLOCK_IMPROVEMENT_REGEX = re.compile(r'cost imp=(\d+)')
 BLOCK_START_TIME_REGEX = re.compile(r'-{20} \(Time = (\d+) ms\)')
 BLOCK_END_TIME_REGEX = re.compile(r'verified successfully \(Time = (\d+) ms\)')
 BLOCK_LIST_FAILED_REGEX = re.compile(r'List scheduling failed')
+BLOCK_PEAK_REG_PRESSURE_REGEX = re.compile(r'PeakRegPresAfter  Index (\d+) Name (.*) Peak (\d+) Limit (\d+)')
 
-def writeStats(stats, spills, times, blocks):
+def writeStats(stats, spills, times, blocks, regp):
   # Write times.
   with open(times, 'w') as times_file:
     total_time = 0
@@ -206,6 +207,94 @@ def writeStats(stats, spills, times, blocks):
     blocks_file.write('  Average optimal solution time: %d ms\n' %
                       ((sum(optimalTimes) / len(optimalTimes)) if optimalTimes else 0))
 
+  # Write peak pressure stats
+  with open(regp, 'w') as regp_file:
+    for benchName in stats:
+      maxSetPressures = {}
+      regp_file.write('Benchmark %s:\n' % benchName)
+      regpressure = stats[benchName]['regpressure']
+      numberOfFunctionsWithPeakExcess = 0
+      numberOfBlocksWithPeakExcess = 0
+      numberOfBlocks = 0
+      for functionName in regpressure:
+        regp_file.write('  Function %s:\n' % functionName)
+        functionHasPeakExcess = False
+        listOfBlocks = regpressure[functionName]
+        if len(listOfBlocks) == 0: continue
+        for blockName, listOfExcessPressureTuples in listOfBlocks:
+          numberOfBlocks += 1
+          blockHasPeakExcess = False
+          if len(listOfExcessPressureTuples) == 0: continue
+          regp_file.write('    Block %s:\n' % blockName)
+          for setName, peakExcessPressure in listOfExcessPressureTuples:
+            # If we ever enter this loop, that means there exists a peak excess pressure
+            functionHasPeakExcess = True
+            blockHasPeakExcess = True
+            if (not setName in maxSetPressures):
+              maxSetPressures[setName] = (peakExcessPressure, functionName + ":" + blockName)
+            elif peakExcessPressure > maxSetPressures[setName][0]:
+              maxSetPressures[setName] = (peakExcessPressure, functionName + ":" + blockName)
+            regp_file.write('      %5d %s\n' % (peakExcessPressure, setName))
+          if blockHasPeakExcess: numberOfBlocksWithPeakExcess += 1
+        if functionHasPeakExcess: numberOfFunctionsWithPeakExcess += 1
+      regp_file.write('Number of blocks with peak excess:    %d\n' % numberOfBlocksWithPeakExcess)
+      regp_file.write('Number of blocks total:               %d\n' % numberOfBlocks)
+      regp_file.write('Number of functions with peak excess: %d\n' % numberOfFunctionsWithPeakExcess)
+      regp_file.write('Number of functions total:            %d\n' % len(regpressure))
+      regp_file.write('Max excess pressures for each register set:\n')
+      for setName in maxSetPressures:
+        regp_file.write('  %5d, Set %s, Block %s\n' % (maxSetPressures[setName][0], setName, maxSetPressures[setName][1]))
+      regp_file.write('------------\n')
+
+def calculatePeakPressureStats(output):
+  blocks = output.split('Opt Scheduling **********')[1:]
+  functions = {}
+  """
+  Output should look like:
+  Benchmark:
+    Function1:
+      Block1:
+        PERP1 RegName1
+        PERP2 RegName2
+        ...
+    Function1 Peak: PERPMax RegNameMax
+  Number of blocks with peak excess register pressure: M
+  Number of blocks total: N
+  Number of functions with excess register pressure: F
+  Number of functions total: G
+
+  Then the data structure will look like:
+  {
+    function1: [
+      (block1, [(SetName1, PERP1), ...]),
+      ...
+      ],
+    function2: ...
+  }
+  """
+  for block in blocks:
+    dagName, blockSize = BLOCK_NAME_AND_SIZE_REGEX.findall(block)[0]
+    functionName = dagName.split(':')[0]
+    if not functionName in functions:
+      functions[functionName] = []
+    blockName = dagName.split(':')[1]
+    pressureMatches = BLOCK_PEAK_REG_PRESSURE_REGEX.findall(block)
+    peakExcessPressures = []
+    for indexString, name, peakString, limitString in pressureMatches:
+      # If the peak doesn't exceed the limit, don't count it (?)
+      peak = int(peakString)
+      limit = int(limitString)
+      if peak <= limit: continue
+      # print("Match found: %s %s %s %s" % (indexString, name, peakString, limitString))
+      excessPressure = peak - limit
+      element = tuple((name, excessPressure))
+      peakExcessPressures.append(element)
+    # print(peakExcessPressures)
+    blockStats = (blockName, peakExcessPressures)
+    # print(blockStats)
+    functions[functionName].append(blockStats)
+  # print(functions)
+  return functions
 
 def calculateBlockStats(output):
   blocks = output.split('Opt Scheduling **********')[1:]
@@ -274,7 +363,8 @@ def getBenchmarkResult(output):
   return {
     'time': int(TIMES_REGEX.findall(output)[0]),
     'spills': [int(i) for i in SPILLS_REGEX.findall(output)],
-    'blocks': calculateBlockStats(output)
+    'blocks': calculateBlockStats(output),
+    'regpressure': calculatePeakPressureStats(output)
   }
 
 def runBenchmarks(benchmarks):
@@ -294,11 +384,7 @@ def runBenchmarks(benchmarks):
     except subprocess.CalledProcessError as e:
       print '  WARNING: Benchmark command failed: %s.' % e
     else:
-      results[bench] = {
-        'time': int(TIMES_REGEX.findall(output)[0]),
-        'spills': [int(i) for i in SPILLS_REGEX.findall(output)],
-        'blocks': calculateBlockStats(output)
-      }
+      results[bench] = getBenchmarkResult(output)
 
   return results
 
@@ -338,7 +424,7 @@ def main(args):
     results = runBenchmarks(benchmarks)
 
   # Write out the results.
-  writeStats(results, args.spills, args.times, args.blocks)
+  writeStats(results, args.spills, args.times, args.blocks, args.regp)
 
 
 if __name__ == '__main__':
@@ -369,6 +455,10 @@ if __name__ == '__main__':
                     metavar='ALL|INT|FP|name1,name2...',
                     default='ALL',
                     help='Which benchmarks to run.')
+  parser.add_option('-r', '--regp',
+                    metavar='filepath',
+                    default='regp.dat',
+                    help='Where to write the reg pressure stats (%default).')
 
   # Add the ability to parse log files.
   parser.add_option('-l', '--logfile',
