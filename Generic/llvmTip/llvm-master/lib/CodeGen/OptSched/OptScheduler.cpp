@@ -171,11 +171,16 @@ if (isHeuristicISO) {
   Logger::Info("LLVM max pressure before scheduling");
   const std::vector<unsigned> &RegionPressure =
       RPTracker.getPressure().MaxSetPressure;
+  Logger::Info("There are %d register pressure sets.", RegionPressure.size());
   for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
     unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
     if (RegionPressure[i] > 0) {
-      llvm::dbgs() << TRI->getRegPressureSetName(i) << " Peak "
-                   << RegionPressure[i] << " Limit " << Limit << "\n";
+      Logger::Info("PeakRegPresBefore Index %d Name %s Peak %d Limit %d",
+        i,
+        TRI->getRegPressureSetName(i),
+        RegionPressure[i],
+        Limit
+        );
       RegionCriticalPSets.push_back(llvm::PressureChange(i));
     }
   }
@@ -252,11 +257,16 @@ if (isHeuristicISO) {
   SetupLLVMDag();
 
   Logger::Info("LLVM max pressure after scheduling");
+  Logger::Info("There are %d register pressure sets.", RegionPressure.size());
   for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
     unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
     if (RegionPressure[i] > 0) {
-      llvm::dbgs() << TRI->getRegPressureSetName(i) << " Peak "
-                   << RegionPressure[i] << " Limit " << Limit << "\n";
+      Logger::Info("PeakRegPresAfter  Index %d Name %s Peak %d Limit %d",
+        i,
+        TRI->getRegPressureSetName(i),
+        RegionPressure[i],
+        Limit
+        );
       RegionCriticalPSets.push_back(llvm::PressureChange(i));
     }
   }

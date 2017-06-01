@@ -2966,16 +2966,23 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
 }
 
 void InstSchedule::PrintRegPressures(std::ostream& out) {
-  out << '\n' << "OptSched : Register Pressures";
+  // out << '\n' << "OptSched : Register Pressures";
+  Logger::Info("OptSched max reg pressure");
 	InstCount i;
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
+  Logger::Info("There are %d register pressure sets.", machMdl_->GetRegTypeCnt());
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
     if (peakRegPressures_[i] > 0)
-      out << "\nReg type " << llvmModel->GetRegTypeName(i) \
-          << ":  peak pressure: " << peakRegPressures_[i] \
-          << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
+      // out << "\nReg type " << llvmModel->GetRegTypeName(i) \
+      //     << ":  peak pressure: " << peakRegPressures_[i] \
+      //     << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
+      Logger::Info("OptSchPeakRegPres Index %d Name %s Peak %d Limit %d",
+        i,
+        llvmModel->GetRegTypeName(i).c_str(), 
+        peakRegPressures_[i],
+        machMdl_->GetPhysRegCnt(i));
   }
-  out << '\n';
+  // out << '\n';
 }
 
 
@@ -3024,9 +3031,9 @@ bool InstSchedule::Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph) {
   if (!VerifySlots_(machMdl, dataDepGraph)) return false;
   if (!VerifyDataDeps_(dataDepGraph)) return false;
   
-  #ifdef IS_DEBUG_PEAK_PRESSURE 
+#ifdef IS_DEBUG_PEAK_PRESSURE_OPT_SCHED 
 	PrintRegPressures(std::cout);
-  #endif
+#endif
 
   Logger::Info("Schedule verified successfully");
   return true;

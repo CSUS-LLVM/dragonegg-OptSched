@@ -231,7 +231,19 @@ def calculateBlockStats(output):
         isEnumerated = BLOCK_NOT_ENUMERATED_REGEX.findall(block) == []
         if isEnumerated:
           isOptimal = bool(BLOCK_ENUMERATED_OPTIMAL_REGEX.findall(block))
-          improvement = int(BLOCK_IMPROVEMENT_REGEX.findall(block)[0])
+          """
+          Sometimes the OptScheduler doesn't print out cost improvement. 
+          This happens when the scheduler determines that the list schedule is
+          already optimal, which means no further improvements can be made.
+
+          The rest of this if-block ensures that this tool doesn't crash.
+          If the improvement is not found, it is assumed to be 0.
+          """
+          matches = BLOCK_IMPROVEMENT_REGEX.findall(block)
+          if matches == []: 
+            improvement = 0
+          else: 
+            improvement = int(matches[0])
         else:
           isOptimal = False
           improvement = 0
@@ -251,9 +263,19 @@ def calculateBlockStats(output):
       print "Unexpected error:", sys.exc_info()[0]
       for line in blocks[index].split('\n')[1:-1][:10]:
         print '   ', line
+      raise
 
   return stats
 
+"""
+Defining this function makes it easier to parse files.
+"""
+def getBenchmarkResult(output):
+  return {
+    'time': int(TIMES_REGEX.findall(output)[0]),
+    'spills': [int(i) for i in SPILLS_REGEX.findall(output)],
+    'blocks': calculateBlockStats(output)
+  }
 
 def runBenchmarks(benchmarks):
   results = {}
@@ -295,8 +317,14 @@ def main(args):
       if bench not in ALL_BENCHMARKS:
         print 'WARNING: Unknown benchmark specified: "%s".' % bench
 
+  # Parse single log file instead of running benchmark
+  results = {}
+  if args.logfile is not None:
+    with open(args.logfile) as log_file:
+      output = log_file.read()
+      results[args.logfile] = getBenchmarkResult(output)
   # Run the benchmarks and collect results.
-  if args.opt is not None:
+  elif args.opt is not None:
 
     # Temporarily adjust the INI file.
     with open(args.ini) as ini_file: ini = ini_file.read()
@@ -341,4 +369,10 @@ if __name__ == '__main__':
                     metavar='ALL|INT|FP|name1,name2...',
                     default='ALL',
                     help='Which benchmarks to run.')
+
+  # Add the ability to parse log files.
+  parser.add_option('-l', '--logfile',
+                   metavar='CPU2006.###.log',
+                   default=None,
+                   help='Parse log file instead of running benchmark. Only single-benchmark log files produce valid statistics.')
   main(parser.parse_args()[0])
