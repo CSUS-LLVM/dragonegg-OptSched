@@ -50,6 +50,10 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
   return I;
 }
 
+bool gIsHotFunction = false;
+bool gPrintHotOnlyStats = false;
+bool gPrintStats = true;
+
 namespace opt_sched {
 ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
@@ -100,63 +104,103 @@ void ScheduleDAGOptSched::SetupLLVMDag() {
 // schedule called for each basic block
 void ScheduleDAGOptSched::schedule() {
   if (!optSchedEnabled) {
+    /* (Chris) We still want the register pressure 
+       even for the default scheduler */
+    Logger::Info("********** LLVM Scheduling **********\n");
+#ifdef IS_DEBUG_PEAK_PRESSURE
+    if (gPrintStats &&
+        ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
+      SetupLLVMDag();
+      Logger::Info("LLVM max pressure before scheduling for BB %s:%s",
+                   context->MF->getFunction()->getName().data(), BB->getName());
+      const std::vector<unsigned> &RegionPressure =
+          RPTracker.getPressure().MaxSetPressure;
+      // Logger::Info("There are %d register pressure sets.",
+      // RegionPressure.size());
+      for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
+        unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
+        Logger::Info("PeakRegPresBefore Index %d Name %s Peak %d Limit %d", i,
+                     TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+        // RegionCriticalPSets.push_back(llvm::PressureChange(i));
+      }
+    }
+#endif
+
     defaultScheduler();
+
+#ifdef IS_DEBUG_PEAK_PRESSURE
+    // recalculate register pressure
+    if (gPrintStats &&
+        ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
+      SetupLLVMDag();
+      const std::vector<unsigned> &RegionPressure =
+          RPTracker.getPressure().MaxSetPressure;
+      Logger::Info("LLVM max pressure after scheduling for BB %s:%s",
+                   context->MF->getFunction()->getName().data(), BB->getName());
+      // Logger::Info("There are %d register pressure sets.",
+      // RegionPressure.size());
+      for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
+        unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
+        Logger::Info("PeakRegPresAfter  Index %d Name %s Peak %d Limit %d", i,
+                     TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+        // RegionCriticalPSets.push_back(llvm::PressureChange(i));
+      }
+    }
+#endif
     return;
   }
 
+  /*iso
+  if iso - call fallback scheduler
+  karan
+  loop through the instructions in basic block - scheduledinstr BB -
+  BB->getSunit().nodeNum = counter
+  change the sunit order to new order scheduledag::sunit vector
+  */
+  int num = 0, unit = 0;
 
-/*iso
-if iso - call fallback scheduler
-karan
-loop through the instructions in basic block - scheduledinstr BB - BB->getSunit().nodeNum = counter
-change the sunit order to new order scheduledag::sunit vector
-*/
-int num = 0, unit = 0 ;
-
-if (isHeuristicISO) {
+  if (isHeuristicISO) {
 
     defaultScheduler();
 
-    for (llvm::MachineBasicBlock::instr_iterator
-	   I = BB->instr_begin(), E = BB->instr_end() ; I != E ; ++I) {
+    for (llvm::MachineBasicBlock::instr_iterator I = BB->instr_begin(),
+                                                 E = BB->instr_end();
+         I != E; ++I) {
 
+      llvm::MachineInstr &instr = *I;
+      llvm::SUnit *su = getSUnit(&instr);
 
-	    	llvm::MachineInstr& instr = *I;
-	     	llvm::SUnit* su = getSUnit (&instr);
+      if (su != NULL && !su->isBoundaryNode()) {
+        num = su->NodeNum;
+#ifdef IS_DEBUG_ISO
+        Logger::Info("Node num %d", num);
+#endif
 
+        if (num == SUnits[unit].NodeNum) {
+          SUnits[unit].NodeNum = unit;
+          unit++;
+          continue;
+        }
 
-		if(su != NULL && !su->isBoundaryNode()) {
-			num = su->NodeNum;
-	    #ifdef IS_DEBUG_ISO
-			Logger::Info("Node num %d", num);
-	    #endif
-
-
-			if(num == SUnits[unit].NodeNum) {
-			  SUnits[unit].NodeNum = unit;
+        std::swap(SUnits[unit], SUnits[num]);
+#ifdef IS_DEBUG_ISO
+        Logger::Info("Swapping %d with %d for ISO", SUnits[unit].NodeNum,
+                     SUnits[num].NodeNum);
+#endif
+        SUnits[unit].NodeNum = unit;
         unit++;
-				continue;
       }
-
-			std::swap(SUnits[unit], SUnits[num]);
-	#ifdef IS_DEBUG_ISO
-			Logger::Info("Swapping %d with %d for ISO", SUnits[unit].NodeNum, SUnits[num].NodeNum);
-	#endif
-			SUnits[unit].NodeNum = unit;
-			unit++;
-		}
     }
- }
-//    return;
+  }
+  //    return;
   else {
 
-  Logger::Info("********** Opt Scheduling **********\n");
-  // build LLVM DAG
-  SetupLLVMDag();
-  // Init topo for fast search for cycles and/or mutations
-  Topo.InitDAGTopologicalSorting();
-
-}
+    Logger::Info("********** Opt Scheduling **********\n");
+    // build LLVM DAG
+    SetupLLVMDag();
+    // Init topo for fast search for cycles and/or mutations
+    Topo.InitDAGTopologicalSorting();
+  }
   // apply mutations
   if (enableMutations) {
     postprocessDAG();
@@ -168,20 +212,19 @@ if (isHeuristicISO) {
 
 // Dump max pressure
 #ifdef IS_DEBUG_PEAK_PRESSURE
-  Logger::Info("LLVM max pressure before scheduling");
-  const std::vector<unsigned> &RegionPressure =
-      RPTracker.getPressure().MaxSetPressure;
-  Logger::Info("There are %d register pressure sets.", RegionPressure.size());
-  for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
-    unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-    if (RegionPressure[i] > 0) {
-      Logger::Info("PeakRegPresBefore Index %d Name %s Peak %d Limit %d",
-        i,
-        TRI->getRegPressureSetName(i),
-        RegionPressure[i],
-        Limit
-        );
-      RegionCriticalPSets.push_back(llvm::PressureChange(i));
+  if (gPrintStats &&
+      ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
+      Logger::Info("LLVM max pressure before scheduling for BB %s:%s",
+                   context->MF->getFunction()->getName().data(), BB->getName());
+    const std::vector<unsigned> &RegionPressure =
+        RPTracker.getPressure().MaxSetPressure;
+    // Logger::Info("There are %d register pressure sets.",
+    // RegionPressure.size());
+    for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
+      unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
+      Logger::Info("PeakRegPresBefore Index %d Name %s Peak %d Limit %d", i,
+                   TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+      // RegionCriticalPSets.push_back(llvm::PressureChange(i));
     }
   }
 #endif
@@ -254,20 +297,21 @@ if (isHeuristicISO) {
 
 #ifdef IS_DEBUG_PEAK_PRESSURE
   // recalculate register pressure
-  SetupLLVMDag();
+  if (gPrintStats &&
+      ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
 
-  Logger::Info("LLVM max pressure after scheduling");
-  Logger::Info("There are %d register pressure sets.", RegionPressure.size());
-  for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
-    unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-    if (RegionPressure[i] > 0) {
-      Logger::Info("PeakRegPresAfter  Index %d Name %s Peak %d Limit %d",
-        i,
-        TRI->getRegPressureSetName(i),
-        RegionPressure[i],
-        Limit
-        );
-      RegionCriticalPSets.push_back(llvm::PressureChange(i));
+    SetupLLVMDag();
+    const std::vector<unsigned> &RegionPressure =
+        RPTracker.getPressure().MaxSetPressure;
+      Logger::Info("LLVM max pressure after scheduling for BB %s:%s",
+                   context->MF->getFunction()->getName().data(), BB->getName());
+    // Logger::Info("There are %d register pressure sets.",
+    // RegionPressure.size());
+    for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
+      unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
+      Logger::Info("PeakRegPresAfter  Index %d Name %s Peak %d Limit %d", i,
+                   TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+      // RegionCriticalPSets.push_back(llvm::PressureChange(i));
     }
   }
 #endif
@@ -351,6 +395,21 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   minDagSize = schedIni.GetInt("MIN_DAG_SIZE");
   maxDagSize = schedIni.GetInt("MAX_DAG_SIZE");
   useFileBounds = schedIni.GetBool("USE_FILE_BOUNDS");
+
+  /* (Chris): control which stats get printed. default "NO" */
+  auto printWhichStats = schedIni.GetString("PRINT_SPILL_COUNTS");
+  if (printWhichStats == "HOT_ONLY") {
+    gPrintHotOnlyStats = true;
+    gPrintStats = true;
+    gIsHotFunction = hotFunctions.GetBool(context->MF->getFunction()->getName(), false);
+  }
+  else if (printWhichStats == "YES") {
+    gPrintHotOnlyStats = false;
+    gPrintStats = true;
+  }
+  else {
+    gPrintStats = false;
+  }
 }
 
 bool ScheduleDAGOptSched::isOptSchedEnabled() const {
