@@ -370,7 +370,7 @@ def calculateBlockStats(output):
       print "Unexpected error:", sys.exc_info()[0]
       for line in blocks[index].split('\n')[1:-1][:10]:
         print '   ', line
-      raise
+      # raise
 
   return stats
 
