@@ -27,6 +27,8 @@ namespace opt_sched {
   // Machine Schduler schedules
   class ScheduleDAGOptSched : public llvm::ScheduleDAGMILive {
     private:
+      // the number of the region in the current function
+      int regionNum;
       // Current machine scheduler context
       llvm::MachineSchedContext* context;
       // Wrapper object for converting LLVM information about target machine
@@ -126,6 +128,8 @@ namespace opt_sched {
       LATENCY_PRECISION fetchLatencyPrecision() const;
       // Get OptSched heuristic setting
       SchedPriorities parseHeuristic(const std::string &str) const;
+      // Return true if we should print spill count for the current function
+      bool shouldPrintSpills();
       // Add node to llvm schedule
       void ScheduleNode(llvm::SUnit *SU, unsigned CurCycle);
 		  // Setup dag and calculate register pressue in region
