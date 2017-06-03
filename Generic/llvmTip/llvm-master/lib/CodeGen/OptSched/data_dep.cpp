@@ -2966,23 +2966,18 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
 }
 
 void InstSchedule::PrintRegPressures(std::ostream& out) {
-  // out << '\n' << "OptSched : Register Pressures";
-  Logger::Info("OptSched max reg pressure");
+  Logger::Info("OptSched max reg pressures");
 	InstCount i;
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
   Logger::Info("There are %d register pressure sets.", machMdl_->GetRegTypeCnt());
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
     if (peakRegPressures_[i] > 0)
-      // out << "\nReg type " << llvmModel->GetRegTypeName(i) \
-      //     << ":  peak pressure: " << peakRegPressures_[i] \
-      //     << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
       Logger::Info("OptSchPeakRegPres Index %d Name %s Peak %d Limit %d",
         i,
         llvmModel->GetRegTypeName(i).c_str(), 
         peakRegPressures_[i],
         machMdl_->GetPhysRegCnt(i));
   }
-  // out << '\n';
 }
 
 

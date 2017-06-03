@@ -25,6 +25,9 @@
 
 #define DEBUG_TYPE "optsched"
 
+// hack to print spills
+bool OPTSCHED_gPrintSpills;
+
 // read path to configuration files from command line
 static llvm::cl::opt<std::string> MachineModelConfigFile(
     "optsched-mcfg", llvm::cl::Hidden,
@@ -50,14 +53,10 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
   return I;
 }
 
-bool gIsHotFunction = false;
-bool gPrintHotOnlyStats = false;
-bool gPrintStats = true;
-
 namespace opt_sched {
 ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
-      context(C), model(MachineModelConfigFile) {
+      context(C), regionNum(0), model(MachineModelConfigFile) {
 
   // valid heuristic names
   std::strcpy(hurstcNames[(int)LSH_CP], "CP");
@@ -108,8 +107,7 @@ void ScheduleDAGOptSched::schedule() {
        even for the default scheduler */
     Logger::Info("********** LLVM Scheduling **********\n");
 #ifdef IS_DEBUG_PEAK_PRESSURE
-    if (gPrintStats &&
-        ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
+    if (OPTSCHED_gPrintSpills) {
       SetupLLVMDag();
       Logger::Info("LLVM max pressure before scheduling for BB %s:%s",
                    context->MF->getFunction()->getName().data(), BB->getName());
@@ -130,8 +128,7 @@ void ScheduleDAGOptSched::schedule() {
 
 #ifdef IS_DEBUG_PEAK_PRESSURE
     // recalculate register pressure
-    if (gPrintStats &&
-        ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
+    if (OPTSCHED_gPrintSpills) {
       SetupLLVMDag();
       const std::vector<unsigned> &RegionPressure =
           RPTracker.getPressure().MaxSetPressure;
@@ -149,58 +146,60 @@ void ScheduleDAGOptSched::schedule() {
 #endif
     return;
   }
+  
+  // increment scheduling region counter
+  ++regionNum;
 
-  /*iso
-  if iso - call fallback scheduler
-  karan
-  loop through the instructions in basic block - scheduledinstr BB -
-  BB->getSunit().nodeNum = counter
-  change the sunit order to new order scheduledag::sunit vector
-  */
-  int num = 0, unit = 0;
 
-  if (isHeuristicISO) {
+/*iso
+if iso - call fallback scheduler
+karan
+loop through the instructions in basic block - scheduledinstr BB - BB->getSunit().nodeNum = counter
+change the sunit order to new order scheduledag::sunit vector
+*/
+int num = 0, unit = 0 ;
+
+if (isHeuristicISO) {
 
     defaultScheduler();
 
-    for (llvm::MachineBasicBlock::instr_iterator I = BB->instr_begin(),
-                                                 E = BB->instr_end();
-         I != E; ++I) {
+    for (llvm::MachineBasicBlock::instr_iterator
+	   I = BB->instr_begin(), E = BB->instr_end() ; I != E ; ++I) {
 
-      llvm::MachineInstr &instr = *I;
-      llvm::SUnit *su = getSUnit(&instr);
 
-      if (su != NULL && !su->isBoundaryNode()) {
-        num = su->NodeNum;
-#ifdef IS_DEBUG_ISO
-        Logger::Info("Node num %d", num);
-#endif
+	    	llvm::MachineInstr& instr = *I;
+	     	llvm::SUnit* su = getSUnit (&instr);
 
-        if (num == SUnits[unit].NodeNum) {
-          SUnits[unit].NodeNum = unit;
-          unit++;
-          continue;
-        }
 
-        std::swap(SUnits[unit], SUnits[num]);
-#ifdef IS_DEBUG_ISO
-        Logger::Info("Swapping %d with %d for ISO", SUnits[unit].NodeNum,
-                     SUnits[num].NodeNum);
-#endif
-        SUnits[unit].NodeNum = unit;
+		if(su != NULL && !su->isBoundaryNode()) {
+			num = su->NodeNum;
+	    #ifdef IS_DEBUG_ISO
+			Logger::Info("Node num %d", num);
+	    #endif
+
+
+			if(num == SUnits[unit].NodeNum) {
+			  SUnits[unit].NodeNum = unit;
         unit++;
+				continue;
       }
-    }
-  }
-  //    return;
-  else {
 
-    Logger::Info("********** Opt Scheduling **********\n");
-    // build LLVM DAG
-    SetupLLVMDag();
-    // Init topo for fast search for cycles and/or mutations
-    Topo.InitDAGTopologicalSorting();
-  }
+			std::swap(SUnits[unit], SUnits[num]);
+	#ifdef IS_DEBUG_ISO
+			Logger::Info("Swapping %d with %d for ISO", SUnits[unit].NodeNum, SUnits[num].NodeNum);
+	#endif
+			SUnits[unit].NodeNum = unit;
+			unit++;
+		}
+    }
+ }
+
+  Logger::Info("********** Opt Scheduling **********\n");
+  // build LLVM DAG
+  SetupLLVMDag();
+  // Init topo for fast search for cycles and/or mutations
+  Topo.InitDAGTopologicalSorting();
+
   // apply mutations
   if (enableMutations) {
     postprocessDAG();
@@ -212,8 +211,7 @@ void ScheduleDAGOptSched::schedule() {
 
 // Dump max pressure
 #ifdef IS_DEBUG_PEAK_PRESSURE
-  if (gPrintStats &&
-      ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
+  if (OPTSCHED_gPrintSpills) {
       Logger::Info("LLVM max pressure before scheduling for BB %s:%s",
                    context->MF->getFunction()->getName().data(), BB->getName());
     const std::vector<unsigned> &RegionPressure =
@@ -297,8 +295,7 @@ void ScheduleDAGOptSched::schedule() {
 
 #ifdef IS_DEBUG_PEAK_PRESSURE
   // recalculate register pressure
-  if (gPrintStats &&
-      ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
+  if (OPTSCHED_gPrintSpills) {
 
     SetupLLVMDag();
     const std::vector<unsigned> &RegionPressure =
@@ -315,6 +312,14 @@ void ScheduleDAGOptSched::schedule() {
     }
   }
 #endif
+  
+  #ifdef IS_DEBUG_PRINT_DAG
+  Logger::Info("%s", BB->getFullName());
+  Logger::Info("This is region %d in this BB", regionNum);
+  for (int i = 0; i < SUnits.size(); i++) {
+    SUnits[i].dumpAll(this);
+  }
+  #endif
 
   delete region;
 }
@@ -364,6 +369,9 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
       schedIni.GetInt("MAX_DAG_SIZE_FOR_PRECISE_LATENCY");
   treatOrderDepsAsDataDeps = schedIni.GetBool("TREAT_ORDER_DEPS_AS_DATA_DEPS");
 
+  // should we print spills for the current function
+  OPTSCHED_gPrintSpills = shouldPrintSpills();
+
   // setup pruning
   prune.rlxd = schedIni.GetBool("APPLY_RELAXED_PRUNING");
   prune.nodeSup = schedIni.GetBool("APPLY_NODE_SUPERIORITY");
@@ -373,6 +381,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   histTableHashBits =
       static_cast<int16_t>(schedIni.GetInt("HIST_TABLE_HASH_BITS"));
   verifySchedule = schedIni.GetBool("VERIFY_SCHEDULE");
+  enableMutations = schedIni.GetBool("LLVM_MUTATIONS");
   enableMutations = schedIni.GetBool("LLVM_MUTATIONS");
   enumerateStalls = schedIni.GetBool("ENUMERATE_STALLS");
   spillCostFactor = schedIni.GetInt("SPILL_COST_FACTOR");
@@ -395,21 +404,6 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   minDagSize = schedIni.GetInt("MIN_DAG_SIZE");
   maxDagSize = schedIni.GetInt("MAX_DAG_SIZE");
   useFileBounds = schedIni.GetBool("USE_FILE_BOUNDS");
-
-  /* (Chris): control which stats get printed. default "NO" */
-  auto printWhichStats = schedIni.GetString("PRINT_SPILL_COUNTS");
-  if (printWhichStats == "HOT_ONLY") {
-    gPrintHotOnlyStats = true;
-    gPrintStats = true;
-    gIsHotFunction = hotFunctions.GetBool(context->MF->getFunction()->getName(), false);
-  }
-  else if (printWhichStats == "YES") {
-    gPrintHotOnlyStats = false;
-    gPrintStats = true;
-  }
-  else {
-    gPrintStats = false;
-  }
 }
 
 bool ScheduleDAGOptSched::isOptSchedEnabled() const {
@@ -506,6 +500,22 @@ SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
   } else {
     Logger::Error("Unrecognized spill cost function. Defaulted to PEAK.");
     return SCF_PEAK;
+  }
+}
+
+bool ScheduleDAGOptSched::shouldPrintSpills() {
+  std::string printSpills = schedIni.GetString("PRINT_SPILL_COUNTS");
+  if (printSpills == "YES") {
+    return true;
+  } else if (printSpills == "NO") {
+    return false;
+  } else if (printSpills == "HOT_ONLY") {
+    std::string functionName = context->MF->getFunction()->getName();
+    return hotFunctions.GetBool(functionName, false);
+  } else {
+    Logger::Error("Unknown value for PRINT_SPILL_COUNTS: %s. Assuming NO.",
+                  printSpills.c_str());
+    return false;
   }
 }
 } // namespace opt_sched

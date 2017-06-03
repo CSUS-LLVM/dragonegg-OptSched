@@ -2607,16 +2607,13 @@ unsigned RAGreedy::selectOrSplitImpl(LiveInterval &VirtReg,
 //extern int NumSpilledRegs;
 extern int gNumSpilledRanges;
 extern int gNumSpills;
+extern bool OPTSCHED_gPrintSpills;
 //extern int gNumReloads;
 //extern int gNumSpillsNoCleanup;
 //extern int gNumReloadsNoCleanup;
 //extern bool gPrintSpills;
 //extern float gWeightedSpills;
 //extern float gWeightedReloads;
-extern bool gIsHotFunction;
-extern bool gPrintHotOnlyStats;
-extern bool gPrintStats;
-
 
 bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   DEBUG(dbgs() << "************* GREEDY REGISTER ALLOCATION **********\n"
@@ -2681,12 +2678,13 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 
   releaseMemory();
   
-  if (gPrintStats && ((gPrintHotOnlyStats && gIsHotFunction) || !gPrintHotOnlyStats)) {
-	  std::cout << "\n*************************************\n";
+  if (OPTSCHED_gPrintSpills) {
+	std::cout << "\n*************************************\n";
     std::cout << "Function: " << fxnName << "\n";
   	std::cout << "GREEDY RA: Number of spilled live ranges: " << gNumSpilledRanges << "\n";
   	//std::cout << "\nGREEDY RA: Number of spills inserted : " << gNumSpills << '\n';
     std::cout << "*************************************\n\n";
   }
+    
   return true;
 }
