@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include <chrono>
 #include <algorithm>
 
@@ -117,44 +118,51 @@ karan
 loop through the instructions in basic block - scheduledinstr BB - BB->getSunit().nodeNum = counter
 change the sunit order to new order scheduledag::sunit vector
 */
-int num = 0, unit = 0 ;
 
 if (isHeuristicISO) {
 
     defaultScheduler();
 
+    std::vector<int> schedule;
     for (llvm::MachineBasicBlock::instr_iterator
-	   I = BB->instr_begin(), E = BB->instr_end() ; I != E ; ++I) {
+	   I = BB->instr_begin(), E = BB->instr_end(); I != E ; ++I) {
 
 
-	    	llvm::MachineInstr& instr = *I;
-	     	llvm::SUnit* su = getSUnit (&instr);
+	  	llvm::MachineInstr& instr = *I;
+	   	llvm::SUnit* su = getSUnit (&instr);
 
 
-		if(su != NULL && !su->isBoundaryNode()) {
-			num = su->NodeNum;
-	    #ifdef IS_DEBUG_ISO
-			Logger::Info("Node num %d", num);
-	    #endif
-
-
-			if(num == SUnits[unit].NodeNum) {
-			  SUnits[unit].NodeNum = unit;
-        unit++;
-				continue;
+		  if(su != NULL && !su->isBoundaryNode()) {
+        int nodeNum = su->NodeNum;
+        #ifdef IS_DEBUG_ISO
+        Logger::Info("Node num %d", nodeNum);
+        #endif
+        schedule.push_back(nodeNum);
       }
+    }
 
-			std::swap(SUnits[unit], SUnits[num]);
-	#ifdef IS_DEBUG_ISO
-			Logger::Info("Swapping %d with %d for ISO", SUnits[unit].NodeNum, SUnits[num].NodeNum);
-	#endif
-			SUnits[unit].NodeNum = unit;
-			unit++;
-		}
+    for (int i = 0; i < SUnits.size(); i++){
+      // continue if the SUnit is already in the correct place
+      int unit = schedule[i];
+      int num = SUnits[i].NodeNum;
+      Logger::Info("i = %d, unit = %d, num = %d", i, unit, num);
+      if (i == unit)
+        continue;
+      for (int j = i + 1; j < SUnits.size(); j++) {
+        if (SUnits[j].NodeNum == unit) {
+          #ifdef IS_DEBUG_ISO
+          Logger::Info("Swapping %d with %d for ISO", SUnits[j].NodeNum, SUnits[i].NodeNum);
+          #endif
+          std::swap(SUnits[j], SUnits[i]);
+          SUnits[i].NodeNum = i;
+          break;
+        }
+        Logger::Error("ISO failed. Could not find matching SUnit");
+      }
     }
  }
 
-  Logger::Info("********** Opt Scheduling **********\n");
+  Logger::Info("********** Opt Scheduling **********");
   // build LLVM DAG
   SetupLLVMDag();
   // Init topo for fast search for cycles and/or mutations
@@ -272,6 +280,16 @@ if (isHeuristicISO) {
     SUnits[i].dumpAll(this);
   }
   #endif
+  
+  //TODO remove tmp
+  llvm::dbgs() << BB->getFullName() << "\n";
+  int rootCnt = 0;
+  llvm::dbgs() << "This is BB " << regionNum << " in this function" << "\n";
+  for (int i = 0; i < SUnits.size(); i++) {
+    if (SUnits[i].NumPreds == 0)
+      rootCnt++;
+  }
+  llvm::dbgs() << rootCnt << " root nodes in this dag\n";
 
   delete region;
 }
