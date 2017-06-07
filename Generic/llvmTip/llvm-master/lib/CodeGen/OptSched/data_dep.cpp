@@ -12,6 +12,9 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
 
+// only print pressure if enabled by sched.ini
+extern bool OPTSCHED_gPrintSpills;
+
 namespace opt_sched {
 
 // The maximum number of blocks allowed in a trace.
@@ -2966,6 +2969,7 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
 }
 
 void InstSchedule::PrintRegPressures(std::ostream& out) {
+  if (!OPTSCHED_gPrintSpills) return;
   Logger::Info("OptSched max reg pressures");
 	InstCount i;
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
