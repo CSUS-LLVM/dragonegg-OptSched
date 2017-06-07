@@ -174,6 +174,8 @@ namespace llvm {
 
     void EmitPhysRegCopy(SUnit *SU, DenseMap<SUnit*, unsigned> &VRBaseMap,
                          MachineBasicBlock::iterator InsertPos);
+
+    int BBNum;
   };
 }
 

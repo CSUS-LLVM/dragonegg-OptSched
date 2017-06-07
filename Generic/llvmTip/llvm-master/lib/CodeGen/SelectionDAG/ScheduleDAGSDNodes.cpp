@@ -46,7 +46,7 @@ static cl::opt<int> HighLatencyCycles(
            "instructions take for targets with no itinerary"));
 
 ScheduleDAGSDNodes::ScheduleDAGSDNodes(MachineFunction &mf)
-    : ScheduleDAG(mf), BB(nullptr), DAG(nullptr),
+    : ScheduleDAG(mf), BB(nullptr), DAG(nullptr), BBNum(0),
       InstrItins(mf.getSubtarget().getInstrItineraryData()) {}
 
 /// Run - perform scheduling.
@@ -61,6 +61,17 @@ void ScheduleDAGSDNodes::Run(SelectionDAG *dag, MachineBasicBlock *bb) {
 
   // Invoke the target's selection of scheduler.
   Schedule();
+  /*
+  dbgs() << BB->getFullName() << "\n";
+  ++BBNum;
+  int rootCnt = 0;
+  dbgs() << "This is BB " << BBNum << " in this function" << "\n";
+  for (int i = 0; i < SUnits.size(); i++) {
+    if (SUnits[i].NumPreds == 0)
+      rootCnt++;
+  }
+  dbgs() << rootCnt << " root nodes in this dag\n";
+  */
 }
 
 /// NewSUnit - Creates a new SUnit and return a ptr to it.
