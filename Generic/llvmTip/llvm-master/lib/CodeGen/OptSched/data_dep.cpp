@@ -2969,7 +2969,6 @@ void InstSchedule::PrintRegPressures(std::ostream& out) {
   Logger::Info("OptSched max reg pressures");
 	InstCount i;
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
-  Logger::Info("There are %d register pressure sets.", machMdl_->GetRegTypeCnt());
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
     if (peakRegPressures_[i] > 0)
       Logger::Info("OptSchPeakRegPres Index %d Name %s Peak %d Limit %d",
@@ -3026,7 +3025,7 @@ bool InstSchedule::Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph) {
   if (!VerifySlots_(machMdl, dataDepGraph)) return false;
   if (!VerifyDataDeps_(dataDepGraph)) return false;
   
-#ifdef IS_DEBUG_PEAK_PRESSURE_OPT_SCHED 
+#ifdef IS_DEBUG_PEAK_PRESSURE
 	PrintRegPressures(std::cout);
 #endif
 
