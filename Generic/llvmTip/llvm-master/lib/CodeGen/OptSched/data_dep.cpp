@@ -12,6 +12,9 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
 
+// only print pressure if enabled by sched.ini
+extern bool OPTSCHED_gPrintSpills;
+
 namespace opt_sched {
 
 // The maximum number of blocks allowed in a trace.
@@ -2966,15 +2969,17 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
 }
 
 void InstSchedule::PrintRegPressures(std::ostream& out) {
-  Logger::Info("OptSched : Register Pressures");
+  if (!OPTSCHED_gPrintSpills) return;
+  Logger::Info("OptSched max reg pressures");
 	InstCount i;
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
     if (peakRegPressures_[i] > 0)
-      Logger::Info("Reg type: %s peak pressure: %d physical limit %d", 
-                   llvmModel->GetRegTypeName(i).c_str(),
-                   peakRegPressures_[i],
-                   machMdl_->GetPhysRegCnt(i));
+      Logger::Info("OptSchPeakRegPres Index %d Name %s Peak %d Limit %d",
+        i,
+        llvmModel->GetRegTypeName(i).c_str(), 
+        peakRegPressures_[i],
+        machMdl_->GetPhysRegCnt(i));
   }
 }
 
@@ -3024,9 +3029,9 @@ bool InstSchedule::Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph) {
   if (!VerifySlots_(machMdl, dataDepGraph)) return false;
   if (!VerifyDataDeps_(dataDepGraph)) return false;
   
-  #ifdef IS_DEBUG_PEAK_PRESSURE 
+#ifdef IS_DEBUG_PEAK_PRESSURE
 	PrintRegPressures(std::cout);
-  #endif
+#endif
 
   Logger::Info("Schedule verified successfully");
   return true;
