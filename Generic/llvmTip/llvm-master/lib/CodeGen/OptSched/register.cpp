@@ -10,12 +10,20 @@ int Register::GetNum() const {
   return num_;
 }
 
+int Register::GetWght() const {
+  return wght_;
+}
+
 void Register::SetType(int16_t type) {
   type_ = type;
 }
 
 void Register::SetNum(int num) {
   num_ = num;
+}
+
+void Register::SetWght(int wght) {
+  wght_ = wght;
 }
 
 bool Register::IsPhysical() const {
@@ -120,6 +128,7 @@ bool Register::IsSpillCandidate() const {
 Register::Register(int16_t type, int num, int physicalNumber) {
   type_ = type;
   num_ = num;
+  wght_ = 1;
   defCnt_ = 0;
   useCnt_ = 0;
   crntUseCnt_ = 0;

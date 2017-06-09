@@ -57,7 +57,7 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
 namespace opt_sched {
 ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
-      context(C), regionNum(0), model(MachineModelConfigFile) {
+      context(C), model(MachineModelConfigFile) {
 
   // valid heuristic names
   std::strcpy(hurstcNames[(int)LSH_CP], "CP");
@@ -108,10 +108,6 @@ void ScheduleDAGOptSched::schedule() {
     return;
   }
   
-  // increment scheduling region counter
-  ++regionNum;
-
-
 /*iso
 if iso - call fallback scheduler
 karan
@@ -275,22 +271,11 @@ if (isHeuristicISO) {
   
   #ifdef IS_DEBUG_PRINT_DAG
   Logger::Info("%s", BB->getFullName());
-  Logger::Info("This is region %d in this BB", regionNum);
   for (int i = 0; i < SUnits.size(); i++) {
     SUnits[i].dumpAll(this);
   }
   #endif
   
-  //TODO remove tmp
-  llvm::dbgs() << BB->getFullName() << "\n";
-  int rootCnt = 0;
-  llvm::dbgs() << "This is BB " << regionNum << " in this function" << "\n";
-  for (int i = 0; i < SUnits.size(); i++) {
-    if (SUnits[i].NumPreds == 0)
-      rootCnt++;
-  }
-  llvm::dbgs() << rootCnt << " root nodes in this dag\n";
-
   delete region;
 }
 

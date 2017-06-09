@@ -25,6 +25,10 @@ class Register {
     int GetNum() const;
     void SetNum(int num);
 
+    void SetWght();
+    int GetWght() const;
+    void SetWght(int wght);
+
     bool IsPhysical() const;
     int GetPhysicalNumber() const;
     void SetPhysicalNumber(int physicalNumber);
@@ -66,6 +70,7 @@ class Register {
     int physicalNumber_;
     BitVector conflicts_;
     bool isSpillCnddt_;
+    int wght_;
     
 };
 

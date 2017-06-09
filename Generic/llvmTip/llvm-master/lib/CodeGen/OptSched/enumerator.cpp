@@ -788,7 +788,7 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
       crntNode_->PrntPartialSched(Logger::GetLogStream());
     #endif
     #ifdef IS_DEBUG
-      Logger::PeriodicLog();
+      //Logger::PeriodicLog();
     #endif
   }
 

@@ -77,7 +77,7 @@ void Logger::RegisterPeriodicLogger(Milliseconds period, void (*callback)()) {
 
 void Logger::PeriodicLog() {
   if (!periodLogCallback) {
-    //Error("Periodic log called while no callback was registered.");
+    Error("Periodic log called while no callback was registered.");
     return;
   }
 

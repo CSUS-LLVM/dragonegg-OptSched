@@ -70,6 +70,8 @@ class LLVMDataDepGraph : public DataDepGraph {
     bool isLeafNode(const llvm::SUnit& unit);
     // Check if two nodes are equivalent and if we can order them arbitrarily
     bool nodesAreEquivalent(const llvm::SUnit& srcNode, const llvm::SUnit& dstNode);
+    // Get the weight of the regsiter class in LLVM 
+    int GetRegisterWeight_(const unsigned resNo) const;
 
     // Converts the LLVM nodes saved in llvmNodes_ to opt_sched::DataDepGraph.
     // Should be called only once, by the constructor.

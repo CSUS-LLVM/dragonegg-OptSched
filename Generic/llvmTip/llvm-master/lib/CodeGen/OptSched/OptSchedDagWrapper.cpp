@@ -56,7 +56,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext *context,
   weight_ = 1.0f;
 
   std::snprintf(dagID_, MAX_NAMESIZE, "%s:%s",
-                context_->MF->getFunction()->getName().data(), BB->getName());
+                context_->MF->getFunction()->getName().data(), BB->getName().data());
 
   std::snprintf(compiler_, MAX_NAMESIZE, "LLVM");
 
@@ -562,6 +562,29 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
   return true;
 }
 
+int LLVMDataDepGraph::GetRegisterWeight_(const unsigned resNo) const {
+  const TargetRegisterInfo &TRI = *schedDag_->TRI;
+  const TargetRegisterClass *regClass;
+
+  if (schedDag_->TRI->isPhysicalRegister(resNo))
+    return TRI.getRegUnitWeight(resNo);
+
+  else if (schedDag_->TRI->isVirtualRegister(resNo)) {
+    regClass = schedDag_->MRI.getRegClass(resNo);
+
+    if (!regClass)
+      return 1;
+
+    return TRI.getRegClassWeight(regClass).RegWeight;
+  } else {
+    Logger::Error("Could not find weight for register class. Assuming weight of 1");
+    return 1;
+  }
+}
+
+// A register type is an int value that corresponds to a register type in our scheduler.
+// We assign multiple register types to each register class in LLVM to account for all
+// register sets associated with the class.
 std::vector<int>
 LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   const TargetRegisterInfo &TRI = *schedDag_->TRI;
@@ -571,7 +594,6 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
 
   // Check if is a physical register
   if (schedDag_->TRI->isPhysicalRegister(resNo)) {
-
     unsigned weight = TRI.getRegUnitWeight(resNo);
     // get pressure sets associated with this regsiter class
     for (const int *PSet = TRI.getRegUnitPressureSets(resNo); *PSet != -1;
@@ -580,8 +602,8 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
       int type = llvmMachMdl_->GetRegTypeByName(pSetName);
 
       // add weight number of defs
-      for (int i = 0; i < weight; ++i)
-        pSetTypes.push_back(type);
+      //for (int i = 0; i < weight; ++i)
+      pSetTypes.push_back(type);
 
 #ifdef IS_DEBUG_REG_TYPES
       Logger::Info("Pset is %s", pSetName);
@@ -602,16 +624,14 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
       int type = llvmMachMdl_->GetRegTypeByName(pSetName);
 
       // add weight number of defs
-      for (int i = 0; i < weight; ++i)
-        pSetTypes.push_back(type);
+      //for (int i = 0; i < weight; ++i)
+      pSetTypes.push_back(type);
 
 #ifdef IS_DEBUG_REG_TYPES
       Logger::Info("Pset is %s", pSetName);
 #endif
     }
-  }
-
-  else {
+  } else {
 #ifdef IS_DEBUG_REG_TYPES
     Logger::Info("Could not find a type for resNo %lu", resNo);
 #endif
