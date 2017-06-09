@@ -9,6 +9,8 @@
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
 
+extern bool OPTSCHED_gPrintSpills;
+
 namespace opt_sched {
 
 SchedRegion::SchedRegion(MachineModel* machMdl,
@@ -121,6 +123,18 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   Stats::heuristicTime.Record(hurstcTime);
 if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
 
+  #ifdef IS_DEBUG_SLIL_PRINTOUT
+  if (OPTSCHED_gPrintSpills) {
+    const auto& slilVector = this->GetSLIL_();
+    for (int j = 0; j < slilVector.size(); j++) {
+      Logger::Info("SLIL after Heuristic Scheduler for dag %s Type %d %s is %d.", 
+        dataDepGraph_->GetDagID(),
+        j,
+        machMdl_->GetRegTypeName(j).c_str(),
+        slilVector[j]);
+    }
+  }
+  #endif
   Milliseconds boundStart = Utilities::GetProcessorTime();
   hurstcSchedLngth_ = lstSched->GetCrntLngth();
   bestSchedLngth_ = hurstcSchedLngth_;

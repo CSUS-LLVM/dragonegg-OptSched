@@ -11,6 +11,8 @@
 #include <cstdio>
 #include <iostream>
 
+extern bool OPTSCHED_gPrintSpills;
+
 namespace opt_sched {
 
 // The denominator used when calculating cost weight.
@@ -67,6 +69,7 @@ BBWithSpill::BBWithSpill(MachineModel* machMdl,
   livePhysRegs_ = new WeightedBitVector[regTypeCnt_];
   spillCosts_ = new InstCount[dataDepGraph_->GetInstCnt()];
   peakRegPressures_ = new InstCount[regTypeCnt_];
+  sumOfLiveIntervalLengths_.resize(regTypeCnt_, 0);
 
   for (i = 0; i < regTypeCnt_; i++) {
     regFiles_[i].SetRegType(i);
@@ -212,6 +215,9 @@ void BBWithSpill::InitForCostCmputtn_() {
 
   for(i = 0; i < dataDepGraph_->GetInstCnt(); i++)
     spillCosts_[i] = 0;
+
+  for (auto& i : sumOfLiveIntervalLengths_)
+    i = 0;
 }
 /*****************************************************************************/
 
@@ -346,10 +352,36 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
 
   newSpillCost = 0;
 
+  #ifdef IS_DEBUG_SLIL_CORRECT
+  if (OPTSCHED_gPrintSpills)
+  {
+    Logger::Info("Printing live range lengths for instruction BEFORE calculation.");
+    for (int j = 0; j < sumOfLiveIntervalLengths_.size(); j++) {
+      Logger::Info("SLIL for regType %d %s is currently %d", 
+        j,
+        sumOfLiveIntervalLengths_[j]);
+    }
+    Logger::Info("Now computing spill cost for instruction.");
+  }
+  #endif
+
   for (int16_t i = 0; i < regTypeCnt_; i++) {
     liveRegs = liveRegs_[i].GetWghtedCnt();
     if(liveRegs > peakRegPressures_[i])
       peakRegPressures_[i] = liveRegs;
+
+    // (Chris): Compute sum of live range lengths at this point
+    const auto& liveRegsForCurrentType = liveRegs_[i];
+    auto sizeOfLiveRegsVector = liveRegsForCurrentType.GetSize();
+    for (int j = 0; j < sizeOfLiveRegsVector; j++) {
+      if (liveRegsForCurrentType.GetBit(j)) {
+        #ifdef IS_DEBUG_SLIL_CORRECT
+        if (OPTSCHED_gPrintSpills)
+          Logger::Info("RegType %d RegNum %d is live.", i, j);
+        #endif
+        sumOfLiveIntervalLengths_[i]++;
+      }
+    }
 
     #ifdef IS_DEBUG_REG_PRESSURE
     Logger::Info("Reg type %d has %d live regs", i, liveRegs);
@@ -364,10 +396,23 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       newSpillCost += excessRegs;
     }
 
-/*    if (trackLiveRangeLngths_) {
+    // if (trackLiveRangeLngths_) {
       
-    }*/
+    // }
   }
+
+  #ifdef IS_DEBUG_SLIL_CORRECT
+  if (OPTSCHED_gPrintSpills)
+  {
+    Logger::Info("Printing live range lengths for instruction AFTER calculation.");
+    for (int j = 0; j < sumOfLiveIntervalLengths_.size(); j++) {
+      Logger::Info("SLIL for regType %d is currently %d", 
+        j,
+        sumOfLiveIntervalLengths_[j]);
+    }
+  }
+  #endif
+
 
   crntStepNum_++;
   spillCosts_[crntStepNum_] = newSpillCost;

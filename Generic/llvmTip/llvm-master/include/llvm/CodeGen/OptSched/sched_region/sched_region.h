@@ -203,6 +203,9 @@ class SchedRegion {
 
     // Prepares the region for being scheduled.
     virtual void SetupForSchdulng_() = 0;
+
+    // (Chris) Get the SLIL for each set
+    virtual const std::vector<int>& GetSLIL_() const = 0;
 };
 
 } // end namespace opt_sched

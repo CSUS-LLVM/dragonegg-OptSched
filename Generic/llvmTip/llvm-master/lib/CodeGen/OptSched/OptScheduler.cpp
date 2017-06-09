@@ -114,16 +114,17 @@ void ScheduleDAGOptSched::schedule() {
 #ifdef IS_DEBUG_PEAK_PRESSURE
     if (OPTSCHED_gPrintSpills) {
       SetupLLVMDag();
-      Logger::Info("LLVM max pressure before scheduling for BB %s:%s",
-                   context->MF->getFunction()->getName().data(), BB->getName());
       const std::vector<unsigned> &RegionPressure =
-          RPTracker.getPressure().MaxSetPressure;
-      // Logger::Info("There are %d register pressure sets.",
-      // RegionPressure.size());
+        RPTracker.getPressure().MaxSetPressure;
       for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
         unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-        Logger::Info("PeakRegPresBefore Index %d Name %s Peak %d Limit %d", i,
-                     TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+        Logger::Info("PeakRegPresBefore Dag %s:%s Index %d Name %s Peak %d Limit %d",
+          context->MF->getFunction()->getName().data(),
+          BB->getName().data(),
+          i,
+          TRI->getRegPressureSetName(i),
+          RegionPressure[i],
+          Limit);
         // RegionCriticalPSets.push_back(llvm::PressureChange(i));
       }
     }
@@ -136,15 +137,16 @@ void ScheduleDAGOptSched::schedule() {
     if (OPTSCHED_gPrintSpills) {
       SetupLLVMDag();
       const std::vector<unsigned> &RegionPressure =
-          RPTracker.getPressure().MaxSetPressure;
-      Logger::Info("LLVM max pressure after scheduling for BB %s:%s",
-                   context->MF->getFunction()->getName().data(), BB->getName());
-      // Logger::Info("There are %d register pressure sets.",
-      // RegionPressure.size());
+        RPTracker.getPressure().MaxSetPressure;
       for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
         unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-        Logger::Info("PeakRegPresAfter  Index %d Name %s Peak %d Limit %d", i,
-                     TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+        Logger::Info("PeakRegPresAfter Dag %s:%s Index %d Name %s Peak %d Limit %d",
+          context->MF->getFunction()->getName().data(),
+          BB->getName().data(),
+          i,
+          TRI->getRegPressureSetName(i),
+          RegionPressure[i],
+          Limit);
         // RegionCriticalPSets.push_back(llvm::PressureChange(i));
       }
     }
@@ -220,16 +222,17 @@ if (isHeuristicISO) {
 // Dump max pressure
 #ifdef IS_DEBUG_PEAK_PRESSURE
   if (OPTSCHED_gPrintSpills) {
-      Logger::Info("LLVM max pressure before scheduling for BB %s:%s",
-                   context->MF->getFunction()->getName().data(), BB->getName());
     const std::vector<unsigned> &RegionPressure =
-        RPTracker.getPressure().MaxSetPressure;
-    // Logger::Info("There are %d register pressure sets.",
-    // RegionPressure.size());
+      RPTracker.getPressure().MaxSetPressure;
     for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
       unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-      Logger::Info("PeakRegPresBefore Index %d Name %s Peak %d Limit %d", i,
-                   TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+      Logger::Info("PeakRegPresBefore Dag %s:%s Index %d Name %s Peak %d Limit %d",
+        context->MF->getFunction()->getName().data(),
+        BB->getName().data(),
+        i,
+        TRI->getRegPressureSetName(i),
+        RegionPressure[i],
+        Limit);
       // RegionCriticalPSets.push_back(llvm::PressureChange(i));
     }
   }
@@ -307,20 +310,21 @@ if (isHeuristicISO) {
 
     SetupLLVMDag();
     const std::vector<unsigned> &RegionPressure =
-        RPTracker.getPressure().MaxSetPressure;
-      Logger::Info("LLVM max pressure after scheduling for BB %s:%s",
-                   context->MF->getFunction()->getName().data(), BB->getName());
-    // Logger::Info("There are %d register pressure sets.",
-    // RegionPressure.size());
+      RPTracker.getPressure().MaxSetPressure;
     for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
       unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-      Logger::Info("PeakRegPresAfter  Index %d Name %s Peak %d Limit %d", i,
-                   TRI->getRegPressureSetName(i), RegionPressure[i], Limit);
+      Logger::Info("PeakRegPresAfter Dag %s:%s Index %d Name %s Peak %d Limit %d",
+        context->MF->getFunction()->getName().data(),
+        BB->getName().data(),
+        i,
+        TRI->getRegPressureSetName(i),
+        RegionPressure[i],
+        Limit);
       // RegionCriticalPSets.push_back(llvm::PressureChange(i));
     }
   }
 #endif
-  
+
   #ifdef IS_DEBUG_PRINT_DAG
   Logger::Info("%s", BB->getFullName());
   for (int i = 0; i < SUnits.size(); i++) {

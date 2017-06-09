@@ -11,6 +11,7 @@ Last Update:  Apr. 2011
 
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
+#include <vector>
 
 namespace opt_sched {
 
@@ -43,6 +44,10 @@ class BBWithSpill : public SchedRegion {
     // A bit vector indexed by physical register number indicating whether 
     // that physical register is live
     WeightedBitVector* livePhysRegs_;
+
+    // Sum of lengths of live ranges. This vector is indexed by register type,
+    // and each type will have its sum of live interval lengths computed.
+    std::vector<int> sumOfLiveIntervalLengths_;
 
     int entryInstCnt_;
     int exitInstCnt_;
@@ -115,6 +120,12 @@ class BBWithSpill : public SchedRegion {
     void SetSttcLwrBounds(EnumTreeNode* node);
     bool ChkInstLglty(SchedInstruction* inst);
     void InitForSchdulng();
+
+  protected:
+    // (Chris)
+    inline virtual const std::vector<int>& GetSLIL_() const { 
+      return sumOfLiveIntervalLengths_;
+    }
 };
 
 } // end namespace opt_sched
