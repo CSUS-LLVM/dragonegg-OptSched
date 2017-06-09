@@ -27,8 +27,6 @@ namespace opt_sched {
   // Machine Schduler schedules
   class ScheduleDAGOptSched : public llvm::ScheduleDAGMILive {
     private:
-      // the number of the region in the current function
-      int regionNum;
       // Current machine scheduler context
       llvm::MachineSchedContext* context;
       // Wrapper object for converting LLVM information about target machine

@@ -290,12 +290,14 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   // Add live in regs as defs for artificial root
   for (const RegisterMaskPair &I : schedDag_->getRegPressure().LiveInRegs) {
     unsigned resNo = I.RegUnit;
+    int weight = GetRegisterWeight_(resNo);
     std::vector<int> regTypes = GetRegisterType_(resNo);
 
     std::vector<Register *> regs;
     for (int regType : regTypes) {
       Register *reg = regFiles[regType].GetReg(regIndices[regType]++);
       insts_[rootIndex]->AddDef(reg);
+      reg->SetWght(weight);
       reg->AddDef();
       regs.push_back(reg);
     }
@@ -337,12 +339,14 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
     // add defs
     for (const RegisterMaskPair &D : RegOpers.Defs) {
       unsigned resNo = D.RegUnit;
+      int weight = GetRegisterWeight_(resNo);
       std::vector<int> regTypes = GetRegisterType_(resNo);
 
       std::vector<Register *> regs;
       for (int regType : regTypes) {
         Register *reg = regFiles[regType].GetReg(regIndices[regType]++);
         insts_[startNode->NodeNum]->AddDef(reg);
+        reg->SetWght(weight);
         reg->AddDef();
         regs.push_back(reg);
       }

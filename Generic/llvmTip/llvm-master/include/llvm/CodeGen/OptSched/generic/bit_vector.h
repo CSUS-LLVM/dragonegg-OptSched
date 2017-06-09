@@ -45,7 +45,7 @@ class BitVector {
     // Compares two bit vectors.
     bool operator ==(const BitVector& othr) const;
 
-  private:
+  protected:
     // The buffer in which the bits are stored.
     Unit* vctr_;
     // The number of bits.
@@ -157,6 +157,50 @@ inline BitVector::Unit BitVector::GetMask_(int bitNum, bool bitVal) {
   }
 
   return mask;
+}
+
+// Used to track weighted spill cost where a live register can have a weight
+// that increases the cost of the register being live proportional to its weight.
+class WeightedBitVector : public BitVector {
+  public:
+    WeightedBitVector(int lenght = 0);
+    ~WeightedBitVector();
+    void SetBit(int index, bool bitVal, int weight);
+    int GetWghtedCnt() const;
+  private:
+    // The weighted sum of 1 in the vector times their weight
+    int wghtedCnt_;
+};
+
+inline WeightedBitVector::WeightedBitVector(int length) : BitVector(length) {
+  wghtedCnt_ = 0;
+}
+
+inline WeightedBitVector::~WeightedBitVector() {}
+
+inline void WeightedBitVector::SetBit(int index, bool bitVal, int weight) {
+  assert(index < bitCnt_);
+  int unitNum = index / BITS_IN_UNIT;
+  int bitNum = index - unitNum * BITS_IN_UNIT;
+  Unit mask = GetMask_(bitNum, bitVal);
+
+  if (bitVal) {
+    if (GetBit(index) == false) {
+      oneCnt_++;
+      wghtedCnt_+=weight;
+    }
+    vctr_[unitNum] |= mask;
+  } else {
+    if (GetBit(index) == true) { 
+      oneCnt_--;
+      wghtedCnt_-=weight;
+    }
+    vctr_[unitNum] &= mask;
+  }
+}
+
+inline int WeightedBitVector::GetWghtedCnt() const {
+  return wghtedCnt_;
 }
 
 /*

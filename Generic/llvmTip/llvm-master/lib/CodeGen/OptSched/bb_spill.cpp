@@ -60,8 +60,8 @@ BBWithSpill::BBWithSpill(MachineModel* machMdl,
 
   regTypeCnt_ = machMdl->GetRegTypeCnt();
   regFiles_ = new RegisterFile[regTypeCnt_];
-  liveRegs_ = new BitVector[regTypeCnt_];
-  livePhysRegs_ = new BitVector[regTypeCnt_];
+  liveRegs_ = new WeightedBitVector[regTypeCnt_];
+  livePhysRegs_ = new WeightedBitVector[regTypeCnt_];
   spillCosts_ = new InstCount[dataDepGraph_->GetInstCnt()];
   peakRegPressures_ = new InstCount[regTypeCnt_];
 
@@ -300,14 +300,14 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
     use->AddCrntUse();
 
     if (use->IsLive() == false) {
-      liveRegs_[regType].SetBit(regNum, false);
+      liveRegs_[regType].SetBit(regNum, false, use->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
       //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
-        livePhysRegs_[regType].SetBit(physRegNum, false);
+        livePhysRegs_[regType].SetBit(physRegNum, false, use->GetWght());
     }
   }
 
@@ -327,14 +327,14 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       if (trackCnflcts && liveRegs_[regType].GetOneCnt() > 0)
         regFiles_[regType].AddConflictsWithLiveRegs(regNum, liveRegs_[regType].GetOneCnt()); 
 
-      liveRegs_[regType].SetBit(regNum, true);
+      liveRegs_[regType].SetBit(regNum, true, def->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
       //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
-         livePhysRegs_[regType].SetBit(physRegNum, true);
+         livePhysRegs_[regType].SetBit(physRegNum, true, def->GetWght());
       def->ResetCrntUseCnt();
     }
   }
@@ -342,7 +342,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
   newSpillCost = 0;
 
   for (int16_t i = 0; i < regTypeCnt_; i++) {
-    liveRegs = liveRegs_[i].GetOneCnt();
+    liveRegs = liveRegs_[i].GetWghtedCnt();
     if(liveRegs > peakRegPressures_[i])
       peakRegPressures_[i] = liveRegs;
 
@@ -413,14 +413,14 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
 
     if (def->GetUseCnt() > 0) {
       assert(liveRegs_[regType].GetBit(regNum));
-      liveRegs_[regType].SetBit(regNum, false);
+      liveRegs_[regType].SetBit(regNum, false, def->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
       //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
-        livePhysRegs_[regType].SetBit(physRegNum, false);
+        livePhysRegs_[regType].SetBit(physRegNum, false, def->GetWght());
       def->ResetCrntUseCnt();
     }
   }
@@ -441,7 +441,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     assert(use->IsLive());
 
     if (isLive == false) {
-      liveRegs_[regType].SetBit(regNum, true);
+      liveRegs_[regType].SetBit(regNum, true, use->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
       //Logger::Info("Reg type %d now has %d live regs", 
@@ -449,7 +449,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
-        livePhysRegs_[regType].SetBit(physRegNum, true);
+        livePhysRegs_[regType].SetBit(physRegNum, true, use->GetWght());
     }
   }
 

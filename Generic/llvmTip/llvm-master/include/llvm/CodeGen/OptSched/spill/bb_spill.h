@@ -36,11 +36,11 @@ class BBWithSpill : public SchedRegion {
 
     // A bit vector indexed by register number indicating whether that
     // register is live
-    BitVector* liveRegs_;
+    WeightedBitVector* liveRegs_;
 
     // A bit vector indexed by physical register number indicating whether 
     // that physical register is live
-    BitVector* livePhysRegs_;
+    WeightedBitVector* livePhysRegs_;
 
     int entryInstCnt_;
     int exitInstCnt_;
