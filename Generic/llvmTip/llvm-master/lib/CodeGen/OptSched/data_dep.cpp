@@ -2974,7 +2974,7 @@ void InstSchedule::PrintRegPressures(std::ostream& out) {
 	InstCount i;
   LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
   for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
-    if (peakRegPressures_[i] > 0)
+    //if (peakRegPressures_[i] > 0)
       Logger::Info("OptSchPeakRegPres Index %d Name %s Peak %d Limit %d",
         i,
         llvmModel->GetRegTypeName(i).c_str(), 

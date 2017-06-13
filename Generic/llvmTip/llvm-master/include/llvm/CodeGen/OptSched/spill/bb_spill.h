@@ -31,6 +31,8 @@ class BBWithSpill : public SchedRegion {
     int spillCostFactor_;
     int schedCostFactor_;
 
+    bool schedForRPOnly_;
+
     int16_t regTypeCnt_;
     RegisterFile* regFiles_;
 
@@ -94,7 +96,7 @@ class BBWithSpill : public SchedRegion {
     BBWithSpill(MachineModel* machMdl, DataDepGraph* dataDepGraph, long rgnNum,
                 int16_t sigHashSize, LB_ALG lbAlg, SchedPriorities hurstcPrirts,
                 SchedPriorities enumPrirts, bool vrfySched, Pruning prune,
-                bool enblStallEnum, int spillCostFactor, 
+                bool schedForRPOnly, bool enblStallEnum, int spillCostFactor, 
                 SPILL_COST_FUNCTION spillCostFunc, bool chkSpillCostSum, 
                 bool chkCnflcts, bool fixLivein, bool fixLiveout, int maxSpillCost);
     ~BBWithSpill();

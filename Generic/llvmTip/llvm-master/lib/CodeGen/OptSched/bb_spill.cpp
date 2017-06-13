@@ -25,6 +25,7 @@ BBWithSpill::BBWithSpill(MachineModel* machMdl,
                          SchedPriorities enumPrirts,
                          bool vrfySched,
                          Pruning prune,
+                         bool schedForRPOnly,
                          bool enblStallEnum,
                          int spillCostFactor,
                          SPILL_COST_FUNCTION spillCostFunc,
@@ -44,6 +45,8 @@ BBWithSpill::BBWithSpill(MachineModel* machMdl,
   crntCycleNum_ = INVALID_VALUE;
   crntSlotNum_ = INVALID_VALUE;
   crntSpillCost_ = INVALID_VALUE;
+
+  schedForRPOnly_ = schedForRPOnly;
 
   enblStallEnum_ = enblStallEnum;
   spillCostFactor_ = spillCostFactor;
@@ -528,7 +531,7 @@ Enumerator* BBWithSpill::AllocEnumrtr_(Milliseconds timeout) {
 
   enumrtr_ = new LengthCostEnumerator(dataDepGraph_, machMdl_,
                                       schedUprBound_, sigHashSize_,
-                                      enumPrirts_, prune_, enblStallEnum,
+                                      enumPrirts_, prune_, schedForRPOnly_, enblStallEnum,
                                       timeout, spillCostFunc_, 0, NULL);
   if (enumrtr_ == NULL) Logger::Fatal("Out of memory.");
 
