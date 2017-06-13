@@ -110,17 +110,16 @@ void ScheduleDAGOptSched::schedule() {
   if (!optSchedEnabled) {
     /* (Chris) We still want the register pressure 
        even for the default scheduler */
-    Logger::Info("********** LLVM Scheduling **********\n");
-#ifdef IS_DEBUG_PEAK_PRESSURE
+#ifdef IS_DEBUG_PEAK_PRESSURE_LLVM_BEFORE
     if (OPTSCHED_gPrintSpills) {
       SetupLLVMDag();
       const std::vector<unsigned> &RegionPressure =
         RPTracker.getPressure().MaxSetPressure;
       for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
         unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-        Logger::Info("PeakRegPresBefore Dag %s:%s Index %d Name %s Peak %d Limit %d",
+        Logger::Info("PeakRegPresBefore Dag %s:%d Index %d Name %s Peak %d Limit %d",
           context->MF->getFunction()->getName().data(),
-          BB->getName().data(),
+          regionNum,
           i,
           TRI->getRegPressureSetName(i),
           RegionPressure[i],
@@ -140,9 +139,9 @@ void ScheduleDAGOptSched::schedule() {
         RPTracker.getPressure().MaxSetPressure;
       for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
         unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-        Logger::Info("PeakRegPresAfter Dag %s:%s Index %d Name %s Peak %d Limit %d",
+        Logger::Info("PeakRegPresAfter Dag %s:%d Index %d Name %s Peak %d Limit %d",
           context->MF->getFunction()->getName().data(),
-          BB->getName().data(),
+          regionNum,
           i,
           TRI->getRegPressureSetName(i),
           RegionPressure[i],
@@ -220,15 +219,15 @@ if (isHeuristicISO) {
     return;
 
 // Dump max pressure
-#ifdef IS_DEBUG_PEAK_PRESSURE
+#ifdef IS_DEBUG_PEAK_PRESSURE_LLVM_BEFORE
   if (OPTSCHED_gPrintSpills) {
     const std::vector<unsigned> &RegionPressure =
       RPTracker.getPressure().MaxSetPressure;
     for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
       unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-      Logger::Info("PeakRegPresBefore Dag %s:%s Index %d Name %s Peak %d Limit %d",
+      Logger::Info("PeakRegPresBefore Dag %s:%d Index %d Name %s Peak %d Limit %d",
         context->MF->getFunction()->getName().data(),
-        BB->getName().data(),
+        regionNum,
         i,
         TRI->getRegPressureSetName(i),
         RegionPressure[i],
@@ -313,9 +312,9 @@ if (isHeuristicISO) {
       RPTracker.getPressure().MaxSetPressure;
     for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
       unsigned Limit = RegClassInfo->getRegPressureSetLimit(i);
-      Logger::Info("PeakRegPresAfter Dag %s:%s Index %d Name %s Peak %d Limit %d",
+      Logger::Info("PeakRegPresAfter Dag %s:%d Index %d Name %s Peak %d Limit %d",
         context->MF->getFunction()->getName().data(),
-        BB->getName().data(),
+        regionNum,
         i,
         TRI->getRegPressureSetName(i),
         RegionPressure[i],
