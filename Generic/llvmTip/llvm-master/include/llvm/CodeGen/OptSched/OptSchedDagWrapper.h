@@ -28,7 +28,8 @@ class LLVMDataDepGraph : public DataDepGraph {
                      llvm::MachineBasicBlock* BB,
                      llvm::ScheduleDAGTopologicalSort& Topo,
                      bool treatOrderDepsAsDataDeps,
-                     int maxDagSizeForPrcisLtncy);
+                     int maxDagSizeForPrcisLtncy,
+                     int regionNum);
     ~LLVMDataDepGraph() {}
 
     // Returns a pointer to the SUnit at a given node index.

@@ -103,6 +103,10 @@ void ScheduleDAGOptSched::SetupLLVMDag() {
 
 // schedule called for each basic block
 void ScheduleDAGOptSched::schedule() {
+  // (Chris) Increment the region number here to get unique dag IDs
+  // per scheduling region within a machine function.
+  ++regionNum;
+
   if (!optSchedEnabled) {
     /* (Chris) We still want the register pressure 
        even for the default scheduler */
@@ -233,7 +237,7 @@ if (isHeuristicISO) {
 
   // convert dag
   LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB, Topo,
-                       treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision);
+                       treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision, regionNum);
   // create region
   SchedRegion *region = new BBWithSpill(
       &model, &dag, 0, histTableHashBits, lowerBoundAlgorithm,
