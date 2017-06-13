@@ -39,7 +39,8 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext *context,
                                    MachineBasicBlock *BB,
                                    ScheduleDAGTopologicalSort &Topo,
                                    bool treatOrderDepsAsDataDeps,
-                                   int maxDagSizeForPrcisLtncy)
+                                   int maxDagSizeForPrcisLtncy,
+                                   int regionNum)
     : DataDepGraph(machMdl, ltncyPrcsn), llvmNodes_(llvmDag->SUnits),
       context_(context), schedDag_(llvmDag), topo_(Topo), target_(llvmDag->TM) {
   llvmMachMdl_ = static_cast<LLVMMachineModel *>(machMdl_);
@@ -55,8 +56,8 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext *context,
   // TODO(max99x): Find real weight.
   weight_ = 1.0f;
 
-  std::snprintf(dagID_, MAX_NAMESIZE, "%s:%s",
-                context_->MF->getFunction()->getName().data(), BB->getName().data());
+  std::snprintf(dagID_, MAX_NAMESIZE, "%s:%d",
+                context_->MF->getFunction()->getName().data(), regionNum);
 
   std::snprintf(compiler_, MAX_NAMESIZE, "LLVM");
 

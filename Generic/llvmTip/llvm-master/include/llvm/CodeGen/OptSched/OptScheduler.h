@@ -27,6 +27,8 @@ namespace opt_sched {
   // Machine Schduler schedules
   class ScheduleDAGOptSched : public llvm::ScheduleDAGMILive {
     private:
+      // (Chris) Region number uniquely identifies DAGs.
+      int regionNum = 0;
       // Current machine scheduler context
       llvm::MachineSchedContext* context;
       // Wrapper object for converting LLVM information about target machine
@@ -142,6 +144,8 @@ namespace opt_sched {
       void defaultScheduler();
       // Schedule the current region using the OptScheduler
       void schedule() override;
+      // (Chris) getter for region number
+      inline int getRegionNum() const { return regionNum; }
   };
 
 } // namespace opt_sched
