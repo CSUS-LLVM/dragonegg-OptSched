@@ -273,6 +273,9 @@ class DirAcycGraph {
     // Prints a nicely formatted description of the graph to the specified file.
     void Print(FILE* outFile);
 
+    // Log formatted description of the graph.
+    void LogGraph();
+
     // A utility function to reverse direction from forward to backward and vice
     // versa.
     static DIRECTION ReverseDirection(DIRECTION dir);

@@ -255,7 +255,7 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
     MachineInstr *MI = it->getInstr();
     // Get all defs for this instruction
     RegisterOperands RegOpers;
-    RegOpers.collect(*MI, *schedDag_->TRI, schedDag_->MRI, false, false);
+    RegOpers.collect(*MI, *schedDag_->TRI, schedDag_->MRI, false, true);
     for (const RegisterMaskPair &D : RegOpers.Defs) {
       unsigned resNo = D.RegUnit;
 
@@ -299,12 +299,15 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       insts_[rootIndex]->AddDef(reg);
       reg->SetWght(weight);
       reg->AddDef();
+#ifdef IS_DEBUG_DEFS_AND_USES
+    Logger::Info("Adding live-in def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), rootIndex);
+#endif
       regs.push_back(reg);
     }
     lastDef[resNo] = regs;
 
 #ifdef IS_DEBUG_DEFS_AND_USES
-    Logger::Info("Adding Def for register: %lu NodeNum: %lu", resNo, rootIndex);
+    Logger::Info("Adding live-in def for LLVM register: %lu NodeNum: %lu", resNo, rootIndex);
 #endif
   }
 
@@ -316,7 +319,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
     // Collect def/use information for this machine instruction
     RegisterOperands RegOpers;
-    RegOpers.collect(*MI, *schedDag_->TRI, schedDag_->MRI, false, false);
+    RegOpers.collect(*MI, *schedDag_->TRI, schedDag_->MRI, false, true);
 
     // add uses
     for (const RegisterMaskPair &U : RegOpers.Uses) {
@@ -326,14 +329,17 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       std::vector<Register *> regs = lastDef[resNo];
       for (Register *reg : regs) {
         if (!insts_[rootIndex]->FindUse(reg)) {
-#ifdef IS_DEBUG_DEFS_AND_USES
-          Logger::Info("Adding use for register: %lu NodeNum: %lu", resNo,
-                       startNode->NodeNum);
-#endif
           insts_[startNode->NodeNum]->AddUse(reg);
           reg->AddUse();
+          #ifdef IS_DEBUG_DEFS_AND_USES
+          Logger::Info("Adding use for OptSched register: type: %lu number: %lu  NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
+          #endif
         }
       }
+      #ifdef IS_DEBUG_DEFS_AND_USES
+      Logger::Info("Adding use for LLVM register: %lu NodeNum: %lu", resNo,
+                   startNode->NodeNum);
+      #endif
     }
 
     // add defs
@@ -348,12 +354,15 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
         insts_[startNode->NodeNum]->AddDef(reg);
         reg->SetWght(weight);
         reg->AddDef();
+        #ifdef IS_DEBUG_DEFS_AND_USES
+        Logger::Info("Adding def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
+        #endif
         regs.push_back(reg);
       }
       lastDef[resNo] = regs;
 
 #ifdef IS_DEBUG_DEFS_AND_USES
-      Logger::Info("Adding Def for register: %lu NodeNum: %lu", resNo,
+      Logger::Info("Adding def for LLVM register: %lu NodeNum: %lu", resNo,
                    startNode->NodeNum);
 #endif
     }
@@ -370,13 +379,17 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
     std::vector<Register *> regs = lastDef[resNo];
     for (Register *reg : regs) {
       if (!insts_[rootIndex]->FindUse(reg)) {
-#ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("Adding use for register: %lu NodeNum: %lu", resNo,
-                     leafIndex);
-#endif
         insts_[leafIndex]->AddUse(reg);
         reg->AddUse();
+        #ifdef IS_DEBUG_DEFS_AND_USES
+        Logger::Info("Adding live-out use for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), leafIndex);
+        #endif
       }
+      #ifdef IS_DEBUG_DEFS_AND_USES
+      Logger::Info("Adding live-out use for register: %lu NodeNum: %lu", resNo,
+                   leafIndex);
+      #endif
+
     }
   }
 }
@@ -448,9 +461,9 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
     return false;
 
   // collect def/use information for source instruction
-  srcRegOpers.collect(*srcMI, *schedDag_->TRI, schedDag_->MRI, false, false);
+  srcRegOpers.collect(*srcMI, *schedDag_->TRI, schedDag_->MRI, false, true);
   // collect def/use information for destination instruction
-  dstRegOpers.collect(*dstMI, *schedDag_->TRI, schedDag_->MRI, false, false);
+  dstRegOpers.collect(*dstMI, *schedDag_->TRI, schedDag_->MRI, false, true);
 
   // find successors for source node
   for (SUnit::const_succ_iterator I = srcNode.Succs.begin(),
@@ -567,23 +580,8 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
 }
 
 int LLVMDataDepGraph::GetRegisterWeight_(const unsigned resNo) const {
-  const TargetRegisterInfo &TRI = *schedDag_->TRI;
-  const TargetRegisterClass *regClass;
-
-  if (schedDag_->TRI->isPhysicalRegister(resNo))
-    return TRI.getRegUnitWeight(resNo);
-
-  else if (schedDag_->TRI->isVirtualRegister(resNo)) {
-    regClass = schedDag_->MRI.getRegClass(resNo);
-
-    if (!regClass)
-      return 1;
-
-    return TRI.getRegClassWeight(regClass).RegWeight;
-  } else {
-    Logger::Error("Could not find weight for register class. Assuming weight of 1");
-    return 1;
-  }
+  PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+  return PSetI.getWeight();
 }
 
 // A register type is an int value that corresponds to a register type in our scheduler.
@@ -592,52 +590,16 @@ int LLVMDataDepGraph::GetRegisterWeight_(const unsigned resNo) const {
 std::vector<int>
 LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   const TargetRegisterInfo &TRI = *schedDag_->TRI;
-  const TargetRegisterClass *regClass;
   std::vector<int> pSetTypes;
-  
 
-  // Check if is a physical register
-  if (schedDag_->TRI->isPhysicalRegister(resNo)) {
-    unsigned weight = TRI.getRegUnitWeight(resNo);
-    // get pressure sets associated with this regsiter class
-    for (const int *PSet = TRI.getRegUnitPressureSets(resNo); *PSet != -1;
-         ++PSet) {
-      const char *pSetName = TRI.getRegPressureSetName(*PSet);
-      int type = llvmMachMdl_->GetRegTypeByName(pSetName);
+  PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+  for (; PSetI.isValid(); ++PSetI) {
+   const char *pSetName = TRI.getRegPressureSetName(*PSetI);
+   int type = llvmMachMdl_->GetRegTypeByName(pSetName);
 
-      // add weight number of defs
-      //for (int i = 0; i < weight; ++i)
-      pSetTypes.push_back(type);
-
+    pSetTypes.push_back(type); 
 #ifdef IS_DEBUG_REG_TYPES
-      Logger::Info("Pset is %s", pSetName);
-#endif
-    }
-  }
-
-  if (schedDag_->TRI->isVirtualRegister(resNo)) {
-    regClass = schedDag_->MRI.getRegClass(resNo);
-    if (!regClass)
-      return pSetTypes;
-
-    unsigned weight = TRI.getRegClassWeight(regClass).RegWeight;
-    // get pressure sets associated with this regsiter class
-    for (const int *PSet = TRI.getRegClassPressureSets(regClass); *PSet != -1;
-         ++PSet) {
-      const char *pSetName = TRI.getRegPressureSetName(*PSet);
-      int type = llvmMachMdl_->GetRegTypeByName(pSetName);
-
-      // add weight number of defs
-      //for (int i = 0; i < weight; ++i)
-      pSetTypes.push_back(type);
-
-#ifdef IS_DEBUG_REG_TYPES
-      Logger::Info("Pset is %s", pSetName);
-#endif
-    }
-  } else {
-#ifdef IS_DEBUG_REG_TYPES
-    Logger::Info("Could not find a type for resNo %lu", resNo);
+    Logger::Info("Pset is %s", pSetName);
 #endif
   }
 
