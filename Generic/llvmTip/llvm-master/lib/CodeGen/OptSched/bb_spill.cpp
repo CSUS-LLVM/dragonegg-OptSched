@@ -327,7 +327,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
     Logger::Info("Inst %d defines reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, def->GetUseCnt()); 
     #endif
    
-    if (def->GetUseCnt() > 0) {
+    //if (def->GetUseCnt() > 0) {
 
       if (trackCnflcts && liveRegs_[regType].GetOneCnt() > 0)
         regFiles_[regType].AddConflictsWithLiveRegs(regNum, liveRegs_[regType].GetOneCnt()); 
@@ -341,7 +341,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
          livePhysRegs_[regType].SetBit(physRegNum, true, def->GetWght());
       def->ResetCrntUseCnt();
-    }
+   //}
   }
 
   newSpillCost = 0;
@@ -416,7 +416,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
                  inst->GetNum(), regNum, regType, def->GetUseCnt());    
     #endif 
 
-    if (def->GetUseCnt() > 0) {
+    //if (def->GetUseCnt() > 0) {
       assert(liveRegs_[regType].GetBit(regNum));
       liveRegs_[regType].SetBit(regNum, false, def->GetWght());
 
@@ -427,7 +427,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
         livePhysRegs_[regType].SetBit(physRegNum, false, def->GetWght());
       def->ResetCrntUseCnt();
-    }
+    //}
   }
 
   for (i = 0; i < useCnt; i++) {
@@ -468,7 +468,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
   crntStepNum_--;
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
+  //Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
   #endif
 }
 /*****************************************************************************/
