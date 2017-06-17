@@ -2968,7 +2968,7 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
   out << '\n';
 }
 
-void InstSchedule::PrintRegPressures(std::ostream& out) {
+void InstSchedule::PrintRegPressures() {
   if (!OPTSCHED_gPrintSpills) return;
   Logger::Info("OptSched max reg pressures");
 	InstCount i;
@@ -3030,7 +3030,7 @@ bool InstSchedule::Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph) {
   if (!VerifyDataDeps_(dataDepGraph)) return false;
   
 #ifdef IS_DEBUG_PEAK_PRESSURE
-	PrintRegPressures(std::cout);
+	PrintRegPressures();
 #endif
 
   Logger::Info("Schedule verified successfully");

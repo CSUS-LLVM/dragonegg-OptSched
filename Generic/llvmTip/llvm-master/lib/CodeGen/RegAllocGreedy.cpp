@@ -2679,11 +2679,11 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   releaseMemory();
   
   if (OPTSCHED_gPrintSpills) {
-	std::cout << "\n*************************************\n";
-    std::cout << "Function: " << fxnName << "\n";
-  	std::cout << "GREEDY RA: Number of spilled live ranges: " << gNumSpilledRanges << "\n";
+	  dbgs() << "\n*************************************\n";
+    dbgs() << "Function: " << fxnName << "\n";
+  	dbgs() << "GREEDY RA: Number of spilled live ranges: " << gNumSpilledRanges << "\n";
   	//std::cout << "\nGREEDY RA: Number of spills inserted : " << gNumSpills << '\n';
-    std::cout << "*************************************\n\n";
+    dbgs() << "*************************************\n\n";
   }
     
   return true;
