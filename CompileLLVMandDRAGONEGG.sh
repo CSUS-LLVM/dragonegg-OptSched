@@ -43,11 +43,18 @@ fi
 make
 sudo cmake --build . --target install
 
-echo 'building dragonegg'
-cd $DRAGONEGGDIR
-make clean
-if [ $isRelease == 'y' ]; then
-  GCC=$GCCPATH LLVM_CONFIG=$LLVMDIR/release_build/bin/llvm-config make -B
-else
-  GCC=$GCCPATH LLVM_CONFIG=$LLVMDIR/build/bin/llvm-config make -B
+cd $BASEDIR
+
+echo -n 'Build dragonegg? [y/n]: '
+read buildDragonegg
+
+if [ $buildDragonegg == 'y' ]; then
+  echo 'building dragonegg'
+  cd $DRAGONEGGDIR
+  make clean
+  if [ $isRelease == 'y' ]; then
+    GCC=$GCCPATH LLVM_CONFIG=$LLVMDIR/release_build/bin/llvm-config make -B
+  else
+    GCC=$GCCPATH LLVM_CONFIG=$LLVMDIR/build/bin/llvm-config make -B
+  fi
 fi
