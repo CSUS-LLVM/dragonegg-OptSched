@@ -42,6 +42,8 @@ namespace opt_sched {
       Config hotFunctions;
       // Struct for setting the pruning strategy
       Pruning prune;
+      // If we should schedule for register pressure only and ignore ilp.
+      bool schedForRPOnly;
       // Flag indicating whether the optScheduler should be enabled for this function
       bool optSchedEnabled;
       // Precision of latency info

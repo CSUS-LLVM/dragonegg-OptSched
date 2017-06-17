@@ -241,7 +241,7 @@ if (isHeuristicISO) {
   // create region
   SchedRegion *region = new BBWithSpill(
       &model, &dag, 0, histTableHashBits, lowerBoundAlgorithm,
-      heuristicPriorities, enumPriorities, verifySchedule, prune,
+      heuristicPriorities, enumPriorities, verifySchedule, prune, schedForRPOnly,
       enumerateStalls, spillCostFactor, spillCostFunction, checkSpillCostSum,
       checkConflicts, fixLiveIn, fixLiveOut, maxSpillCost);
 
@@ -385,6 +385,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION");
   prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING");
 
+  schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY"); 
   histTableHashBits =
       static_cast<int16_t>(schedIni.GetInt("HIST_TABLE_HASH_BITS"));
   verifySchedule = schedIni.GetBool("VERIFY_SCHEDULE");

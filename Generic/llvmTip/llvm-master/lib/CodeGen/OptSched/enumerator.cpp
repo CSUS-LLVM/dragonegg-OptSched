@@ -438,6 +438,7 @@ Enumerator::Enumerator(DataDepGraph* dataDepGraph,
                        int16_t sigHashSize,
                        SchedPriorities prirts,
                        Pruning prune,
+                       bool schedForRPOnly,
                        bool enblStallEnum,
                        Milliseconds timeout,
                        InstCount preFxdInstCnt,
@@ -458,6 +459,7 @@ Enumerator::Enumerator(DataDepGraph* dataDepGraph,
   rdyLst_ = NULL;
   prirts_ = prirts;
   prune_ = prune;
+  schedForRPOnly_ = schedForRPOnly;
   enblStallEnum_ = enblStallEnum;
 
   isEarlySubProbDom_ = true;
@@ -828,6 +830,9 @@ bool Enumerator::FindNxtFsblBrnch_(EnumTreeNode*& newNode) {
     Stats::maxReadyListSize.SetMax(rdyInstCnt);
   #endif
 
+  if (crntBrnchNum == 0 && schedForRPOnly_)
+    crntNode_->SetFoundInstWithUse(IsUseInRdyLst_());
+
   for (i = crntBrnchNum; i < brnchCnt && crntNode_->IsFeasible(); i++) {
     #ifdef IS_DEBUG_FLOW
       Logger::Info("Probing branch %d out of %d", i, brnchCnt);
@@ -930,6 +935,14 @@ bool Enumerator::ProbeBranch_(SchedInstruction* inst, EnumTreeNode*& newNode,
       return false;
     }
   }
+
+  //If we are scheduling for register pressure only, and this branch
+  //defines a register but does not use any, we can prune this branch
+  //if another instruction in the ready list does use a register.
+  if (schedForRPOnly_)
+    if (inst != NULL)
+      if (inst->GetUseCnt() == 0 && crntNode_->FoundInstWithUse())
+        return false;
 
   if (prune_.nodeSup) {
     if (inst != NULL)
@@ -1507,6 +1520,28 @@ bool Enumerator::RlxdSchdul_(EnumTreeNode* newNode) {
 }
 /*****************************************************************************/
 
+bool Enumerator::IsUseInRdyLst_() {
+  assert(RdyLst_ != NULL);
+  bool isEmptyNode = false;
+  InstCount brnchCnt = crntNode_->GetBranchCnt(isEmptyNode);
+  SchedInstruction* inst;
+  bool foundUse = false;
+  
+  for (int i = 0; i < brnchCnt - 1; i++) {
+    inst = rdyLst_->GetNextPriorityInst();
+    assert(inst != NULL);
+
+    if (inst->GetUseCnt() != 0) {
+      foundUse = true;
+      break;
+    }
+  }
+
+  rdyLst_->ResetIterator();
+  return foundUse;
+}
+/*****************************************************************************/
+
 void Enumerator::PrintLog_() {
   Logger::Info("--------------------------------------------------\n");
 
@@ -1529,12 +1564,13 @@ LengthEnumerator::LengthEnumerator(DataDepGraph* dataDepGraph,
                                    int16_t sigHashSize,
                                    SchedPriorities prirts,
                                    Pruning prune,
+                                   bool schedForRPOnly,
                                    bool enblStallEnum,
                                    Milliseconds timeout,
                                    InstCount preFxdInstCnt,
                                    SchedInstruction* preFxdInsts[])
   : Enumerator(dataDepGraph, machMdl, schedUprBound, sigHashSize,
-               prirts, prune, enblStallEnum, timeout, preFxdInstCnt,
+               prirts, prune, schedForRPOnly, enblStallEnum, timeout, preFxdInstCnt,
                preFxdInsts) {
   SetupAllocators_();
   tmpHstryNode_ = new HistEnumTreeNode;
@@ -1629,13 +1665,14 @@ LengthCostEnumerator::LengthCostEnumerator(DataDepGraph* dataDepGraph,
                                            int16_t sigHashSize,
                                            SchedPriorities prirts,
                                            Pruning prune,
+                                           bool schedForRPOnly,
                                            bool enblStallEnum,
                                            Milliseconds timeout,
                                            SPILL_COST_FUNCTION spillCostFunc,
                                            InstCount preFxdInstCnt,
                                            SchedInstruction* preFxdInsts[])
     : Enumerator(dataDepGraph, machMdl, schedUprBound,
-                 sigHashSize, prirts, prune, enblStallEnum, timeout,
+                 sigHashSize, prirts, prune, schedForRPOnly, enblStallEnum, timeout,
                  preFxdInstCnt, preFxdInsts) {
   SetupAllocators_();
 

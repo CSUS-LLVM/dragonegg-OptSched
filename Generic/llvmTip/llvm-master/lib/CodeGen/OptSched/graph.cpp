@@ -373,4 +373,11 @@ void DirAcycGraph::Print(FILE* outFile) {
   }
 }
 
+void DirAcycGraph::LogGraph() {
+  Logger::Info("Number of Nodes= %d   Number of Edges= %d\n", nodeCnt_, edgeCnt_);
+  for (UDT_GNODES i = 0; i < nodeCnt_; i++) {
+    nodes_[i]->LogScsrLst();
+  }
+}
+
 } // end namespace opt_sched
