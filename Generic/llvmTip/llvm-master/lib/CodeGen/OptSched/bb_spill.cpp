@@ -25,6 +25,7 @@ BBWithSpill::BBWithSpill(MachineModel* machMdl,
                          SchedPriorities enumPrirts,
                          bool vrfySched,
                          Pruning prune,
+                         bool schedForRPOnly,
                          bool enblStallEnum,
                          int spillCostFactor,
                          SPILL_COST_FUNCTION spillCostFunc,
@@ -44,6 +45,8 @@ BBWithSpill::BBWithSpill(MachineModel* machMdl,
   crntCycleNum_ = INVALID_VALUE;
   crntSlotNum_ = INVALID_VALUE;
   crntSpillCost_ = INVALID_VALUE;
+
+  schedForRPOnly_ = schedForRPOnly;
 
   enblStallEnum_ = enblStallEnum;
   spillCostFactor_ = spillCostFactor;
@@ -114,6 +117,8 @@ FUNC_RESULT BBWithSpill::BuildFromFile() {
   for (int i = 0; i < regTypeCnt_; i++) {
     liveRegs_[i].Construct(regFiles_[i].GetRegCnt());
   }
+
+  //dataDepGraph_->LogGraph();
   
   return RES_SUCCESS;
 }
@@ -280,7 +285,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
   useCnt = inst->GetUses(uses);
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  //Logger::Info("Updating reg pressure after scheduling Inst %d", inst->GetNum());
+  Logger::Info("Updating reg pressure after scheduling Inst %d", inst->GetNum());
   #endif
 
   // Update Live regs after uses
@@ -294,7 +299,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
      Logger::Fatal("Reg %d of type %d is used without being defined", regNum, regType); 
 
    #ifdef IS_DEBUG_REG_PRESSURE
-   //Logger::Info("Inst %d uses reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, use->GetUseCnt());
+   Logger::Info("Inst %d uses reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, use->GetUseCnt());
    #endif    
 
     use->AddCrntUse();
@@ -303,7 +308,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       liveRegs_[regType].SetBit(regNum, false, use->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
+      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
@@ -319,10 +324,10 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
     physRegNum = def->GetPhysicalNumber(); 
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    //Logger::Info("Inst %d defines reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, def->GetUseCnt()); 
+    Logger::Info("Inst %d defines reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, def->GetUseCnt()); 
     #endif
    
-    if (def->GetUseCnt() > 0) {
+    //if (def->GetUseCnt() > 0) {
 
       if (trackCnflcts && liveRegs_[regType].GetOneCnt() > 0)
         regFiles_[regType].AddConflictsWithLiveRegs(regNum, liveRegs_[regType].GetOneCnt()); 
@@ -330,13 +335,13 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       liveRegs_[regType].SetBit(regNum, true, def->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
+      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
          livePhysRegs_[regType].SetBit(physRegNum, true, def->GetWght());
       def->ResetCrntUseCnt();
-    }
+   //}
   }
 
   newSpillCost = 0;
@@ -347,7 +352,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       peakRegPressures_[i] = liveRegs;
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    //Logger::Info("Reg type %d has %d live regs", i, liveRegs);
+    Logger::Info("Reg type %d has %d live regs", i, liveRegs);
     #endif
 
     if (spillCostFunc_ == SCF_PEAK_PER_TYPE)
@@ -393,7 +398,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
   bool isLive;
 
   #ifdef IS_DEBUG_REG_PRESSURE
-  //Logger::Info("Updating reg pressure after unscheduling Inst %d", inst->GetNum());
+  Logger::Info("Updating reg pressure after unscheduling Inst %d", inst->GetNum());
   #endif
 
   defCnt = inst->GetDefs(defs);
@@ -407,22 +412,22 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     physRegNum = def->GetPhysicalNumber();
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    //Logger::Info("Inst %d defines reg %d of type %d and %d uses", 
-    //             inst->GetNum(), regNum, regType, def->GetUseCnt());    
+    Logger::Info("Inst %d defines reg %d of type %d and %d uses", 
+                 inst->GetNum(), regNum, regType, def->GetUseCnt());    
     #endif 
 
-    if (def->GetUseCnt() > 0) {
+    //if (def->GetUseCnt() > 0) {
       assert(liveRegs_[regType].GetBit(regNum));
       liveRegs_[regType].SetBit(regNum, false, def->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      //Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
+      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
         livePhysRegs_[regType].SetBit(physRegNum, false, def->GetWght());
       def->ResetCrntUseCnt();
-    }
+    //}
   }
 
   for (i = 0; i < useCnt; i++) {
@@ -432,8 +437,8 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     physRegNum = use->GetPhysicalNumber();
 
     #ifdef IS_DEBUG_REG_PRESSURE
-    //Logger::Info("Inst %d uses reg %d of type %d and %d uses", 
-    //             inst->GetNum(), regNum, regType, use->GetUseCnt());    
+    Logger::Info("Inst %d uses reg %d of type %d and %d uses", 
+                 inst->GetNum(), regNum, regType, use->GetUseCnt());    
     #endif
 
     isLive = use->IsLive();
@@ -444,8 +449,8 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
       liveRegs_[regType].SetBit(regNum, true, use->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
-      //Logger::Info("Reg type %d now has %d live regs", 
-      //             regType, liveRegs_[regType].GetOneCnt());
+      Logger::Info("Reg type %d now has %d live regs", 
+                   regType, liveRegs_[regType].GetOneCnt());
       #endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
@@ -528,7 +533,7 @@ Enumerator* BBWithSpill::AllocEnumrtr_(Milliseconds timeout) {
 
   enumrtr_ = new LengthCostEnumerator(dataDepGraph_, machMdl_,
                                       schedUprBound_, sigHashSize_,
-                                      enumPrirts_, prune_, enblStallEnum,
+                                      enumPrirts_, prune_, schedForRPOnly_, enblStallEnum,
                                       timeout, spillCostFunc_, 0, NULL);
   if (enumrtr_ == NULL) Logger::Fatal("Out of memory.");
 

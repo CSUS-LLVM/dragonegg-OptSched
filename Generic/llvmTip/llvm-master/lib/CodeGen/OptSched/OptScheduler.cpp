@@ -103,6 +103,10 @@ void ScheduleDAGOptSched::SetupLLVMDag() {
 
 // schedule called for each basic block
 void ScheduleDAGOptSched::schedule() {
+  // (Chris) Increment the region number here to get unique dag IDs
+  // per scheduling region within a machine function.
+  ++regionNum;
+
   if (!optSchedEnabled) {
     /* (Chris) We still want the register pressure 
        even for the default scheduler */
@@ -233,11 +237,11 @@ if (isHeuristicISO) {
 
   // convert dag
   LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB, Topo,
-                       treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision);
+                       treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision, regionNum);
   // create region
   SchedRegion *region = new BBWithSpill(
       &model, &dag, 0, histTableHashBits, lowerBoundAlgorithm,
-      heuristicPriorities, enumPriorities, verifySchedule, prune,
+      heuristicPriorities, enumPriorities, verifySchedule, prune, schedForRPOnly,
       enumerateStalls, spillCostFactor, spillCostFunction, checkSpillCostSum,
       checkConflicts, fixLiveIn, fixLiveOut, maxSpillCost);
 
@@ -381,6 +385,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION");
   prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING");
 
+  schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY"); 
   histTableHashBits =
       static_cast<int16_t>(schedIni.GetInt("HIST_TABLE_HASH_BITS"));
   verifySchedule = schedIni.GetBool("VERIFY_SCHEDULE");

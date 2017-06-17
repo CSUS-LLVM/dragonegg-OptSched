@@ -2,7 +2,7 @@
 Description:  Defines an enumerator class.
 Author:       Ghassan Shobaki
 Created:      Jun. 2002
-Last Update:  Mar. 2011
+Last Update:  Jun. 2017
 *******************************************************************************/
 
 #ifndef OPTSCHED_ENUM_ENUMERATOR_H
@@ -145,6 +145,12 @@ class EnumTreeNode {
     bool isCnstrctd_;
     bool isClean_;
 
+    //Have we looked for an instruction in the ready list that uses a
+    //register.
+    //bool srchedInstWithUse_;
+    //Did we find an instruction in the ready list that uses a register.
+    bool foundInstWithUse_;
+
     InstCount cost_;
     InstCount costLwrBound_;
     InstCount peakSpillCost_;
@@ -203,6 +209,9 @@ class EnumTreeNode {
 
     inline uint64_t GetNum();
     inline void SetNum(uint64_t num);
+
+    inline bool FoundInstWithUse();
+    inline void SetFoundInstWithUse(bool foundInstWithUse);
 
     //Get the siganture of the parial schedule up to this node
     inline InstSignature GetSig();
@@ -395,8 +404,14 @@ class Enumerator : public ConstrainedScheduler {
 
     bool isEarlySubProbDom_;
 
+    //Should we ignore ilp and only schedule for register pressure.
+    bool schedForRPOnly_;
+
     inline void ClearState_();
     inline bool IsStateClear_();
+
+    //Can we find an instruction that uses a register in the ready list
+    bool IsUseInRdyLst_();
 
     void StepFrwrd_(EnumTreeNode*& newNode);
     virtual bool BackTrack_();
@@ -485,6 +500,7 @@ class Enumerator : public ConstrainedScheduler {
                int16_t sigHashSize,
                SchedPriorities prirts,
                Pruning prune,
+                bool schedForRPOnly,
                bool enblStallEnum,
                Milliseconds timeout,
                InstCount preFxdInstCnt = 0,
@@ -526,6 +542,7 @@ class LengthEnumerator: public Enumerator {
                      int16_t sigHashSize,
                      SchedPriorities prirts,
                      Pruning prune,
+                     bool schedForRPOnly,
                      bool enblStallEnum,
                      Milliseconds timeout,
                      InstCount preFxdInstCnt = 0,
@@ -582,6 +599,7 @@ class LengthCostEnumerator: public Enumerator {
                          int16_t sigHashSize,
                          SchedPriorities prirts,
                          Pruning prune,
+                         bool schedForRPOnly,
                          bool enblStallEnum,
                          Milliseconds timeout,
                          SPILL_COST_FUNCTION spillCostFunc,
@@ -755,6 +773,16 @@ inline void EnumTreeNode::AddChild(EnumTreeNode* node) {
 inline void EnumTreeNode::SetRdyLst(ReadyList* lst) {
   rdyLst_ = lst;
   mode_ = ETN_ACTIVE;
+}
+/**************************************************************************/
+
+inline bool EnumTreeNode::FoundInstWithUse() {
+  return foundInstWithUse_;
+}
+/**************************************************************************/
+
+inline void EnumTreeNode::SetFoundInstWithUse(bool foundInstWithUse) {
+  foundInstWithUse_ = foundInstWithUse;
 }
 /**************************************************************************/
 

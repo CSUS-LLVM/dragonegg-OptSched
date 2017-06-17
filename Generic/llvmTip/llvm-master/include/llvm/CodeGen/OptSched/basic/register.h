@@ -25,7 +25,6 @@ class Register {
     int GetNum() const;
     void SetNum(int num);
 
-    void SetWght();
     int GetWght() const;
     void SetWght(int wght);
 
