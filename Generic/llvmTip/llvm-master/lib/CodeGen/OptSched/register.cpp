@@ -47,11 +47,13 @@ void Register::ResetCrntUseCnt() {
   crntUseCnt_ = 0;
 }
 
-void Register::AddUse() {
+void Register::AddUse(const SchedInstruction * inst) {
+  uses_.insert(inst);
   useCnt_++;
 }
 
-void Register::AddDef() {
+void Register::AddDef(const SchedInstruction * inst) {
+  defs_.insert(inst);
   defCnt_++;
 }
 
@@ -59,8 +61,16 @@ int Register::GetUseCnt() const {
   return useCnt_;
 }
 
+size_t Register::GetSizeOfUseList() const {
+  return uses_.size();
+}
+
 int Register::GetDefCnt() const {
   return defCnt_;
+}
+
+size_t Register::GetSizeOfDefList() const {
+  return defs_.size();
 }
 
 int Register::GetCrntUseCnt() const {

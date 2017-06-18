@@ -299,7 +299,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       Register *reg = regFiles[regType].GetReg(regIndices[regType]++);
       insts_[rootIndex]->AddDef(reg);
       reg->SetWght(weight);
-      reg->AddDef();
+      reg->AddDef(insts_[rootIndex]);
 #ifdef IS_DEBUG_DEFS_AND_USES
     Logger::Info("Adding live-in def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), rootIndex);
 #endif
@@ -331,7 +331,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       for (Register *reg : regs) {
         if (!insts_[rootIndex]->FindUse(reg)) {
           insts_[startNode->NodeNum]->AddUse(reg);
-          reg->AddUse();
+          reg->AddUse(insts_[startNode->NodeNum]);
           #ifdef IS_DEBUG_DEFS_AND_USES
           Logger::Info("Adding use for OptSched register: type: %lu number: %lu  NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
           #endif
@@ -354,7 +354,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
         Register *reg = regFiles[regType].GetReg(regIndices[regType]++);
         insts_[startNode->NodeNum]->AddDef(reg);
         reg->SetWght(weight);
-        reg->AddDef();
+        reg->AddDef(insts_[startNode->NodeNum]);
         #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("Adding def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
         #endif
@@ -381,7 +381,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
     for (Register *reg : regs) {
       if (!insts_[rootIndex]->FindUse(reg)) {
         insts_[leafIndex]->AddUse(reg);
-        reg->AddUse();
+        reg->AddUse(insts_[leafIndex]);
         #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("Adding live-out use for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), leafIndex);
         #endif
@@ -393,6 +393,30 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
     }
   }
+
+
+  // (Chris) Debug: Count the number of defs and uses for each register.
+  // Ensure that any changes to how opt_sched::Register tracks defs and uses
+  // doesn't change these values.
+  #if defined(IS_DEBUG_DEF_USE_COUNT)
+  auto regTypeCount = machMdl_->GetRegTypeCnt();
+  for (int i = 0; i < regTypeCount; ++i) {
+    for (int j = 0; j < regFiles[i].GetRegCnt(); ++j) {
+      const auto& myReg = regFiles[i].GetReg(j);
+      if (myReg->GetDefCnt() != myReg->GetSizeOfDefList()) {
+        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+                      "old def count %d!", dagID_,
+                      i, j, myReg->GetSizeOfDefList(), myReg->GetDefCnt());
+      }
+      if (myReg->GetUseCnt() != myReg->GetSizeOfUseList()) {
+        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+                      "old def count %d!", dagID_,
+                      i, j, myReg->GetSizeOfUseList(), myReg->GetUseCnt());
+      }
+    }
+  }
+  #endif
+
 }
 
 void LLVMDataDepGraph::PreOrderEquivalentInstr() {
