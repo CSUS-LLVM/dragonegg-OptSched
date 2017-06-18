@@ -29,7 +29,7 @@ if [ $isRelease == 'y' ]; then
     mkdir $LLVMDIR/release_build
   fi
   cd $LLVMDIR/release_build
-  cmake -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_BUILD_TYPE:STRING=Release $LLVMDIR/llvm-master
+  cmake -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_BUILD_TYPE="Release" $LLVMDIR/llvm-master
 
 else
   if [ ! -d "$LLVMDIR/build" ]; then

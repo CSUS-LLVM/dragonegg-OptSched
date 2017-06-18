@@ -2934,21 +2934,27 @@ void InstSchedule::SetSpillCandidateCount(int spillCnddtCnt) {
   spillCnddtCnt_ = spillCnddtCnt;
 }
 
+//TODO(austin) move logger print of schedule to different function
 void InstSchedule::Print(std::ostream& out, char const * const label) {
   InstCount slotInCycle = 0;
   InstCount cycleNum = 0;
   InstCount i;
   
-  out << '\n' << label << " Schedule";
+  //out << '\n' << label << " Schedule";
+  Logger::Info("Printing Schedule");
 
   for (i = 0; i < crntSlotNum_; i++) {
-    if (slotInCycle == 0) out << "\nCycle# " << cycleNum << ":  ";
+    if (slotInCycle == 0) 
+    Logger::Info("Cycle# %d : %d", cycleNum, instInSlot_[i]);
+    /*
+    out << "\nCycle# " << cycleNum << ":  ";
 
     if (instInSlot_[i] == SCHD_STALL) {
       out << "X ";
     } else {
       out << instInSlot_[i] << ' ';
     }
+   */
 
     slotInCycle++;
 
@@ -2957,15 +2963,6 @@ void InstSchedule::Print(std::ostream& out, char const * const label) {
       cycleNum++;
     }
   }
-
-  out << '\n' << " Register Pressures";
-  LLVMMachineModel* llvmModel = static_cast<LLVMMachineModel*>(machMdl_);
-  for(i = 0; i< machMdl_->GetRegTypeCnt(); i++) {
-    if (peakRegPressures_[i] > 0)
-      out << "\nReg type " << llvmModel->GetRegTypeName(i) \
-          << ":  peak pressure: " << peakRegPressures_[i] << ", physical limit = " << machMdl_->GetPhysRegCnt(i);
-  }
-  out << '\n';
 }
 
 void InstSchedule::PrintRegPressures(std::ostream& out) {
@@ -3031,6 +3028,10 @@ bool InstSchedule::Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph) {
   
 #ifdef IS_DEBUG_PEAK_PRESSURE
 	PrintRegPressures(std::cout);
+#endif
+
+#ifdef IS_DEBUG_PRINT_SCHEDULE
+	Print(std::cout, "debug");
 #endif
 
   Logger::Info("Schedule verified successfully");

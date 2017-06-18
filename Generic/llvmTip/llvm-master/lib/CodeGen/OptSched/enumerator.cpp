@@ -1521,7 +1521,7 @@ bool Enumerator::RlxdSchdul_(EnumTreeNode* newNode) {
 /*****************************************************************************/
 
 bool Enumerator::IsUseInRdyLst_() {
-  assert(RdyLst_ != NULL);
+  assert(rdyLst_ != NULL);
   bool isEmptyNode = false;
   InstCount brnchCnt = crntNode_->GetBranchCnt(isEmptyNode);
   SchedInstruction* inst;
