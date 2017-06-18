@@ -61,12 +61,20 @@ int Register::GetUseCnt() const {
   return useCnt_;
 }
 
+const std::set<const SchedInstruction *> Register::GetUseList() const {
+  return uses_;
+}
+
 size_t Register::GetSizeOfUseList() const {
   return uses_.size();
 }
 
 int Register::GetDefCnt() const {
   return defCnt_;
+}
+
+const std::set<const SchedInstruction *> Register::GetDefList() const {
+  return defs_;
 }
 
 size_t Register::GetSizeOfDefList() const {

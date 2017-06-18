@@ -36,11 +36,13 @@ class Register {
 
     void AddUse(const SchedInstruction * inst);
     int GetUseCnt() const;
+    const std::set<const SchedInstruction *> GetUseList() const;
     size_t GetSizeOfUseList() const;
     int GetCrntUseCnt() const;
 
     void AddDef(const SchedInstruction * inst);
     int GetDefCnt() const;
+    const std::set<const SchedInstruction *> GetDefList() const;
     size_t GetSizeOfDefList() const;
 
     void AddCrntUse();

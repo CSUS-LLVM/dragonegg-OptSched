@@ -93,9 +93,9 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   Stats::problemSize.Record(dataDepGraph_->GetInstCnt());
 
-  if (rgnTimeout > 0) needTrnstvClsr_ = true; 
+  // TODO (Chris): Compute transitive closure when computing SLIL, even if B&B is disabled.
+  if (rgnTimeout > 0 || true /* should really be costFunction==SLIL */) needTrnstvClsr_ = true; 
   rslt = dataDepGraph_->SetupForSchdulng(needTrnstvClsr_);
-//  rslt = dataDepGraph_->SetupForSchdulng(true);
   if (rslt != RES_SUCCESS ) {
    Logger::Info("Invalid input DAG");
    return rslt;
@@ -135,6 +135,15 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
     }
   }
   #endif
+  #if defined(IS_DEBUG_SLIL_COST)
+  uint64_t slilCost = 0ull;
+  for (auto i : this->GetSLIL_()) {
+    slilCost += i;
+  }
+  Logger::Info("SLIL Cost after Heuristic Scheduler is %llu for dag %s.",
+               slilCost, dataDepGraph_->GetDagID());
+  #endif
+
   Milliseconds boundStart = Utilities::GetProcessorTime();
   hurstcSchedLngth_ = lstSched->GetCrntLngth();
   bestSchedLngth_ = hurstcSchedLngth_;
@@ -147,6 +156,10 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
   else
     CmputLwrBounds_(useFileBounds);
   assert(schedLwrBound_ <= lstSched->GetCrntLngth());
+
+  #if defined(IS_DEBUG_STATIC_LOWER_BOUND)
+  Logger::Info("Static Lower Bound is %d for Dag %s", costLwrBound_, dataDepGraph_->GetDagID());
+  #endif
 
   isLstOptml = CmputUprBounds_(lstSched, useFileBounds);
   boundTime = Utilities::GetProcessorTime() - boundStart;

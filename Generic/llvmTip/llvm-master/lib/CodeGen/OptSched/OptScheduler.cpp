@@ -508,6 +508,8 @@ SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
     return SCF_SUM;
   } else if (name == "PEAK_PLUS_AVG") {
     return SCF_PEAK_PLUS_AVG;
+  } else if (name == "SLIL") {
+    return SCF_SLIL;
   } else {
     Logger::Error("Unrecognized spill cost function. Defaulted to PEAK.");
     return SCF_PEAK;

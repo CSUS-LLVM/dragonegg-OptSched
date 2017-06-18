@@ -62,6 +62,7 @@ class BBWithSpill : public SchedRegion {
     InstCount crntStepNum_;
     InstCount peakSpillCost_;
     InstCount totSpillCost_;
+    InstCount slilSpillCost_;
     SPILL_COST_FUNCTION spillCostFunc_;
     bool chkSpillCostSum_;
     bool chkCnflcts_;

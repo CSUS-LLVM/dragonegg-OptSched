@@ -10,6 +10,8 @@
 #include "llvm/CodeGen/OptSched/enum/enumerator.h"
 #include <cstdio>
 #include <iostream>
+#include <set>
+#include <numeric>
 
 extern bool OPTSCHED_gPrintSpills;
 
@@ -171,12 +173,77 @@ InstCount BBWithSpill::CmputCostLwrBound() {
   InstCount useCnt, spillCostLwrBound = 0;
   SchedInstruction * inst;
 
-/*  for(InstCount i=0; i< dataDepGraph_->GetInstCnt(); i++) {
-    inst = dataDepGraph_->GetInstByIndx(i);
-  }*/
-  
-  // For now assume that the spill cost lower bound is 0. May be improved later
-  return schedLwrBound_ * schedCostFactor_;
+  if (spillCostFunc_ == SCF_SLIL) {
+    // (Chris): Here is where the static lower bound of the cost will be
+    // computed. For now, only print the lower bound without applying it.
+
+    // To calculate a naive lower bound of the SLIL, count all the defs and
+    // uses for each register.
+    uint64_t naiveLowerBound = 0ull;
+    for (int i = 0; i < regTypeCnt_; ++i) {
+      for (int j = 0; j < regFiles_[i].GetRegCnt(); ++j) {
+        naiveLowerBound += regFiles_[i].GetReg(j)->GetUseCnt() +
+                           regFiles_[i].GetReg(j)->GetDefCnt();
+      }
+    }
+    #if defined(IS_DEBUG_SLIL_COST_LOWER_BOUND)
+    Logger::Info("SLIL Naive Static Lower Bound Cost  is %llu for Dag %s",
+                 naiveLowerBound, dataDepGraph_->GetDagID());
+    #endif
+    // (Chris): A better lower bound can be computed by adding more to the SLIL
+    // based on the instructions that use more than one register (defined by
+    // different instructions). In general, if instruction X uses N registers,
+    // all defined by different instructions, then increase the SLIL of the
+    // intervals that X belongs to by SUM(1 to N-1).
+    uint64_t commonUseLowerBound = naiveLowerBound;
+    for (int i = 0; i < dataDepGraph_->GetInstCnt(); ++i) {
+      inst = dataDepGraph_->GetInstByIndx(i);
+      uint64_t numberOfDifferentDefs = 0;
+      Register **uses;
+      auto useCount = inst->GetUses(uses);
+      std::set<const SchedInstruction *> seenInstructions;
+
+      for (int j = 0; j < useCount; j++) {
+        // For each register R, see if the def of R has already been seen. If
+        // so, don't count it.
+        if (uses[j]->GetDefCnt() != 1) {
+          Logger::Fatal("Dag %s: Register %d:%d def count is not 1 (%d).",
+                        dataDepGraph_->GetDagID(), uses[j]->GetType(),
+                        uses[j]->GetNum(), uses[j]->GetDefCnt());
+        }
+        const auto &instructions = uses[j]->GetDefList();
+        for (const auto &instruction : instructions) {
+          if (seenInstructions.find(instruction) == seenInstructions.end()) {
+            numberOfDifferentDefs++;
+            seenInstructions.insert(instruction);
+          }
+        }
+      }
+      for (int j = 0; j < numberOfDifferentDefs; j++) {
+        commonUseLowerBound += j;
+      }
+    }
+    #if defined(IS_DEBUG_SLIL_COST_LOWER_BOUND)
+    Logger::Info("SLIL CmnUse Static Lower Bound Cost is %llu for Dag %s",
+                 commonUseLowerBound, dataDepGraph_->GetDagID());
+    #endif
+
+    // TODO (Chris): Use better lower bound.
+    spillCostLwrBound = naiveLowerBound;
+  }
+
+  // (Chris): Another improvement to the lower bound calculation takes advantage
+  // of the transitive closure of the DAG. Suppose instruction X must happen
+  // between A and B, where A defines a register that B uses. Then, the live
+  // range length of A increases by 1. Note that we shouldn't increment if
+  // instruction X already increased the live range of A due to a common use.
+  //
+
+  // for(InstCount i=0; i< dataDepGraph_->GetInstCnt(); i++) {
+  //   inst = dataDepGraph_->GetInstByIndx(i);
+  // }
+
+  return schedLwrBound_ * schedCostFactor_ + spillCostLwrBound * spillCostFactor_;
 }
 /*****************************************************************************/
 
@@ -275,6 +342,9 @@ void BBWithSpill::CmputCrntSpillCost_() {
     case SCF_PEAK_PLUS_AVG:
       crntSpillCost_ = peakSpillCost_ + totSpillCost_/dataDepGraph_->GetInstCnt();
       break;
+    case SCF_SLIL:
+      crntSpillCost_ = slilSpillCost_;
+      break;
   }
 }
 /*****************************************************************************/
@@ -311,6 +381,11 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
     use->AddCrntUse();
 
     if (use->IsLive() == false) {
+      // (Chris): The SLIL calculation below the def and use for-loops doesn't
+      // consider the last use of a register. Thus, an additional increment must
+      // happen here.
+      sumOfLiveIntervalLengths_[regType]++;
+
       liveRegs_[regType].SetBit(regNum, false, use->GetWght());
 
       #ifdef IS_DEBUG_REG_PRESSURE
@@ -371,19 +446,23 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       peakRegPressures_[i] = liveRegs;
 
     // (Chris): Compute sum of live range lengths at this point
-    const auto& liveRegsForCurrentType = liveRegs_[i];
-    auto sizeOfLiveRegsVector = liveRegsForCurrentType.GetSize();
-    for (int j = 0; j < sizeOfLiveRegsVector; j++) {
-      if (liveRegsForCurrentType.GetBit(j)) {
+    if (spillCostFunc_ == SCF_SLIL) {
+      const auto &liveRegsForCurrentType = liveRegs_[i];
+      auto sizeOfLiveRegsVector = liveRegsForCurrentType.GetSize();
+      for (int j = 0; j < sizeOfLiveRegsVector; j++) {
+        if (liveRegsForCurrentType.GetBit(j)) {
         #ifdef IS_DEBUG_SLIL_CORRECT
-        if (OPTSCHED_gPrintSpills)
-          Logger::Info("RegType %d RegNum %d is live.", i, j);
+          if (OPTSCHED_gPrintSpills)
+            Logger::Info("RegType %d RegNum %d is live.", i, j);
         #endif
-        sumOfLiveIntervalLengths_[i]++;
+          sumOfLiveIntervalLengths_[i]++;
+        }
       }
+      slilSpillCost_ = std::accumulate(sumOfLiveIntervalLengths_.begin(),
+                                       sumOfLiveIntervalLengths_.end(), 0);
     }
 
-    #ifdef IS_DEBUG_REG_PRESSURE
+#ifdef IS_DEBUG_REG_PRESSURE
     Logger::Info("Reg type %d has %d live regs", i, liveRegs);
     #endif
 
