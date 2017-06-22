@@ -446,8 +446,6 @@ void LLVMDataDepGraph::PreOrderEquivalentInstr() {
 
 bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                           const SUnit &dstNode) {
-  // sets of node numbers of successors and predecessors for both nodes
-  std::set<unsigned long> srcPreds, dstPreds, srcSuccs, dstSuccs;
   // def and use lists for both nodes
   std::vector<unsigned long> srcDefs, dstDefs, srcUses, dstUses;
 
@@ -461,83 +459,16 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
       insts_[dstNode.NodeNum]->GetIssueType())
     return false;
 
-  // collect def/use information for source instruction
-  srcRegOpers.collect(*srcMI, *schedDag_->TRI, schedDag_->MRI, false, true);
-  // collect def/use information for destination instruction
-  dstRegOpers.collect(*dstMI, *schedDag_->TRI, schedDag_->MRI, false, true);
-
-  // find successors for source node
-  for (SUnit::const_succ_iterator I = srcNode.Succs.begin(),
-                                  E = srcNode.Succs.end();
-       I != E; ++I) {
-    SUnit *succ = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Source Instr: %d has succ %d", srcNode.NodeNum, succ->NodeNum);
-    #endif
-    srcSuccs.insert(succ->NodeNum);
-  }
-
-  // find successors for destination node
-  for (SUnit::const_succ_iterator I = dstNode.Succs.begin(),
-                                  E = dstNode.Succs.end();
-       I != E; ++I) {
-    SUnit *succ = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Destination Instr: %d has succ %d", dstNode.NodeNum, succ->NodeNum);
-    #endif
-    dstSuccs.insert(succ->NodeNum);
-  }
-
-  if (srcSuccs != dstSuccs)
-    return false;
-
-  // find predecessors for source node
-  for (SUnit::const_pred_iterator I = srcNode.Preds.begin(),
-                                  E = srcNode.Preds.end();
-       I != E; ++I) {
-    SUnit *pred = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Source Instr: %d has pred %d", srcNode.NodeNum, pred->NodeNum);
-    #endif
-    srcPreds.insert(pred->NodeNum);
-  }
-
-  // find predecessors for destination node
-  for (SUnit::const_pred_iterator I = dstNode.Preds.begin(),
-                                  E = dstNode.Preds.end();
-       I != E; ++I) {
-    SUnit *pred = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Destination Instr: %d has pred %d", dstNode.NodeNum, pred->NodeNum);
-    #endif
-    dstPreds.insert(pred->NodeNum);
-  }
-
-  if (srcPreds != dstPreds)
-    return false;
-
   // find defs for source instruction
   for (const RegisterMaskPair &D : srcRegOpers.Defs) {
     unsigned resNo = D.RegUnit;
-    std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes) {
-     #ifdef IS_DEBUG_PRE_ORDER
-     Logger::Info("Source Instr: %d defines reg of type %s", srcNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-     #endif
-     srcDefs.push_back(regType);
-    }
+    srcDefs.push_back(resNo);
   }
 
   // find defs for destination instruction
   for (const RegisterMaskPair &D : dstRegOpers.Defs) {
     unsigned resNo = D.RegUnit;
-    std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes) {
-      #ifdef IS_DEBUG_PRE_ORDER
-      Logger::Info("Destination Instr: %d defines reg of type %s", dstNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-      #endif
-      dstDefs.push_back(regType);
-    }
+    dstDefs.push_back(resNo);
   }
 
   std::sort(srcDefs.begin(), srcDefs.end());
@@ -549,25 +480,13 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
   // find uses for source instruction
   for (const RegisterMaskPair &U : srcRegOpers.Uses) {
     unsigned resNo = U.RegUnit;
-    std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes) {
-      #ifdef IS_DEBUG_PRE_ORDER
-      Logger::Info("Source Instr: %d uses reg of type %s", srcNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-      #endif
-      srcUses.push_back(regType);
-    }
+    srcUses.push_back(resNo);
   }
 
   // find uses for destination instruction
   for (const RegisterMaskPair &U : dstRegOpers.Uses) {
     unsigned resNo = U.RegUnit;
-    std::vector<int> regTypes = GetRegisterType_(resNo);
-    for (int regType : regTypes) {
-      #ifdef IS_DEBUG_PRE_ORDER
-      Logger::Info("Source Instr: %d uses reg of type %s", dstNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-      #endif
-      dstUses.push_back(regType);
-    }
+    dstUses.push_back(resNo);
   }
 
   std::sort(srcUses.begin(), srcUses.end());
