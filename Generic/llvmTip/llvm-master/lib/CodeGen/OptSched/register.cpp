@@ -61,7 +61,7 @@ int Register::GetUseCnt() const {
   return useCnt_;
 }
 
-const std::set<const SchedInstruction *> Register::GetUseList() const {
+const Register::InstSetType& Register::GetUseList() const {
   return uses_;
 }
 
@@ -73,7 +73,7 @@ int Register::GetDefCnt() const {
   return defCnt_;
 }
 
-const std::set<const SchedInstruction *> Register::GetDefList() const {
+const Register::InstSetType& Register::GetDefList() const {
   return defs_;
 }
 
@@ -142,6 +142,31 @@ int Register::GetConflictCnt() const {
 bool Register::IsSpillCandidate() const {
   return isSpillCnddt_;
 }
+
+bool Register::AddToInterval(const SchedInstruction * inst) {
+  return liveIntervalSet_.insert(inst).second;
+}
+
+bool Register::IsInInterval(const SchedInstruction * inst) const {
+  return liveIntervalSet_.count(inst) != 0;
+}
+
+const Register::InstSetType& Register::GetLiveInterval() const {
+  return liveIntervalSet_;
+}
+
+bool Register::AddToPossibleInterval(const SchedInstruction * inst) {
+  return possibleLiveIntervalSet_.insert(inst).second;
+}
+
+bool Register::IsInPossibleInterval(const SchedInstruction * inst) const {
+  return possibleLiveIntervalSet_.count(inst) != 0;
+}
+
+const Register::InstSetType& Register::GetPossibleLiveInterval() const {
+  return possibleLiveIntervalSet_;
+}
+
 
 Register::Register(int16_t type, int num, int physicalNumber) {
   type_ = type;
