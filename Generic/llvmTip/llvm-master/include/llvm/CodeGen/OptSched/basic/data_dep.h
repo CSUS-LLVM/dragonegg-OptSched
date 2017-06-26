@@ -202,6 +202,8 @@ class DataDepGraph : public DirAcycGraph, public DataDepStruct {
     UDT_GLABEL GetMaxLtncySum();
     UDT_GLABEL GetMaxLtncy();
 
+    bool DoesFeedUser(SchedInstruction* inst);
+
     //Get a lower bound on the schedule length
     InstCount GetSchedLwrBound();
 

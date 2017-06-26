@@ -3407,6 +3407,25 @@ bool DataDepGraph::IsPrblmtc() {
   return isPrblmtc_;
 }
 
+bool DataDepGraph::DoesFeedUser(SchedInstruction* inst) {
+  LinkedList<GraphNode>* rcrsvSuccs = inst->GetRcrsvNghbrLst(DIR_FRWRD);
+  for (GraphNode* succ = rcrsvSuccs->GetFrstElmnt();
+       succ != NULL;
+       succ = rcrsvSuccs->GetNxtElmnt()) {
+    SchedInstruction* succInst = static_cast<SchedInstruction*>(succ);
+    Register** uses;
+    int numUses = succInst->GetUses(uses);
+    
+    for (int i = 0; i < numUses; i++) {
+      if (uses[i]->IsLive())
+        return true;
+    }
+  }
+  // Return false if there is no recursive successor of inst
+  // that uses a live register.
+  return false;
+}
+
 
 int DataDepGraph::GetFileCostUprBound() {
   return fileCostUprBound_;
@@ -3456,7 +3475,6 @@ bool DataDepSubGraph::IsInGraph(SchedInstruction* inst) {
   bool isIn = numToIndx_[instNum] != INVALID_VALUE;
   return isIn;
 }
-
 
 InstCount DataDepSubGraph::GetInstIndx(SchedInstruction* inst) {
   assert(inst != NULL);
