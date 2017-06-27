@@ -201,7 +201,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   }
 
   // add edges between equivalent instructions
-  PreOrderEquivalentInstr();
+  //PreOrderEquivalentInstr();
 
   size_t maxNodeNum = llvmNodes_.size() - 1;
 
@@ -300,6 +300,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       insts_[rootIndex]->AddDef(reg);
       reg->SetWght(weight);
       reg->AddDef();
+      reg->SetIsLiveIn(true);
 #ifdef IS_DEBUG_DEFS_AND_USES
     Logger::Info("Adding live-in def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), rootIndex);
 #endif
@@ -382,6 +383,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       if (!insts_[rootIndex]->FindUse(reg)) {
         insts_[leafIndex]->AddUse(reg);
         reg->AddUse();
+        reg->SetIsLiveOut(true);
         #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("Adding live-out use for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), leafIndex);
         #endif

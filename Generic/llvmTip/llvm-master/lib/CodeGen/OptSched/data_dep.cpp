@@ -3408,6 +3408,9 @@ bool DataDepGraph::IsPrblmtc() {
 }
 
 bool DataDepGraph::DoesFeedUser(SchedInstruction* inst) {
+  #ifdef IS_DEBUG_RP_ONLY_RES
+  Logger::Info("Testing inst %d",inst->GetNum());
+  #endif
   LinkedList<GraphNode>* rcrsvSuccs = inst->GetRcrsvNghbrLst(DIR_FRWRD);
   for (GraphNode* succ = rcrsvSuccs->GetFrstElmnt();
        succ != NULL;
@@ -3417,12 +3420,20 @@ bool DataDepGraph::DoesFeedUser(SchedInstruction* inst) {
     int numUses = succInst->GetUses(uses);
     
     for (int i = 0; i < numUses; i++) {
+      #ifdef IS_DEBUG_RP_ONLY_RES
+      Logger::Info("inst %d has reg %d which has flag live/not-live: %d", succInst->GetNum(), uses[i]->GetNum(), uses[i]->IsLive());
+      #endif
       if (uses[i]->IsLive())
-        return true;
+        // If a register is live-in and live-out don't count it as a user.
+        if (!uses[i]->IsLiveOut())
+          return true;
     }
   }
   // Return false if there is no recursive successor of inst
   // that uses a live register.
+  #ifdef IS_DEBUG_RP_ONLY_RES
+  Logger::Info("No recursive use for inst %d", inst->GetNum());
+  #endif
   return false;
 }
 

@@ -47,8 +47,14 @@ class Register {
     void DcrmntCrntLngth();
     void ResetCrntLngth(); 
     int GetCrntLngth() const;
-
+    
     bool IsLive() const;
+    // Live in registers are defined by the artifical entry node.
+    bool IsLiveIn() const;
+    void SetIsLiveIn(bool liveIn);
+    // Live out registers are used by the artifical exit node.
+    bool IsLiveOut() const;
+    void SetIsLiveOut(bool liveOut);
 
     const Register& operator= (Register& rhs);
 
@@ -70,6 +76,8 @@ class Register {
     BitVector conflicts_;
     bool isSpillCnddt_;
     int wght_;
+    bool liveIn_;
+    bool liveOut_;
     
 };
 

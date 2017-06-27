@@ -43,6 +43,22 @@ bool Register::IsLive() const {
   return crntUseCnt_ < useCnt_;
 }
 
+bool Register::IsLiveIn() const {
+  return liveIn_;
+}
+
+bool Register::IsLiveOut() const {
+  return liveOut_;
+}
+
+void Register::SetIsLiveIn(bool liveIn) {
+  liveIn_ = liveIn;
+}
+
+void Register::SetIsLiveOut(bool liveOut) {
+  liveOut_ = liveOut;
+}
+
 void Register::ResetCrntUseCnt() {
   crntUseCnt_ = 0;
 }
@@ -134,6 +150,8 @@ Register::Register(int16_t type, int num, int physicalNumber) {
   crntUseCnt_ = 0;
   physicalNumber_ = physicalNumber;
   isSpillCnddt_ = false;
+  liveIn_ = false;
+  liveOut_ = false;
 }
 
 RegisterFile::RegisterFile() {
