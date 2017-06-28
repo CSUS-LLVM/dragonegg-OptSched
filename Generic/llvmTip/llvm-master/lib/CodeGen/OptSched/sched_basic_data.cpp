@@ -79,6 +79,7 @@ void SchedInstruction::SetupForSchdulng(InstCount instCnt,
   if (!memAllocd_) AllocMem_(instCnt, isCP_FromScsr, isCP_FromPrdcsr);
   SetPrdcsrNums_();
   SetScsrNums_();
+  ComputeAdjustedUseCnt_();
 }
 
 bool SchedInstruction::UseFileBounds() {
@@ -710,6 +711,17 @@ bool SchedInstruction::ProbeScsrsCrntLwrBounds(InstCount cycle) {
   }
 
   return false;
+}
+
+void SchedInstruction::ComputeAdjustedUseCnt_() {
+  Register** uses; 
+  int useCnt = GetUses(uses);
+
+  for (int i = 0; i < useCnt; i++) {
+    if (uses[i]->IsLiveOut())
+      useCnt--;
+  }
+  adjustedUseCnt_ = useCnt;
 }
 
 InstCount SchedInstruction::GetFileSchedOrder() const {

@@ -201,7 +201,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   }
 
   // add edges between equivalent instructions
-  //PreOrderEquivalentInstr();
+  PreOrderEquivalentInstr();
 
   size_t maxNodeNum = llvmNodes_.size() - 1;
 

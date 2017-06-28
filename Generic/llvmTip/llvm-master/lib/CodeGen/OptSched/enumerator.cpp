@@ -942,7 +942,7 @@ bool Enumerator::ProbeBranch_(SchedInstruction* inst, EnumTreeNode*& newNode,
   if (schedForRPOnly_)
     if (inst != NULL)
       if(crntNode_->FoundInstWithUse())
-        if (inst->GetUseCnt() == 0 && !dataDepGraph_->DoesFeedUser(inst)) {
+        if (inst->GetAdjustedUseCnt() == 0 && !dataDepGraph_->DoesFeedUser(inst)) {
           #ifdef IS_DEBUG_RP_ONLY_RES
           Logger::Info("RP Only pruning");
           #endif
@@ -1545,7 +1545,7 @@ bool Enumerator::IsUseInRdyLst_() {
   for (int i = 0; i < brnchCnt - 1; i++) {
     inst = rdyLst_->GetNextPriorityInst();
     assert(inst != NULL);
-    if (inst->GetUseCnt() != 0 || dataDepGraph_->DoesFeedUser(inst)) {
+    if (inst->GetAdjustedUseCnt() != 0 || dataDepGraph_->DoesFeedUser(inst)) {
       foundUse = true;
       #ifdef IS_DEBUG_RP_ONLY
       Logger::Info("Inst %d uses a register", inst->GetNum());
