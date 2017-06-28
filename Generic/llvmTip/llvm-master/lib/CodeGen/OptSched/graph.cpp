@@ -231,6 +231,30 @@ bool GraphNode::IsScsrEquvlnt(GraphNode* othrNode) {
   return true;
 }
 
+bool GraphNode::IsPrdcsrEquvlnt(GraphNode* othrNode) {
+  UDT_GLABEL thisLbl = 0;
+  UDT_GLABEL othrLbl = 0;
+
+  if (othrNode == this) return true;
+
+  if (GetPrdcsrCnt() != othrNode->GetPrdcsrCnt()) return false;
+
+  // TODO(austin) Find out why the first call to GetFrstPrdcsr returns the node itself
+  GraphNode *thisPrdcsr = GetFrstPrdcsr(thisLbl);
+  GraphNode *othrPrdcsr = othrNode->GetFrstPrdcsr(othrLbl);
+  if (thisPrdcsr == NULL)
+    return true;
+	for (thisPrdcsr = GetNxtPrdcsr(thisLbl),
+       othrPrdcsr = othrNode->GetNxtPrdcsr(othrLbl);
+       thisPrdcsr != NULL;
+       thisPrdcsr = GetNxtPrdcsr(thisLbl),
+       othrPrdcsr = othrNode->GetNxtPrdcsr(othrLbl)) {
+    if (thisPrdcsr != othrPrdcsr || thisLbl != othrLbl) return false;
+  }
+
+  return true;
+}
+
 GraphEdge* GraphNode::FindScsr(GraphNode* trgtNode) {
   GraphEdge* crntEdge;
 
@@ -314,7 +338,7 @@ void DirAcycGraph::CreateEdge_(UDT_GNODES frmNodeNum,
 }
 
 FUNC_RESULT DirAcycGraph::DepthFirstSearch() {
-  tplgclOrdr_ = new GraphNode*[nodeCnt_];
+  if (tplgclOrdr_ == NULL) tplgclOrdr_ = new GraphNode*[nodeCnt_];
   if (tplgclOrdr_ == NULL) Logger::Fatal("Out of memory.");
 
   for (UDT_GNODES i = 0; i < nodeCnt_; i++) {

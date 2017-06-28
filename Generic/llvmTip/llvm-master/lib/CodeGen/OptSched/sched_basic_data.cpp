@@ -76,7 +76,9 @@ SchedInstruction::~SchedInstruction() {
 void SchedInstruction::SetupForSchdulng(InstCount instCnt,
                                         bool isCP_FromScsr,
                                         bool isCP_FromPrdcsr) {
-  if (!memAllocd_) AllocMem_(instCnt, isCP_FromScsr, isCP_FromPrdcsr);
+  if (memAllocd_) DeAllocMem_();
+  AllocMem_(instCnt, isCP_FromScsr, isCP_FromPrdcsr);
+
   SetPrdcsrNums_();
   SetScsrNums_();
 }

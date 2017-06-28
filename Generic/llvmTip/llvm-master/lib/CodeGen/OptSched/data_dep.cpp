@@ -11,6 +11,7 @@
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 
 // only print pressure if enabled by sched.ini
 extern bool OPTSCHED_gPrintSpills;
@@ -144,7 +145,7 @@ InstCount DataDepStruct::CmputAbslutUprBound_() {
 }
 
 
-DataDepGraph::DataDepGraph(MachineModel* machMdl, LATENCY_PRECISION ltncyPrcsn)
+DataDepGraph::DataDepGraph(MachineModel* machMdl, LATENCY_PRECISION ltncyPrcsn, GraphTransTypes graphTransTypes)
     : DataDepStruct(machMdl) {
   int i;
 
@@ -155,7 +156,7 @@ DataDepGraph::DataDepGraph(MachineModel* machMdl, LATENCY_PRECISION ltncyPrcsn)
   outptDags_ = ODG_ALL;
   maxOutptDagSize_ = 1000;
   ltncyPrcsn_ = ltncyPrcsn;
-
+  graphTransTypes_ = graphTransTypes;
   includesCall_ = false;
   includesUnpipelined_ = false;
 
@@ -258,52 +259,50 @@ FUNC_RESULT DataDepGraph::SetupForSchdulng(bool cmputTrnstvClsr) {
     CmputRltvCrtclPaths_(DIR_BKWRD);
   }
 
-  if (cmputTrnstvClsr) {
-  for (i = 0; i < instCnt_; i++) {
-    SchedInstruction* inst = insts_[i];
-    GraphNode* dep;
-    LinkedList<GraphNode>* depLst;
-    Register ** defs, ** uses;
-    int defCnt, useCnt;
-
-    if(strcmp(inst->GetOpCode(),"CopyFromReg")==0) {
-       defCnt = inst->GetDefs(defs);
-       if(defCnt > 0 && defs[0]->IsPhysical() == false) {
-         inst->SetMustBeInBBEntry(true);
-         depLst = inst->GetRcrsvNghbrLst(DIR_BKWRD);
-         for(dep = depLst->GetFrstElmnt(); dep!=NULL; dep = depLst->GetNxtElmnt())
-            ((SchedInstruction*)dep)->SetMustBeInBBEntry(true);
-       }
-    }
-
-    if(strcmp(inst->GetOpCode(),"CopyToReg")==0) {
-       useCnt = inst->GetUses(uses);
-       if(useCnt > 0 && uses[0]->IsPhysical() == false) {
-         inst->SetMustBeInBBExit(true);
-         depLst = inst->GetRcrsvNghbrLst(DIR_FRWRD);
-         for(dep = depLst->GetFrstElmnt(); dep!=NULL; dep = depLst->GetNxtElmnt())
-           ((SchedInstruction*)dep)->SetMustBeInBBExit(true);
-       }
-    }
-  }
-  }
-
-  entryInstCnt_ = 0;
-  exitInstCnt_ = 0;
-  for (i = 0; i < instCnt_; i++) {
-    SchedInstruction* inst = insts_[i];
-    if(inst->MustBeInBBEntry())
-       entryInstCnt_++;
-    if(inst->MustBeInBBExit())
-       exitInstCnt_++;
-  }
-
   CmputAbslutUprBound_();
   CmputBasicLwrBounds_();
   wasSetupForSchduling_ = true;
   return RES_SUCCESS;
 }
 
+FUNC_RESULT DataDepGraph::UpdateSetupForSchdulng(bool cmputTrnstvClsr) {
+  InstCount i;
+  for (i = 0; i < instCnt_; i++) {
+    SchedInstruction* inst = insts_[i];
+    inst->SetupForSchdulng(instCnt_, cmputTrnstvClsr, cmputTrnstvClsr);
+
+    inst->SetMustBeInBBEntry(false);
+    inst->SetMustBeInBBExit(false);
+  }
+
+  //Do a depth-first search leading to a topological sort
+  if (!dpthFrstSrchDone_) {
+    DepthFirstSearch();
+  }
+
+  CmputCrtclPaths_();
+
+  if (cmputTrnstvClsr) {
+    if (FindRcrsvNghbrs(DIR_FRWRD) == RES_ERROR) return RES_ERROR;
+    if (FindRcrsvNghbrs(DIR_BKWRD) == RES_ERROR) return RES_ERROR;
+    CmputRltvCrtclPaths_(DIR_FRWRD);
+    CmputRltvCrtclPaths_(DIR_BKWRD);
+  }
+
+  CmputAbslutUprBound_();
+  CmputBasicLwrBounds_();
+
+  return RES_SUCCESS;
+}
+
+void DataDepGraph::InitGraphTrans() {
+  graphTransCnt_ = 0;
+
+  if (graphTransTypes_.equivDect) {
+    assert(i < NUM_GRAPH_TRANS);
+    graphTrans_[graphTransCnt_++] = GraphTrans::CreateGraphTrans(TT_EQDECT, this);
+  }
+}
 
 void DataDepGraph::CmputBasicLwrBounds_() {
   for (InstCount i = 0; i < instCnt_; i++) {
@@ -933,7 +932,6 @@ void DataDepGraph::CreateEdge(SchedInstruction* frmNode,
     maxLtncy_ = ltncy;
   }
 }
-
 
 void DataDepGraph::CreateEdge_(InstCount frmNodeNum, InstCount toNodeNum,
                                int ltncy, DependenceType depType) {

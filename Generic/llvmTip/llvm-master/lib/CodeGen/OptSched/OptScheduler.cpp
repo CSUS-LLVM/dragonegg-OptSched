@@ -236,7 +236,7 @@ if (isHeuristicISO) {
 #endif
 
   // convert dag
-  LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB, Topo,
+  LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB, graphTransTypes, Topo,
                        treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision, regionNum);
   // create region
   SchedRegion *region = new BBWithSpill(
@@ -384,6 +384,9 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   prune.nodeSup = schedIni.GetBool("APPLY_NODE_SUPERIORITY");
   prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION");
   prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING");
+
+  // setup graph transformations
+  graphTransTypes.equivDect = schedIni.GetBool("EQUIVALENCE_DETECTION_TRANSFORMATION");
 
   schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY"); 
   histTableHashBits =

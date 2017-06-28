@@ -12,6 +12,8 @@ Last Update:  Mar. 2011
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/buffers.h"
 #include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
+#include <memory>
 
 namespace opt_sched {
 
@@ -75,6 +77,11 @@ enum SUB_GRAPH_TYPE {
   SGT_DISC
 };
 
+// Graph transformations we should apply.
+typedef struct GraphTransTypes {
+  bool equivDect;
+} GraphTransTypes;
+
 // TODO(max): Document.
 const size_t MAX_INSTNAME_LNGTH = 160;
 
@@ -85,6 +92,9 @@ const int SCHED_UB_EXTRA = 20;
 
 const int MAX_LATENCY_VALUE = 10;
 
+// The total number of possible graph transformations.
+const int NUM_GRAPH_TRANS = 1;
+
 // Forward declarations used to reduce the number of #includes.
 class MachineModel;
 class SpecsBuffer;
@@ -94,6 +104,7 @@ class LC_RelaxedScheduler;
 class Register;
 class RegisterFile;
 class InstSchedule;
+class GraphTrans;
 
 // TODO(max): Document.
 class DataDepStruct {
@@ -163,7 +174,7 @@ class DataDepStruct {
 // a Data Dependence Structure as well
 class DataDepGraph : public DirAcycGraph, public DataDepStruct {
   public:
-    DataDepGraph(MachineModel* machMdl, LATENCY_PRECISION ltncyPcsn);
+    DataDepGraph(MachineModel* machMdl, LATENCY_PRECISION ltncyPcsn, GraphTransTypes graphTransTypes);
     virtual ~DataDepGraph();
 
     // Reads the data dependence graph from a text file.
@@ -190,6 +201,16 @@ class DataDepGraph : public DirAcycGraph, public DataDepStruct {
     //Setup the Dep. Graph for scheduling by doing a topological sort
     //followed by critical path computation
     FUNC_RESULT SetupForSchdulng(bool cmputTrnstvClsr);
+    //Update the Dep after applying graph transformations
+    FUNC_RESULT UpdateSetupForSchdulng(bool cmputTrnstvClsr);
+
+    //Returns transformations that we will apply to the graph
+    std::unique_ptr<GraphTrans>* GetGraphTrans() {return graphTrans_;}
+    //Returns number of graph transformations to apply
+    InstCount GetGraphTransCnt() const {return graphTransCnt_;}
+
+    //Create graph transformation objects
+    void InitGraphTrans();
 
     void EnableBackTracking();
 
@@ -317,6 +338,14 @@ class DataDepGraph : public DirAcycGraph, public DataDepStruct {
     //The length of some known schedule that has been computed by some other
     //program ,e.g., gcc when the input DAGs come from gcc
     InstCount knwnSchedLngth_;
+
+    //Graph transformations that we will apply to the DataDepGraph
+    std::unique_ptr<GraphTrans> graphTrans_[NUM_GRAPH_TRANS];
+    //The number of graph transformations to apply
+    InstCount graphTransCnt_;
+
+    //A list of enabled graph transformations
+    struct GraphTransTypes graphTransTypes_;
 
     MachineModel* machMdl_;
 

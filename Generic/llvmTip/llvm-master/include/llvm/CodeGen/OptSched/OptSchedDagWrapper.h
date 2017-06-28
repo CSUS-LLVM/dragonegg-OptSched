@@ -15,6 +15,7 @@ Last Update:  Mar. 2017
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 
 namespace opt_sched {
@@ -26,6 +27,7 @@ class LLVMDataDepGraph : public DataDepGraph {
                      LLVMMachineModel* machMdl,
                      LATENCY_PRECISION ltncyPrcsn,
                      llvm::MachineBasicBlock* BB,
+                     GraphTransTypes graphTransTypes,
                      llvm::ScheduleDAGTopologicalSort& Topo,
                      bool treatOrderDepsAsDataDeps,
                      int maxDagSizeForPrcisLtncy,

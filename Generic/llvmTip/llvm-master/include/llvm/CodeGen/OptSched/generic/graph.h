@@ -138,6 +138,15 @@ class GraphNode {
     // Checks if a given node is successor-equivalent to this node. Two nodes
     // are successor-equivalent if they have identical successor lists.
     bool IsScsrEquvlnt(GraphNode* othrNode);
+    // Returns a pointer to the first Predecesor of the node. Sets the predecesor
+    // iterator.
+    GraphNode* GetFrstPrdcsr(UDT_GLABEL& label);
+    // Returns a pointer to the next predecessor of the node. Must be called after
+    // GetFrstPrdcsr() which starts the predecessor iterator.
+    GraphNode* GetNxtPrdcsr(UDT_GLABEL& label);
+    // Checks if a given node is predecessor-equivalent to this node. Two nodes
+    // are predecessor-equivalent if they have identical predecessor lists.
+    bool IsPrdcsrEquvlnt(GraphNode* othrNode);
     // Checks if the successor list of this node is dominated by the successor
     // list of the given node. This is the case when the successor list of this
     // node is a subset of that of the given node and each edge label from this
@@ -398,6 +407,20 @@ inline GraphNode* GraphNode::GetFrstScsr(UDT_GLABEL& label) {
 
 inline GraphNode* GraphNode::GetNxtScsr(UDT_GLABEL& label) {
   GraphEdge* edge = scsrLst_->GetNxtElmnt();
+  if (edge == NULL) return NULL;
+  label = edge->label;
+  return edge->to;
+}
+
+inline GraphNode* GraphNode::GetFrstPrdcsr(UDT_GLABEL& label) {
+  GraphEdge* edge = prdcsrLst_->GetFrstElmnt();
+  if (edge == NULL) return NULL;
+  label = edge->label;
+  return edge->to;
+}
+
+inline GraphNode* GraphNode::GetNxtPrdcsr(UDT_GLABEL& label) {
+  GraphEdge* edge = prdcsrLst_->GetNxtElmnt();
   if (edge == NULL) return NULL;
   label = edge->label;
   return edge->to;

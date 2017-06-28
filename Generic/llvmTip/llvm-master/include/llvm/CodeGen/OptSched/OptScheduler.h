@@ -12,6 +12,7 @@
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
 #include <chrono>
@@ -42,6 +43,8 @@ namespace opt_sched {
       Config hotFunctions;
       // Struct for setting the pruning strategy
       Pruning prune;
+      // Struct for setting graph transformations to apply
+      GraphTransTypes graphTransTypes;
       // If we should schedule for register pressure only and ignore ilp.
       bool schedForRPOnly;
       // Flag indicating whether the optScheduler should be enabled for this function
