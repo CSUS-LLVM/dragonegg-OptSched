@@ -94,7 +94,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   Stats::problemSize.Record(dataDepGraph_->GetInstCnt());
 
   // TODO (Chris): Compute transitive closure when computing SLIL, even if B&B is disabled.
-  if (rgnTimeout > 0 || true /* should really be costFunction==SLIL */) needTrnstvClsr_ = true; 
+  if (rgnTimeout > 0 || spillCostFunc_ == SCF_SLIL) needTrnstvClsr_ = true; 
   rslt = dataDepGraph_->SetupForSchdulng(needTrnstvClsr_);
   if (rslt != RES_SUCCESS ) {
    Logger::Info("Invalid input DAG");
@@ -121,7 +121,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   hurstcTime = Utilities::GetProcessorTime() - hurstcStart;
   Stats::heuristicTime.Record(hurstcTime);
-if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
+  if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
 
   #ifdef IS_DEBUG_SLIL_PRINTOUT
   if (OPTSCHED_gPrintSpills) {
@@ -134,14 +134,6 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
         slilVector[j]);
     }
   }
-  #endif
-  #if defined(IS_DEBUG_SLIL_COST)
-  uint64_t slilCost = 0ull;
-  for (auto i : this->GetSLIL_()) {
-    slilCost += i;
-  }
-  Logger::Info("SLIL Cost after Heuristic Scheduler is %llu for dag %s.",
-               slilCost, dataDepGraph_->GetDagID());
   #endif
 
   Milliseconds boundStart = Utilities::GetProcessorTime();
@@ -181,6 +173,22 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
   #endif
 
   if (rgnTimeout == 0) isLstOptml = true;
+
+  // (Chris): If the cost function is SLIL, then the list schedule is considered
+  // optimal if PERP is 0.
+  if (!isLstOptml && spillCostFunc_ == SCF_SLIL) {
+    const InstCount* regPressures = nullptr;
+    auto regTypeCount = lstSched->GetPeakRegPressures(regPressures);
+    InstCount sumPerp = 0;
+    for (int i = 0; i < regTypeCount; ++i) {
+      int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
+      if (perp > 0) sumPerp += perp;
+    }
+    if (sumPerp == 0) {
+      isLstOptml = true;
+      Logger::Info("Marking SLIL list schedule as optimal due to zero PERP.");
+    }
+  }
 
   if (EnableEnum_() == false) {
     delete lstSchdulr;
@@ -258,6 +266,9 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
+
+  // (Chris): Unconditionally Print out the spill cost of the final schedule. This makes it easy to compare results.
+  Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(), dataDepGraph_->GetDagID());
 
   return rslt;
 }

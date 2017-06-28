@@ -122,6 +122,9 @@ class SchedRegion {
     // The best schedule found so far (may be heuristic or enumerator generated)
     InstSchedule* bestSched_;
 
+    // (Chris): The cost function. Defaults to PEAK.
+    SPILL_COST_FUNCTION spillCostFunc_ = SCF_PEAK;
+
     // The absolute cost lower bound to be used as a ref for normalized costs.
     InstCount costLwrBound_;
 

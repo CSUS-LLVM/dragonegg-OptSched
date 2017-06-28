@@ -699,6 +699,7 @@ class InstSchedule {
 
     void SetSpillCosts(InstCount* spillCosts);
     void SetPeakRegPressures(InstCount* regPressures);
+    InstCount GetPeakRegPressures(const InstCount*& regPressures) const;
     InstCount GetSpillCost(InstCount stepNum);
     InstCount GetTotSpillCost();
     int GetConflictCount();

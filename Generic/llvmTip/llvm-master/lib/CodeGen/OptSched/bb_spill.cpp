@@ -874,15 +874,28 @@ void BBWithSpill::SetupForSchdulng_() {
     }
 }
 /*****************************************************************************/
-
+namespace {
+  volatile bool dynamicPruned = false;
+}
 bool BBWithSpill::ChkCostFsblty(InstCount trgtLngth,
                                 EnumTreeNode* node) {
   bool fsbl = true;
   InstCount crntCost, dynmcCostLwrBound;
-
   crntCost = crntSpillCost_ * spillCostFactor_ + trgtLngth * schedCostFactor_;
   crntCost -= costLwrBound_;
-  dynmcCostLwrBound = crntCost;
+  if (spillCostFunc_ == SCF_SLIL) {
+    // (Chris): The dynamic lower bound used in this feasibility check is the
+    // difference between the dynamic SLIL lower bound and static SLIL lower
+    // bound, multiplied by the spill cost factor. This is because bestCost
+    // follows the same formula. We can ignore the schedule length because it
+    // never changes.
+    InstCount realDynamicLB =
+        (dynamicSlilLowerBound_ - staticSlilLowerBound_) * spillCostFactor_;
+    dynmcCostLwrBound = (realDynamicLB < 0) ? 0 : realDynamicLB;
+  }
+  else {
+    dynmcCostLwrBound = crntCost;
+  }
 
  // assert(cost >= 0);
   assert(dynmcCostLwrBound >= 0);
