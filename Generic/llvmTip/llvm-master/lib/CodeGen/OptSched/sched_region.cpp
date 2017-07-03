@@ -190,6 +190,23 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
     }
   }
 
+#if defined(IS_DEBUG_SLIL_OPTIMALITY)
+  // (Chris): This code prints a statement when a schedule is SLIL-optimal but
+  // not PERP-optimal.
+  if (spillCostFunc_ == SCF_SLIL && bestCost_ == 0) {
+    const InstCount* regPressures = nullptr;
+    auto regTypeCount = lstSched->GetPeakRegPressures(regPressures);
+    InstCount sumPerp = 0;
+    for (int i = 0; i < regTypeCount; ++i) {
+      int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
+      if (perp > 0) sumPerp += perp;
+    }
+    if (sumPerp > 0) {
+      Logger::Info("Dag %s is SLIL optimal but not PERP optimal (PERP=%d).", dataDepGraph_->GetDagID(), sumPerp);
+    }
+  }
+#endif
+
   if (EnableEnum_() == false) {
     delete lstSchdulr;
     return RES_FAIL;
@@ -266,10 +283,10 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
-
+#if defined(IS_DEBUG_FINAL_SPILL_COST)
   // (Chris): Unconditionally Print out the spill cost of the final schedule. This makes it easy to compare results.
   Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(), dataDepGraph_->GetDagID());
-
+#endif
   return rslt;
 }
 

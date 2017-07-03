@@ -212,9 +212,7 @@ static InstCount ComputeSLILStaticLowerBound(
     for (int j = 0; j < defRegCount; ++j) {
       for (const auto& dependentInst : definedRegisters[j]->GetUseList()) {
         auto recPredBV = const_cast<SchedInstruction*>(dependentInst)->GetRcrsvNghbrBitVector(DIR_BKWRD);
-        if (recSuccBV->GetSize() != recPredBV->GetSize()) {
-          Logger::Fatal("Successor list size doesn't match predecessor list size!");
-        }
+        assert(recSuccBV->GetSize() != recPredBV->GetSize() && "Successor list size doesn't match predecessor list size!");
         for (int k = 0; k < recSuccBV->GetSize(); ++k) {
           if (recSuccBV->GetBit(k) & recPredBV->GetBit(k)) {
             if (definedRegisters[j]->AddToInterval(dataDepGraph_->GetInstByIndx(k))) {
@@ -245,9 +243,7 @@ static InstCount ComputeSLILStaticLowerBound(
     usedInsts.clear();
     for (int j = 0; j < usedRegCount; ++j) {
       Register* reg = usedRegisters[j];
-      if (reg->GetDefList().size() != 1) {
-        Logger::Fatal("Number of defs for register is not 1!");
-      }
+      assert(reg->GetDefList().size() != 1 && "Number of defs for register is not 1!");
       usedInsts.push_back(std::make_pair(*(reg->GetDefList().begin()), reg));
     }
 
@@ -623,12 +619,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
           }
         }
       }
-      if (sumOfLiveIntervalLengths_[i] < 0) {
-        Logger::Fatal("UpdateSpillInfoForUnSchdul_: SLIL for type %d is negative!", i);
-      }
-      //if (dynamicSlilLowerBound_ < costLwrBound_) {
-
-      //}
+      assert(sumOfLiveIntervalLengths_[i] < 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
     }
   }
 
@@ -680,9 +671,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
         if (!use->IsInInterval(inst) && !use->IsInPossibleInterval(inst)) {
           --dynamicSlilLowerBound_;
         }
-        if (sumOfLiveIntervalLengths_[regType] < 0) {
-          Logger::Fatal("UpdateSpillInfoForUnSchdul_ (last use): SLIL for type %d is negative!", regType);
-        }
+        assert(sumOfLiveIntervalLengths_[i] < 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
       }
       liveRegs_[regType].SetBit(regNum, true, use->GetWght());
 
@@ -874,28 +863,19 @@ void BBWithSpill::SetupForSchdulng_() {
     }
 }
 /*****************************************************************************/
-namespace {
-  volatile bool dynamicPruned = false;
-}
+
 bool BBWithSpill::ChkCostFsblty(InstCount trgtLngth,
                                 EnumTreeNode* node) {
   bool fsbl = true;
   InstCount crntCost, dynmcCostLwrBound;
-  crntCost = crntSpillCost_ * spillCostFactor_ + trgtLngth * schedCostFactor_;
-  crntCost -= costLwrBound_;
   if (spillCostFunc_ == SCF_SLIL) {
-    // (Chris): The dynamic lower bound used in this feasibility check is the
-    // difference between the dynamic SLIL lower bound and static SLIL lower
-    // bound, multiplied by the spill cost factor. This is because bestCost
-    // follows the same formula. We can ignore the schedule length because it
-    // never changes.
-    InstCount realDynamicLB =
-        (dynamicSlilLowerBound_ - staticSlilLowerBound_) * spillCostFactor_;
-    dynmcCostLwrBound = (realDynamicLB < 0) ? 0 : realDynamicLB;
+    crntCost = dynamicSlilLowerBound_ * spillCostFactor_ + trgtLngth * schedCostFactor_;
   }
   else {
-    dynmcCostLwrBound = crntCost;
+    crntCost = crntSpillCost_ * spillCostFactor_ + trgtLngth * schedCostFactor_;
   }
+  crntCost -= costLwrBound_;
+  dynmcCostLwrBound = crntCost;
 
  // assert(cost >= 0);
   assert(dynmcCostLwrBound >= 0);
