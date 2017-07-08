@@ -54,7 +54,7 @@ SPILLS_REGEX = re.compile(r'Function: (.*?)\nGREEDY RA: Number of spilled live r
 TIMES_REGEX = re.compile(r'(\d+) total seconds elapsed')
 BLOCK_NAME_AND_SIZE_REGEX = re.compile(r'Processing DAG (.*) with (\d+) insts')
 #BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'The list schedule .* is optimal')
-BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'Bypassing optimal scheduling due to zero time limit')
+BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'(Bypassing optimal scheduling due to zero time limit|The list schedule .* is optimal)')
 BLOCK_ENUMERATED_OPTIMAL_REGEX = re.compile(r'DAG solved optimally')
 BLOCK_COST_REGEX = re.compile(r'list schedule is of length \d+ and spill cost \d+. Tot cost = (\d+)')
 BLOCK_IMPROVEMENT_REGEX = re.compile(r'cost imp=(\d+)')
