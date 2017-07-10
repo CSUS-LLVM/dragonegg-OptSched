@@ -517,6 +517,8 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
   if (srcPreds != dstPreds)
     return false;
 
+  return true;
+
   // find defs for source instruction
   for (const RegisterMaskPair &D : srcRegOpers.Defs) {
     unsigned resNo = D.RegUnit;

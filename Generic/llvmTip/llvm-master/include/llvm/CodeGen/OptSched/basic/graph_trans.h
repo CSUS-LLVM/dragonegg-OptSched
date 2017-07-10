@@ -18,7 +18,8 @@ namespace opt_sched {
 
 // Types of graph transformations.
 enum TRANS_TYPE {
-  TT_EQDECT = 0
+  TT_EQDECT = 0,
+  TT_RPONSP = 1
 };
 
 // An abstract graph transformation class.
@@ -52,6 +53,12 @@ class GraphTrans {
     InstCount numNodesInGraph_;
 };
 
+inline DataDepGraph* GraphTrans::GetDataDepGraph() const {return dataDepGraph_;}
+inline void GraphTrans::SetDataDepGraph(DataDepGraph* dataDepGraph) {dataDepGraph_ = dataDepGraph;}
+
+inline InstCount GraphTrans::GetNumNodesInGraph() const {return numNodesInGraph_;}
+inline void GraphTrans::SetNumNodesInGraph(InstCount numNodesInGraph) {numNodesInGraph_ = numNodesInGraph;}
+
 // The equivalence detection graph transformation. If two independent
 // nodes are equivalent, create an edge between them.
 class EquivDectTrans : public GraphTrans {
@@ -65,13 +72,21 @@ class EquivDectTrans : public GraphTrans {
       bool NodesAreEquiv_(SchedInstruction* srcInst, SchedInstruction* dstInst);
 };
 
-inline DataDepGraph* GraphTrans::GetDataDepGraph() const {return dataDepGraph_;}
-inline void GraphTrans::SetDataDepGraph(DataDepGraph* dataDepGraph) {dataDepGraph_ = dataDepGraph;}
-
-inline InstCount GraphTrans::GetNumNodesInGraph() const {return numNodesInGraph_;}
-inline void GraphTrans::SetNumNodesInGraph(InstCount numNodesInGraph) {numNodesInGraph_ = numNodesInGraph;}
-
 inline EquivDectTrans::EquivDectTrans(DataDepGraph* dataDepGraph) : GraphTrans(dataDepGraph) {}
+
+// Node superiority graph transformation while only considering register pressure.
+class RPOnlyNodeSupTrans : public GraphTrans {
+  public:
+    RPOnlyNodeSupTrans(DataDepGraph* dataDepGraph);
+
+    FUNC_RESULT ApplyTrans() override;
+
+  private:
+    // Return true if node A is superior to node B.
+    bool NodeIsSuperior_(SchedInstruction* nodeA, SchedInstruction* nodeB);
+};
+
+inline RPOnlyNodeSupTrans::RPOnlyNodeSupTrans(DataDepGraph* dataDepGraph) : GraphTrans(dataDepGraph) {}
 
 } // end namespace opt_sched
 

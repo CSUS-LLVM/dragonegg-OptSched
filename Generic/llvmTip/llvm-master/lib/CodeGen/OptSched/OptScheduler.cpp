@@ -217,6 +217,13 @@ if (isHeuristicISO) {
   if (SUnits.empty())
     return;
 
+	#ifdef IS_DEBUG_PRINT_DAG
+  Logger::Info("%s", BB->getFullName());
+  for (int i = 0; i < SUnits.size(); i++) {
+    SUnits[i].dumpAll(this);
+  }
+  #endif
+
 // Dump max pressure
 #ifdef IS_DEBUG_PEAK_PRESSURE
   if (OPTSCHED_gPrintSpills) {
@@ -322,10 +329,10 @@ if (isHeuristicISO) {
 #endif
   
   #ifdef IS_DEBUG_PRINT_DAG
-  Logger::Info("%s", BB->getFullName());
-  for (int i = 0; i < SUnits.size(); i++) {
-    SUnits[i].dumpAll(this);
-  }
+  //Logger::Info("%s", BB->getFullName());
+  //for (int i = 0; i < SUnits.size(); i++) {
+  //  SUnits[i].dumpAll(this);
+  //}
   #endif
   
   delete region;
@@ -387,6 +394,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
 
   // setup graph transformations
   graphTransTypes.equivDect = schedIni.GetBool("EQUIVALENCE_DETECTION_TRANSFORMATION");
+  graphTransTypes.rpOnlyNodeSup = schedIni.GetBool("RP_ONLY_NODE_SUPERIORITY");
 
   schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY"); 
   histTableHashBits =
