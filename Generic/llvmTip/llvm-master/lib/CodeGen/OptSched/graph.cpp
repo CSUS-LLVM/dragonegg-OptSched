@@ -97,6 +97,8 @@ void GraphNode::AddRcrsvNghbr(GraphNode* nghbr, DIRECTION dir) {
 
 void GraphNode::AllocRcrsvInfo(DIRECTION dir, UDT_GNODES nodeCnt) {
   if (dir == DIR_FRWRD) {
+    if (rcrsvScsrLst_ != NULL) {delete rcrsvScsrLst_; rcrsvScsrLst_ = NULL;}
+    if (isRcrsvScsr_ != NULL) {delete isRcrsvScsr_; isRcrsvScsr_ = NULL;}
     assert(rcrsvScsrLst_ == NULL && isRcrsvScsr_ == NULL);
     rcrsvScsrLst_ = new LinkedList<GraphNode>;
     isRcrsvScsr_ = new BitVector(nodeCnt);
@@ -105,6 +107,8 @@ void GraphNode::AllocRcrsvInfo(DIRECTION dir, UDT_GNODES nodeCnt) {
       Logger::Fatal("Out of memory.");
     }
   } else {
+    if (rcrsvPrdcsrLst_ != NULL) {delete rcrsvPrdcsrLst_; rcrsvPrdcsrLst_ = NULL;}
+    if (isRcrsvPrdcsr_ != NULL) {delete isRcrsvPrdcsr_; isRcrsvPrdcsr_ = NULL;}
     assert(rcrsvPrdcsrLst_ == NULL && isRcrsvPrdcsr_ == NULL);
     rcrsvPrdcsrLst_ = new LinkedList<GraphNode>;
     isRcrsvPrdcsr_ = new BitVector(nodeCnt);

@@ -268,8 +268,13 @@ FUNC_RESULT DataDepGraph::SetupForSchdulng(bool cmputTrnstvClsr) {
 FUNC_RESULT DataDepGraph::UpdateSetupForSchdulng(bool cmputTrnstvClsr) {
   InstCount i;
   for (i = 0; i < instCnt_; i++) {
-    SchedInstruction* inst = insts_[i];
+     SchedInstruction* inst = insts_[i];
     inst->SetupForSchdulng(instCnt_, cmputTrnstvClsr, cmputTrnstvClsr);
+    InstType instType = inst->GetInstType();
+    IssueType issuType = machMdl_->GetIssueType(instType);
+    assert(issuType < issuTypeCnt_);
+    inst->SetIssueType(issuType);
+
 
     inst->SetMustBeInBBEntry(false);
     inst->SetMustBeInBBExit(false);
@@ -279,6 +284,12 @@ FUNC_RESULT DataDepGraph::UpdateSetupForSchdulng(bool cmputTrnstvClsr) {
   if (!dpthFrstSrchDone_) {
     DepthFirstSearch();
   }
+
+	delete[] frwrdLwrBounds_;
+	delete[] bkwrdLwrBounds_;
+
+  frwrdLwrBounds_ = new InstCount[instCnt_];
+  bkwrdLwrBounds_ = new InstCount[instCnt_];
 
   CmputCrtclPaths_();
 

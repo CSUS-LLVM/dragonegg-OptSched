@@ -124,8 +124,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
       instType = machMdl_->GetInstTypeByName("Default");
     }
 
+    Logger::Info("Creating node %d", unit.NodeNum);
     CreateNode_(unit.NodeNum, instName.c_str(), instType, opCode.c_str(),
-                0, // nodeID
+                unit.NodeNum, // nodeID
                 0, 0,
                 0,  // fileInstLwrBound
                 0,  // fileInstUprBound
@@ -330,7 +331,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
       std::vector<Register *> regs = lastDef[resNo];
       for (Register *reg : regs) {
-        if (!insts_[rootIndex]->FindUse(reg)) {
+        if (!insts_[startNode->NodeNum]->FindUse(reg)) {
           insts_[startNode->NodeNum]->AddUse(reg);
           reg->AddUse();
           #ifdef IS_DEBUG_DEFS_AND_USES
@@ -380,7 +381,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
     std::vector<Register *> regs = lastDef[resNo];
     for (Register *reg : regs) {
-      if (!insts_[rootIndex]->FindUse(reg)) {
+      if (!insts_[leafIndex]->FindUse(reg)) {
         insts_[leafIndex]->AddUse(reg);
         reg->AddUse();
         #ifdef IS_DEBUG_DEFS_AND_USES
@@ -595,6 +596,9 @@ std::vector<int>
 LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   const TargetRegisterInfo &TRI = *schedDag_->TRI;
   std::vector<int> pSetTypes;
+
+  //if (TRI.isPhysicalRegister(resNo))
+  //  return pSetTypes;
 
   PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
   for (; PSetI.isValid(); ++PSetI) {
