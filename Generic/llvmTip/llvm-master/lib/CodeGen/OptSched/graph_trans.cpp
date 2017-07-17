@@ -197,8 +197,25 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
       }
     }
     if (!usedByA) {
+      #ifdef IS_DEBUG_GRAPH_TRANS
       Logger::Info("Found reg used by nodeB but not nodeA");
-      usesOnlyB.push_back(useB);
+      #endif
+
+      // For this register did we find a user C that is a successor of
+      // A and B.
+      bool foundC = false;
+      for (const SchedInstruction* user : useB->GetUseList()) {
+        if (nodeB->IsRcrsvScsr(const_cast<SchedInstruction*>(user))) {
+          foundC = true;
+          break;
+        }
+      }
+      if (!foundC) {
+        #ifdef IS_DEBUG_GRAPH_TRANS
+        Logger::Info("Live range condition 1 failed");
+        #endif
+        return false;
+      }
     }
   }
 
@@ -213,7 +230,6 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
       }
     }
   }
-*/
   // We have already made sure the successor list of B is a subset
   // of the successor list of A
   // TODO(austin) Maybe registers should have a unique identifier and be put in a BitVector.
@@ -249,6 +265,7 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
     #endif
     return false;
   }
+ */ 
 
   // For each register type, the number of registers defined by A is less than or equal to the number of registers defined by B.
   Register** defsA;
@@ -256,7 +273,6 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
   int defCntA = nodeA->GetDefs(defsA);
   int defCntB = nodeB->GetDefs(defsB);
   int regTypes = graph->GetRegTypeCnt();
-  Logger::Info("reg types %d", regTypes);
   vector<InstCount> regTypeDefsA(regTypes);
   vector<InstCount> regTypeDefsB(regTypes);
 

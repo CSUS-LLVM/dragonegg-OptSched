@@ -207,7 +207,7 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
     }
   } else {
       if (rgnTimeout == 0)
-        Logger::Info("Bypassing optimal scheduling due to zero time limit");
+        Logger::Info("Bypassing optimal scheduling due to zero time limit with cost %d", bestCost_);
       else
         Logger::Info("The list schedule of length %d and cost %d is optimal.",
                       bestSchedLngth_, bestCost_);
