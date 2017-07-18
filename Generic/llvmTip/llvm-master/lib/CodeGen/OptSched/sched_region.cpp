@@ -283,7 +283,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
-#if defined(IS_DEBUG_COMPARE_SLIL_BB) || true
+#if defined(IS_DEBUG_COMPARE_SLIL_BB)
   if (!isLstOptml) {
     const auto& status = [&]() {
       switch (rslt) {

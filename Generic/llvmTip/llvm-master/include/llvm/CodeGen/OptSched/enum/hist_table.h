@@ -8,6 +8,7 @@ Last Update:  Mar. 2011
 #ifndef OPTSCHED_ENUM_HIST_TABLE_H
 #define OPTSCHED_ENUM_HIST_TABLE_H
 
+#include <limits>
 #include <cstdio>
 #include <iostream>
 #include "llvm/CodeGen/OptSched/generic/defines.h"
@@ -102,6 +103,9 @@ class CostHistEnumTreeNode : public HistEnumTreeNode {
     InstCount cost_;
     InstCount peakSpillCost_;
     InstCount spillCostSum_;
+    InstCount totalCost_ = -1;
+    InstCount partialCost_ = -1;
+    bool totalCostIsActualCost_ = false;
     bool isLngthFsbl_;
     #ifdef IS_DEBUG
       bool costInfoSet_;

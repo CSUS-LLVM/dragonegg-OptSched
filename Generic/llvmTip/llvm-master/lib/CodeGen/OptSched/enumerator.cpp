@@ -1153,6 +1153,55 @@ void Enumerator::InitNewNode_(EnumTreeNode* newNode) {
   crntNode_->SetNum(createdNodeCnt_);
 }
 /*****************************************************************************/
+static void SetTotalCosts(EnumTreeNode *const currentNode,
+                          EnumTreeNode *const parentNode) {
+  // (Chris): Before archiving, set the total cost info of this node. If it's a
+  // leaf node, then the total cost is the current cost. If it's an inner node,
+  // then the total cost either has already been set (if one of its children had
+  // a real cost), or hasn't been set, which means the total cost right now is
+  // the dynamic lower bound of this node.
+  if (currentNode->IsLeaf()) {
+#if defined(IS_DEBUG_ARCHIVE)
+    Logger::Info("Leaf node total cost %d", currentNode->GetCost());
+#endif
+    currentNode->SetTotalCost(currentNode->GetCost());
+    currentNode->SetTotalCostIsActualCost(true);
+  } else {
+    if (!currentNode->GetTotalCostIsActualCost() &&
+        (currentNode->GetTotalCost() == -1 ||
+         currentNode->GetCostLwrBound() < currentNode->GetTotalCost())) {
+#if defined(IS_DEBUG_ARCHIVE)
+      Logger::Info("Inner node doesn't have a real cost yet. Setting total "
+                   "cost to dynamic lower bound %d",
+                   currentNode->GetCostLwrBound());
+#endif
+      currentNode->SetTotalCost(currentNode->GetCostLwrBound());
+    }
+  }
+  // (Chris): If this node has an actual cost associated with the best schedule,
+  // we want to propagate it backward only if this node's cost is less than the
+  // parent node's cost.
+  if (parentNode != nullptr) {
+    if (currentNode->GetTotalCostIsActualCost()) {
+      if (!parentNode->GetTotalCostIsActualCost()) {
+#if defined(IS_DEBUG_ARCHIVE)
+        Logger::Info("Current node has a real cost, but its parent doesn't. "
+                     "Settings parent's total cost to %d",
+                     currentNode->GetTotalCost());
+#endif
+        parentNode->SetTotalCost(currentNode->GetTotalCost());
+        parentNode->SetTotalCostIsActualCost(true);
+      } else if (currentNode->GetTotalCost() < parentNode->GetTotalCost()) {
+#if defined(IS_DEBUG_ARCHIVE)
+        Logger::Info(
+            "Current node has a real cost (%d), and so does parent. (%d)",
+            currentNode->GetTotalCost(), parentNode->GetTotalCost());
+#endif
+        parentNode->SetTotalCost(currentNode->GetTotalCost());
+      }
+    }
+  }
+}
 
 bool Enumerator::BackTrack_() {
   bool fsbl = true;
@@ -1166,6 +1215,7 @@ bool Enumerator::BackTrack_() {
     HistEnumTreeNode* crntHstry = crntNode_->GetHistory();
     exmndSubProbs_->InsertElement(crntNode_->GetSig(), crntHstry,
                                   hashTblEntryAlctr_);
+    SetTotalCosts(crntNode_, trgtNode);
     crntNode_->Archive();
   } else {
     assert(crntNode_->IsArchived() == false);

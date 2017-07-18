@@ -389,12 +389,17 @@ bool CostHistEnumTreeNode::DoesDominate(EnumTreeNode* node,
 
   // If the history node does not dominate the current node, we cannot
   // draw any conclusion and no pruning can be done.
-  if (DoesDominate_(node, NULL, ETN_ACTIVE, enumrtr, shft) == false) return false;
 
-  // if the history node dominates the current node, and there is
-  // no feasible sched below the hist node, there cannot be a feasible
-  // sched below the current node. So, prune the current node
-  if (isLngthFsbl_ == false) return true;
+  // (Chris): If scheduling for RP only, automatically assume all nodes are
+  // feasible and just check for cost domination.
+  if (!enumrtr->IsSchedForRPOnly()) {
+    if (DoesDominate_(node, NULL, ETN_ACTIVE, enumrtr, shft) == false) return false;
+
+    // if the history node dominates the current node, and there is
+    // no feasible sched below the hist node, there cannot be a feasible
+    // sched below the current node. So, prune the current node
+    if (isLngthFsbl_ == false) return true;
+  }
 
   // if the hist node dominates the current node, and the hist node
   // had at least one feasible sched below it, domination will be
@@ -416,15 +421,64 @@ bool CostHistEnumTreeNode::ChkCostDmntn_(EnumTreeNode* node,
   return ChkCostDmntnForBBSpill_(node, enumrtr);
 }
 
+static bool DoesSLILHistoryCostDominate(const int prefixCost,
+                                        const int totalCost,
+                                        const EnumTreeNode &node,
+                                        const LengthCostEnumerator &en) {
+
+  // (Chris): If the history node's prefix cost is bigger (worse), then we also
+  // need to check to see if the improvement we get is worth the trouble of
+  // exploring any further.
+  auto& node_ = const_cast<EnumTreeNode &>(node);
+  auto& en_ = const_cast<LengthCostEnumerator &>(en);
+  if (prefixCost > node_.GetCostLwrBound()) {
+    // (Chris): If this point is reached, then it is possible to find an
+    // improvement with the current node. However, we also have to check if this
+    // improvement can beat the best cost found so far. An improvement is
+    // defined by how much a cost goes down. The greater the difference in cost,
+    // the better the improvement.
+    auto bestCost = en_.GetBestCost();
+    auto requiredImprovement = std::max(totalCost - en_.GetBestCost(), 0);
+    auto improvementOnHistory = prefixCost - node_.GetCostLwrBound();
+#if defined(IS_DEBUG_COST_HIST_DOM)
+    Logger::Info("Cost Domination: History node's prefix (%d) does NOT "
+                 "dominate current node's prefix (%d), diff=%d.",
+                 prefixCost, node_.GetCostLwrBound(), improvementOnHistory);
+    Logger::Info(
+        "Improvement on History (%d) does%s beat required improvement (%d)",
+        improvementOnHistory,
+        ((requiredImprovement < improvementOnHistory) ? " " : " NOT"),
+        requiredImprovement);
+#endif
+    if (requiredImprovement < improvementOnHistory) {
+      // (Chris): If this point is reached, then it is possible to find a better
+      // schedule than the history node.
+      return false;
+    }
+  }
+#if defined(IS_DEBUG_COST_HIST_DOM)
+  Logger::Info("Cost Domination: History node's prefix (%d) DOES dominate "
+               "current node's prefix (%d)",
+               prefixCost, node_.GetCostLwrBound());
+#endif
+  return true;
+}
+
 bool CostHistEnumTreeNode::ChkCostDmntnForBBSpill_(EnumTreeNode* node,
                                                    Enumerator* en) {
   #ifdef IS_DEBUG
     assert(costInfoSet_);
   #endif
-  if (time_ > node->GetTime()) return false;
-  if (cost_ > node->GetCost()) return false;
-
   SPILL_COST_FUNCTION spillCostFunc = ((LengthCostEnumerator*)en)->GetSpillCostFunc();
+  if (time_ > node->GetTime()) return false;
+  if (spillCostFunc == SCF_SLIL) {
+    if (!DoesSLILHistoryCostDominate(partialCost_, totalCost_, *node,
+                                     static_cast<LengthCostEnumerator &>(*en)))
+      return false;
+  } 
+  else if (cost_ > node->GetCost())
+    return false;
+
   InstCount instCnt = en->GetTotInstCnt();
 
   // If the cost function is peak plus avg, make sure that the fraction lost
@@ -440,9 +494,19 @@ void CostHistEnumTreeNode::SetCostInfo(EnumTreeNode* node, bool, Enumerator*) {
   peakSpillCost_ = node->GetPeakSpillCost();
   spillCostSum_ = node->GetSpillCostSum();
   isLngthFsbl_ = node->IsLngthFsbl();
+  partialCost_ = node->GetCostLwrBound();
+  totalCost_ = node->GetTotalCost();
+  totalCostIsActualCost_ = node->GetTotalCostIsActualCost();
   #ifdef IS_DEBUG
   costInfoSet_ = true;
   #endif
+
+#if defined(IS_DEBUG_ARCHIVE)
+  Logger::Info(
+      "Setting cost info: cost=%d, peak=%d, partial=%d, total=%d, isreal=%d",
+      cost_, peakSpillCost_, partialCost_, totalCost_,
+      (totalCostIsActualCost_ ? 1 : 0));
+#endif
 }
 
 InstCount HistEnumTreeNode::GetTime() {

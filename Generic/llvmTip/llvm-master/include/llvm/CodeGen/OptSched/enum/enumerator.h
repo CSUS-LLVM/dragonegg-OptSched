@@ -155,7 +155,8 @@ class EnumTreeNode {
     InstCount costLwrBound_;
     InstCount peakSpillCost_;
     InstCount spillCostSum_;
-
+    InstCount totalCost_ = -1;
+    bool totalCostIsActualCost_ = false;
     ReserveSlot* rsrvSlots_;
 
     inline void CreateTmpHstry_();
@@ -289,6 +290,12 @@ class EnumTreeNode {
     void SetRealSlotNum(int num) {
       realSlotNum_ = num;
     }
+
+    inline InstCount GetTotalCost() const { return totalCost_; }
+    inline void SetTotalCost(InstCount totalCost) { totalCost_ = totalCost; }
+
+    inline InstCount GetTotalCostIsActualCost() const { return totalCostIsActualCost_; }
+    inline void SetTotalCostIsActualCost(bool totalCostIsActualCost) { totalCostIsActualCost_ = totalCostIsActualCost; }
 };
 /*****************************************************************************/
 
@@ -516,6 +523,9 @@ class Enumerator : public ConstrainedScheduler {
     inline bool IsHistDom();
     inline bool IsRlxdPrnng();
     virtual bool IsCostEnum() = 0;
+
+    // (Chris)
+    inline bool IsSchedForRPOnly() const { return schedForRPOnly_; }
 };
 /*****************************************************************************/
 
@@ -617,6 +627,7 @@ class LengthCostEnumerator: public Enumerator {
                                      Milliseconds deadline);
     bool IsCostEnum();
     SPILL_COST_FUNCTION GetSpillCostFunc() {return spillCostFunc_;}
+    inline InstCount GetBestCost() { return GetBestCost_(); }
 };
 /*****************************************************************************/
 
