@@ -283,6 +283,21 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
+#if defined(IS_DEBUG_COMPARE_SLIL_BB) || true
+  if (!isLstOptml) {
+    const auto& status = [&]() {
+      switch (rslt) {
+      case RES_SUCCESS:
+        return "optimal";
+      case RES_TIMEOUT:
+        return "timeout";
+      default:
+        return "failed";
+      }
+    }();
+    Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_, enumTime);
+  }
+#endif
 #if defined(IS_DEBUG_FINAL_SPILL_COST)
   // (Chris): Unconditionally Print out the spill cost of the final schedule. This makes it easy to compare results.
   Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(), dataDepGraph_->GetDagID());
