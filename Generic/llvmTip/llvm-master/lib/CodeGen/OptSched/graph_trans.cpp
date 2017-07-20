@@ -25,7 +25,7 @@ std::unique_ptr<GraphTrans> GraphTrans::CreateGraphTrans(TRANS_TYPE type, DataDe
 
 bool GraphTrans::AreNodesIndep_(SchedInstruction* inst1, SchedInstruction* inst2) {
  // The nodes are independent if there is no path from srcInst to dstInst.
- if (!inst1->IsRcrsvPrdcsr(inst2) && !inst1->IsRcrsvScsr(inst2)) {
+ if (inst1 != inst2 && !inst1->IsRcrsvPrdcsr(inst2) && !inst1->IsRcrsvScsr(inst2)) {
   #ifdef IS_DEBUG_GRAPH_TRANS
   Logger::Info("Nodes %d and %d are independent", inst1->GetNum(), inst2->GetNum());
   #endif
@@ -119,16 +119,18 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
       Logger::Info("Checking nodes %d:%d", i, j);
       #endif
 			if (NodeIsSuperior_(nodeA, nodeB)) {
-        #ifdef IS_DEBUG_GRAPH_TRANS
+        #ifdef IS_DEBUG_GRAPH_TRANS_RES
         Logger::Info("Node %d is superior to node %d", i, j);
         #endif
 				graph->CreateEdge(nodeA, nodeB, 0, DEP_OTHER);
+        graph->UpdateSetupForSchdulng(true);
 			}
       else if (NodeIsSuperior_(nodeB, nodeA)) {
-        #ifdef IS_DEBUG_GRAPH_TRANS
+        #ifdef IS_DEBUG_GRAPH_TRANS_RES
         Logger::Info("Node %d is superior to node %d", j, i);
         #endif
 				graph->CreateEdge(nodeB, nodeA, 0, DEP_OTHER);
+        graph->UpdateSetupForSchdulng(true);
       }
     }
   }
@@ -205,7 +207,7 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
       // A and B.
       bool foundC = false;
       for (const SchedInstruction* user : useB->GetUseList()) {
-        if (nodeB->IsRcrsvScsr(const_cast<SchedInstruction*>(user))) {
+        if (user != nodeB && nodeB->IsRcrsvScsr(const_cast<SchedInstruction*>(user))) {
           foundC = true;
           break;
         }
@@ -283,7 +285,7 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
     regTypeDefsB[defsB[i]->GetType()]++;
 
   for (int i = 0; i < regTypes; i++) {
-    Logger::Info("Def count A for Type %d is %d and B is %d", i, regTypeDefsA[i], regTypeDefsB[i]);
+    //Logger::Info("Def count A for Type %d is %d and B is %d", i, regTypeDefsA[i], regTypeDefsB[i]);
     if (regTypeDefsA[i] > regTypeDefsB[i]) {
       #ifdef IS_DEBUG_GRAPH_TRANS
       Logger::Info("Live range condition 2 failed");

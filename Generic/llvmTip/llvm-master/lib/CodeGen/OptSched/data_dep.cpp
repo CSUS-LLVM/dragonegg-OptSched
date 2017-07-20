@@ -281,9 +281,7 @@ FUNC_RESULT DataDepGraph::UpdateSetupForSchdulng(bool cmputTrnstvClsr) {
   }
 
   //Do a depth-first search leading to a topological sort
-  if (!dpthFrstSrchDone_) {
-    DepthFirstSearch();
-  }
+  DepthFirstSearch();
 
 	delete[] frwrdLwrBounds_;
 	delete[] bkwrdLwrBounds_;

@@ -653,7 +653,7 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   std::vector<int> pSetTypes;
 
   //if (TRI.isPhysicalRegister(resNo))
-  //  return pSetTypes;
+   // return pSetTypes;
 
   PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
   for (; PSetI.isValid(); ++PSetI) {
