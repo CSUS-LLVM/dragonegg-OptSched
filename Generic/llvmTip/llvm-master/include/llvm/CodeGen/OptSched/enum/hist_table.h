@@ -11,6 +11,7 @@ Last Update:  Mar. 2011
 #include <limits>
 #include <cstdio>
 #include <iostream>
+#include <vector>
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/hash_table.h"
 #include "llvm/CodeGen/OptSched/generic/mem_mngr.h"
@@ -103,9 +104,13 @@ class CostHistEnumTreeNode : public HistEnumTreeNode {
     InstCount cost_;
     InstCount peakSpillCost_;
     InstCount spillCostSum_;
+
+    // (Chris)
     InstCount totalCost_ = -1;
     InstCount partialCost_ = -1;
     bool totalCostIsActualCost_ = false;
+    std::vector<SchedInstruction*> suffix_;
+
     bool isLngthFsbl_;
     #ifdef IS_DEBUG
       bool costInfoSet_;

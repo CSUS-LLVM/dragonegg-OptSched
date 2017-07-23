@@ -497,6 +497,8 @@ void CostHistEnumTreeNode::SetCostInfo(EnumTreeNode* node, bool, Enumerator*) {
   partialCost_ = node->GetCostLwrBound();
   totalCost_ = node->GetTotalCost();
   totalCostIsActualCost_ = node->GetTotalCostIsActualCost();
+  suffix_ = node->GetSuffix();
+
   #ifdef IS_DEBUG
   costInfoSet_ = true;
   #endif
