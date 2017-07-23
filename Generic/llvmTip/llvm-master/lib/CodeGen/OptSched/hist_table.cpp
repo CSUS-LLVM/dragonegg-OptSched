@@ -494,6 +494,8 @@ void CostHistEnumTreeNode::SetCostInfo(EnumTreeNode* node, bool, Enumerator*) {
   peakSpillCost_ = node->GetPeakSpillCost();
   spillCostSum_ = node->GetSpillCostSum();
   isLngthFsbl_ = node->IsLngthFsbl();
+
+  // (Chris)
   partialCost_ = node->GetCostLwrBound();
   totalCost_ = node->GetTotalCost();
   totalCostIsActualCost_ = node->GetTotalCostIsActualCost();

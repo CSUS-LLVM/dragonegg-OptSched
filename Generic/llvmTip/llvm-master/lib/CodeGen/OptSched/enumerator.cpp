@@ -1196,6 +1196,7 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
 #endif
         parentNode->SetTotalCost(currentNode->GetTotalCost());
         parentNode->SetTotalCostIsActualCost(true);
+        parentNode->SetSuffix(std::move(parentSuffix));
       } else if (currentNode->GetTotalCost() < parentNode->GetTotalCost()) {
 #if defined(IS_DEBUG_ARCHIVE)
         Logger::Info(
