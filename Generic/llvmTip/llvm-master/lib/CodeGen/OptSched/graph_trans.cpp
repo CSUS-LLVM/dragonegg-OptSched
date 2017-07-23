@@ -35,6 +35,25 @@ bool GraphTrans::AreNodesIndep_(SchedInstruction* inst1, SchedInstruction* inst2
    return false;
 }
 
+void GraphTrans::UpdatePrdcsrAndScsr_(SchedInstruction* nodeA, SchedInstruction* nodeB) {
+	UDT_GLABEL lbl = 0;
+
+  for (GraphNode *X = nodeA->GetFrstPrdcsr(&lbl);
+       X != NULL;
+       X = nodeA->GetNxtPrdcsr(&lbl)) {
+
+    for (GraphNode *Y = nodeB->GetFrstScsr(&lbl);
+         Y != NULL;
+         Y = nodeB->GetNxtScsr(&lbl)) {
+      // Check if Y is reachable f
+      if (!Y->IsRcrsvPrdcsr(X)) {
+        Y->AddRcrsvPrdcsr(X);
+        X->AddRcrsvScsr(Y);
+      }
+    }
+  }
+}
+
 FUNC_RESULT EquivDectTrans::ApplyTrans() {
   InstCount numNodes = GetNumNodesInGraph();
   DataDepGraph* graph = GetDataDepGraph();
@@ -123,14 +142,22 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
         Logger::Info("Node %d is superior to node %d", i, j);
         #endif
 				graph->CreateEdge(nodeA, nodeB, 0, DEP_OTHER);
-        graph->UpdateSetupForSchdulng(true);
+        UpdatePrdcsrAndScsr_(nodeA, nodeB);
+        #ifdef IS_DEBUG_GRAPH_TRANS
+        if (nodeA->GetNum() > nodeB->GetNum())
+          Logger::Info("Node %d before node %d invalidates ISO", nodeA->GetNum(), nodeB->GetNum());
+        #endif
 			}
       else if (NodeIsSuperior_(nodeB, nodeA)) {
         #ifdef IS_DEBUG_GRAPH_TRANS_RES
         Logger::Info("Node %d is superior to node %d", j, i);
         #endif
 				graph->CreateEdge(nodeB, nodeA, 0, DEP_OTHER);
-        graph->UpdateSetupForSchdulng(true);
+        UpdatePrdcsrAndScsr_(nodeB, nodeA);
+        #ifdef IS_DEBUG_GRAPH_TRANS
+        if (nodeB->GetNum() > nodeA->GetNum())
+          Logger::Info("Node %d before node %d invalidates ISO", nodeB->GetNum(), nodeA->GetNum());
+        #endif
       }
     }
   }

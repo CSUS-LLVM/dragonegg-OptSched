@@ -86,6 +86,8 @@ class GraphNode {
     // Adds a new edge to the successor list and does some magic.
     // TODO(max): Elaborate on magic.
     void AddScsr(GraphEdge* edge);
+    // Adds a new node as a recursive successor.
+    void AddRcrsvScsr(GraphNode* node);
     // Removes the last edge from the successor list and optionally deletes
     // the edge object. scsr must be the destination node of that edge.
     void RmvLastScsr(GraphNode* scsr, bool delEdg);
@@ -97,6 +99,8 @@ class GraphNode {
     // Adds a new edge to the predecessor list and does some magic.
     // TODO(max): Elaborate on magic.
     void AddPrdcsr(GraphEdge* edge);
+    // Adds a new node as a recursive predecessor.
+    void AddRcrsvPrdcsr(GraphNode* node);
     // Removes the last edge from the predecessor list and optionally deletes
     // the edge object. scsr must be the destination node of that edge.
     void RmvLastPrdcsr(GraphNode* prdcsr, bool delEdg);
@@ -339,6 +343,16 @@ inline void GraphNode::AddScsr(GraphEdge* edge) {
   if (edge->label > maxEdgLbl_) {
     maxEdgLbl_ = edge->label;
   }
+}
+
+inline void GraphNode::AddRcrsvPrdcsr(GraphNode* node) {
+  rcrsvPrdcsrLst_->InsrtElmnt(node);
+  isRcrsvPrdcsr_->SetBit(node->GetNum());
+}
+
+inline void GraphNode::AddRcrsvScsr(GraphNode* node) {
+  rcrsvScsrLst_->InsrtElmnt(node);
+  isRcrsvScsr_->SetBit(node->GetNum());
 }
 
 inline void GraphNode::UpdtMaxEdgLbl(UDT_GLABEL label) {

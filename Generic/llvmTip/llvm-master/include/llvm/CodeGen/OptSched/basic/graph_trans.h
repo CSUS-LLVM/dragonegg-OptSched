@@ -45,6 +45,8 @@ class GraphTrans {
     // Find independent nodes in the graph. Nodes are independent if
     // no path exists between them.
     bool AreNodesIndep_(SchedInstruction* inst1, SchedInstruction* inst2);
+		// Update the recursive predecessor and successor lists after adding an edge between A and B.
+    void UpdatePrdcsrAndScsr_(SchedInstruction* nodeA, SchedInstruction* nodeB);
 
   private:
     // A pointer to the graph.
