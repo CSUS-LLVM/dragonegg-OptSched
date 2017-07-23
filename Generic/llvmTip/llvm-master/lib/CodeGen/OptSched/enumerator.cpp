@@ -1153,13 +1153,17 @@ void Enumerator::InitNewNode_(EnumTreeNode* newNode) {
   crntNode_->SetNum(createdNodeCnt_);
 }
 /*****************************************************************************/
-static void SetTotalCosts(EnumTreeNode *const currentNode,
+static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
                           EnumTreeNode *const parentNode) {
   // (Chris): Before archiving, set the total cost info of this node. If it's a
   // leaf node, then the total cost is the current cost. If it's an inner node,
   // then the total cost either has already been set (if one of its children had
   // a real cost), or hasn't been set, which means the total cost right now is
   // the dynamic lower bound of this node.
+  
+  std::vector<SchedInstruction*> parentSuffix;
+  parentSuffix.reserve(currentNode->GetSuffix().size() + 1);
+  parentSuffix.push_back(currentNode->GetInst());
   if (currentNode->IsLeaf()) {
 #if defined(IS_DEBUG_ARCHIVE)
     Logger::Info("Leaf node total cost %d", currentNode->GetCost());
@@ -1176,6 +1180,7 @@ static void SetTotalCosts(EnumTreeNode *const currentNode,
                    currentNode->GetCostLwrBound());
 #endif
       currentNode->SetTotalCost(currentNode->GetCostLwrBound());
+      parentSuffix.insert(parentSuffix.end(), currentNode->GetSuffix().begin(), currentNode->GetSuffix().end());
     }
   }
   // (Chris): If this node has an actual cost associated with the best schedule,
@@ -1198,6 +1203,7 @@ static void SetTotalCosts(EnumTreeNode *const currentNode,
             currentNode->GetTotalCost(), parentNode->GetTotalCost());
 #endif
         parentNode->SetTotalCost(currentNode->GetTotalCost());
+        parentNode->SetSuffix(std::move(parentSuffix));
       }
     }
   }
@@ -1215,7 +1221,7 @@ bool Enumerator::BackTrack_() {
     HistEnumTreeNode* crntHstry = crntNode_->GetHistory();
     exmndSubProbs_->InsertElement(crntNode_->GetSig(), crntHstry,
                                   hashTblEntryAlctr_);
-    SetTotalCosts(crntNode_, trgtNode);
+    SetTotalCostsAndSuffixes(crntNode_, trgtNode);
     crntNode_->Archive();
   } else {
     assert(crntNode_->IsArchived() == false);

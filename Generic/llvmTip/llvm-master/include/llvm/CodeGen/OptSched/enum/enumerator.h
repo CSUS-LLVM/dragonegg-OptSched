@@ -9,6 +9,7 @@ Last Update:  Jun. 2017
 #define OPTSCHED_ENUM_ENUMERATOR_H
 
 #include <iostream>
+#include <vector>
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/mem_mngr.h"
 #include "llvm/CodeGen/OptSched/basic/gen_sched.h"
@@ -159,6 +160,10 @@ class EnumTreeNode {
     bool totalCostIsActualCost_ = false;
     ReserveSlot* rsrvSlots_;
 
+    // (Chris)
+    using SuffixType = std::vector<SchedInstruction *>;
+    SuffixType suffix_;
+
     inline void CreateTmpHstry_();
     void FormPrtilSchedSig_();
     void Init_();
@@ -296,6 +301,10 @@ class EnumTreeNode {
 
     inline InstCount GetTotalCostIsActualCost() const { return totalCostIsActualCost_; }
     inline void SetTotalCostIsActualCost(bool totalCostIsActualCost) { totalCostIsActualCost_ = totalCostIsActualCost; }
+
+    inline const SuffixType& GetSuffix() const { return suffix_; }
+    inline void SetSuffix(const SuffixType& suffix) { suffix_ = suffix; }
+    inline void SetSuffix(SuffixType&& suffix) { suffix_ = std::move(suffix); }
 };
 /*****************************************************************************/
 
