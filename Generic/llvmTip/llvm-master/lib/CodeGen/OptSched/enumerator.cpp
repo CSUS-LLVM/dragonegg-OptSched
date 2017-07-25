@@ -1180,7 +1180,6 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
                    currentNode->GetCostLwrBound());
 #endif
       currentNode->SetTotalCost(currentNode->GetCostLwrBound());
-      parentSuffix.insert(parentSuffix.end(), currentNode->GetSuffix().begin(), currentNode->GetSuffix().end());
     }
   }
   // (Chris): If this node has an actual cost associated with the best schedule,
@@ -1188,6 +1187,7 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
   // parent node's cost.
   if (parentNode != nullptr) {
     if (currentNode->GetTotalCostIsActualCost()) {
+      parentSuffix.insert(parentSuffix.end(), currentNode->GetSuffix().begin(), currentNode->GetSuffix().end());
       if (!parentNode->GetTotalCostIsActualCost()) {
 #if defined(IS_DEBUG_ARCHIVE)
         Logger::Info("Current node has a real cost, but its parent doesn't. "
