@@ -47,6 +47,7 @@ class HistEnumTreeNode {
     virtual void SetCostInfo(EnumTreeNode* node,
                              bool isTemp,
                              Enumerator* enumrtr);
+    const std::vector<SchedInstruction*>& GetSuffix() const;
 
   protected:
     HistEnumTreeNode* prevNode_;
@@ -63,6 +64,9 @@ class HistEnumTreeNode {
 
     bool crntCycleBlkd_;
     ReserveSlot* rsrvSlots_;
+
+    // (Chris)
+    std::vector<SchedInstruction*> suffix_;
 
     InstCount SetLastInsts_(SchedInstruction* lastInsts[],
                               InstCount thisTime,
@@ -109,7 +113,6 @@ class CostHistEnumTreeNode : public HistEnumTreeNode {
     InstCount totalCost_ = -1;
     InstCount partialCost_ = -1;
     bool totalCostIsActualCost_ = false;
-    std::vector<SchedInstruction*> suffix_;
 
     bool isLngthFsbl_;
     #ifdef IS_DEBUG

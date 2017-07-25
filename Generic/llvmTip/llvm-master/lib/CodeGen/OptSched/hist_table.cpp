@@ -353,6 +353,10 @@ void HistEnumTreeNode::SetCostInfo(EnumTreeNode*, bool, Enumerator*) {
   // Nothing.
 }
 
+const std::vector<SchedInstruction*>& HistEnumTreeNode::GetSuffix() const {
+  return suffix_;
+}
+
 CostHistEnumTreeNode::CostHistEnumTreeNode() {
   isLngthFsbl_ = true;
   #ifdef IS_DEBUG
