@@ -831,6 +831,7 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
             auto oldCost = thisAsLengthCostEnum->GetBestCost();
             auto newCost = rgn_->UpdtOptmlSched(concatSched.get(), thisAsLengthCostEnum);
 #if defined(IS_DEBUG_SUFFIX_SCHED)
+            Logger::Info("Found a concatenated schedule with node instruction %d", crntNode_->GetInstNum());
             if (newCost < oldCost) {
               Logger::Info("Suffix Scheduling: Concatenated schedule has better cost %d than best schedule %d!", newCost, oldCost);
             }
@@ -849,7 +850,8 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
             rgn_->SchdulInst(dataDepGraph_->GetInstByIndx(instNum), cycleNum, slotNum, false);
           }
         } // end block
-        isCrntNodeFsbl = BackTrack_();
+        //isCrntNodeFsbl = BackTrack_();
+        isCrntNodeFsbl = true;
       }
     } else {
       // All branches from the current node have been explored, and no more

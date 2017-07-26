@@ -833,6 +833,17 @@ InstCount BBWithSpill::UpdtOptmlSched(InstSchedule* crntSched,
 //  crntSched->Print(Logger::GetLogStream(), "New Feasible Schedule");
 //#endif
 
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+  {
+    std::stringstream s;
+    InstCount cycle, slot;
+    for (auto i = crntSched->GetFrstInst(cycle,slot); i != INVALID_VALUE; i = crntSched->GetNxtInst(cycle,slot)) {
+      s << i << ' ';
+    }
+    Logger::Info("Schedule (cost %d): %s", crntCost, s.str().c_str());
+  }
+#endif
+
   if (crntCost < bestCost_) {
 
     if(crntSched->GetCrntLngth() > schedLwrBound_)
