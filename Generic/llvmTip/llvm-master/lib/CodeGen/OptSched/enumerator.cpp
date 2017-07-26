@@ -822,6 +822,11 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
               concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
 
             // Update and check.
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+            if (concatSched->GetCrntLngth() != trgtSchedLngth_) {
+              Logger::Fatal("Suffix Scheduling: Concatenated schedule length %d does not meet target length %d!", concatSched->GetCrntLngth(), trgtSchedLngth_);
+            }
+#endif
             auto thisAsLengthCostEnum = static_cast<LengthCostEnumerator *>(this);
             auto oldCost = thisAsLengthCostEnum->GetBestCost();
             auto newCost = rgn_->UpdtOptmlSched(concatSched.get(), thisAsLengthCostEnum);
