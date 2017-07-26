@@ -96,6 +96,9 @@ class SchedRegion {
 
     virtual bool ChkSchedule_(InstSchedule* bestSched, InstSchedule* lstSched) = 0;
 
+    // TODO(max): Document.
+    InstSchedule* AllocNewSched_();
+
   protected:
     // The dependence graph of this region.
     DataDepGraph* dataDepGraph_;
@@ -157,8 +160,6 @@ class SchedRegion {
     // TODO(max): Document.
     InstCount crntSlotNum_;
 
-    // TODO(max): Document.
-    InstSchedule* AllocNewSched_();
     // TODO(max): Document.
     void UseFileBounds_();
 
