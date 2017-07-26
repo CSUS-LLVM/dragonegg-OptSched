@@ -124,6 +124,8 @@ void EnumTreeNode::Reset() {
   if (chldrn_ != NULL) {
     chldrn_->Reset();
   }
+
+  suffix_.clear();
 }
 /*****************************************************************************/
 
