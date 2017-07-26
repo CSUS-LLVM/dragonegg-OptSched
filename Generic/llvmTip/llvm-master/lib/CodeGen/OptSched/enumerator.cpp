@@ -5,6 +5,9 @@
 #include "llvm/CodeGen/OptSched/generic/stats.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
 #include "llvm/CodeGen/OptSched/enum/hist_table.h"
+#include <algorithm>
+#include <sstream>
+#include <memory>
 
 namespace opt_sched {
 
@@ -774,10 +777,75 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
     }
 
     if (foundFsblBrnch) {
-      // If a branch from the current node that leads to a feasible node has
-      // been found, move on down the tree to that feasible node.
+      // (Chris): It's possible that the node we just determined to be feasible
+      // dominates a history node with a suffix schedule. If this is the case,
+      // then instead of continuing the search, we should generate schedules by
+      // concatenating the suffixes of all matching history nodes, and updating
+      // the optimal schedule. Then, backtrack immediately.
+
+
       StepFrwrd_(nxtNode);
-      isCrntNodeFsbl = true;
+
+      // Find matching history nodes with suffixes.
+      auto matchingHistNodesWithSuffixes = [&]() {
+        std::vector<HistEnumTreeNode *> nodes;
+        if (IsHistDom()) {
+          if (exmndSubProbs_ != nullptr && exmndSubProbs_->GetEntryCnt() > 0) {
+            for (auto histNode = exmndSubProbs_->GetLastMatch(nxtNode->GetSig()); histNode != nullptr; histNode = exmndSubProbs_->GetPrevMatch()) {
+              if (histNode->GetSuffix().size() > 0)
+                nodes.push_back(histNode);
+              return nodes;
+            }
+          }
+        }
+      }();
+
+      // If there are no such matches, continue the search. Else,
+      // generate concatenated schedules.
+      if (!IsHistDom() || matchingHistNodesWithSuffixes.size() == 0) {
+        // If a branch from the current node that leads to a feasible node has
+        // been found, move on down the tree to that feasible node.
+        isCrntNodeFsbl = true;
+      }
+      else {
+        // For each matching history node, concatenate the suffix with the
+        // current schedule and check to see if it's better than the best
+        // schedule found so far.
+        { // begin block
+          for (auto histNode : matchingHistNodesWithSuffixes) {
+            // Get the prefix.
+            auto concatSched = std::unique_ptr<InstSchedule>(rgn_->AllocNewSched_());
+            concatSched->Copy(crntSched_);
+
+            // Concatenate the suffix.
+            for (auto inst : histNode->GetSuffix())
+              concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
+
+            // Update and check.
+            auto thisAsLengthCostEnum = static_cast<LengthCostEnumerator *>(this);
+            auto oldCost = thisAsLengthCostEnum->GetBestCost();
+            auto newCost = rgn_->UpdtOptmlSched(concatSched.get(), thisAsLengthCostEnum);
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+            if (newCost < oldCost) {
+              Logger::Info("Suffix Scheduling: Concatenated schedule has better cost %d than best schedule %d!", newCost, oldCost);
+            }
+            else {
+              Logger::Info("Suffix scheduling: Concatenated schedule does not have better cost %d than best schedule %d.", newCost, oldCost);
+            }
+#endif
+          }
+        } // end block
+
+        // Before backtracking, reset the SchedRegion state to where it was before concatenation.
+        { // begin block
+          rgn_->InitForSchdulng();
+          InstCount cycleNum, slotNum;
+          for (auto instNum = crntSched_->GetFrstInst(cycleNum, slotNum); instNum != INVALID_VALUE; instNum = crntSched_->GetNxtInst(cycleNum, slotNum)) {
+            rgn_->SchdulInst(dataDepGraph_->GetInstByIndx(instNum), cycleNum, slotNum, false);
+          }
+        } // end block
+        isCrntNodeFsbl = BackTrack_();
+      }
     } else {
       // All branches from the current node have been explored, and no more
       // branches that lead to feasible nodes have been found.
@@ -1210,6 +1278,40 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
       }
     }
   }
+
+  // (Chris): Ensure that the prefix and the suffix of the current node contain
+  // no common instructions. This can be compiled out once the code is working.
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+  std::vector<InstCount> prefix;
+  for (auto n = currentNode; n != nullptr; n = n->GetParent())
+    prefix.push_back(n->GetInstNum());
+  auto sortedPrefix = prefix;
+  std::sort(sortedPrefix.begin(), sortedPrefix.end());
+
+  std::vector<InstCount> suffix;
+  for (auto i : currentNode->GetSuffix()) {
+    suffix.push_back(i->GetNum());
+  }
+  auto sortedSuffix = suffix;
+  std::sort(sortedSuffix.begin(), sortedSuffix.end());
+
+  std::vector<InstCount> intersection;
+  std::set_intersection(sortedPrefix.begin(), sortedPrefix.end(), sortedSuffix.begin(),
+    sortedSuffix.end(), std::back_inserter(intersection));
+
+  auto printVector = [](const std::vector<InstCount>& v, const char* prefix) {
+    std::stringstream s;
+    for (auto i : v) s << i << ' ';
+    Logger::Error("SetTotalCostsAndSuffixes: %s: %s", prefix, s.str().c_str());
+  };
+  if (intersection.size() != 0) {
+    printVector(prefix, "prefix");
+    printVector(suffix, "suffix");
+    printVector(intersection, "intersection");
+    Logger::Error("SetTotalCostsAndSuffixes: Error occurred when archiving node with InstNum %d", currentNode->GetInstNum());
+    Logger::Fatal("Prefix schedule and suffix schedule contain common instructions!");
+  }
+#endif
 }
 
 bool Enumerator::BackTrack_() {
