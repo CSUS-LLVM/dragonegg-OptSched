@@ -8,6 +8,7 @@
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 
 namespace opt_sched {
 
@@ -107,9 +108,10 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   // Apply graph transformations
   for (InstCount i = 0; i < dataDepGraph_->GetGraphTransCnt(); i++) {
-    rslt = graphTrans[i]->ApplyTrans();
-    if (rslt != RES_SUCCESS)
-      return rslt;
+      rslt = graphTrans[i]->ApplyTrans();
+
+      if (rslt != RES_SUCCESS)
+        return rslt;
 
     // Update graph after each transformation
     rslt = dataDepGraph_->UpdateSetupForSchdulng(needTrnstvClsr_);

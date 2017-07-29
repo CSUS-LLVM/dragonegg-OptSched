@@ -12,7 +12,6 @@ Last Update:  Mar. 2011
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/buffers.h"
 #include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
-#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include <memory>
 
 namespace opt_sched {

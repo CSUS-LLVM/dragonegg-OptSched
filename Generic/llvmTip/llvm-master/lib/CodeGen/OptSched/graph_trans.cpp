@@ -55,8 +55,8 @@ void GraphTrans::UpdatePrdcsrAndScsr_(SchedInstruction* nodeA, SchedInstruction*
 }
 
 FUNC_RESULT EquivDectTrans::ApplyTrans() {
-  InstCount numNodes = GetNumNodesInGraph();
-  DataDepGraph* graph = GetDataDepGraph();
+  InstCount numNodes = GetNumNodesInGraph_();
+  DataDepGraph* graph = GetDataDepGraph_();
   #ifdef IS_DEBUG_GRAPH_TRANS
   Logger::Info("Applying Equiv Dect trans");
   #endif
@@ -120,13 +120,57 @@ bool EquivDectTrans::NodesAreEquiv_(SchedInstruction* srcInst, SchedInstruction*
   return true;
 }
 
+bool RPOnlyNodeSupTrans::TryAddingSuperiorEdge_(SchedInstruction* nodeA, SchedInstruction* nodeB) {
+  // Return this flag which designates whether an edge was added.
+  bool edgeWasAdded = false;
+
+  // Check if ISO is the only heuristic priority.
+  bool isHeuristicISO = false;
+  SchedRegion* region = GetSchedRegion_();
+  SchedPriorities hurPrio = region->GetHeuristicPriorities();
+  if (hurPrio.cnt == 1 && (hurPrio.vctr[0] == LSH_ISO || hurPrio.vctr[0] == LSH_NID))
+    isHeuristicISO = true;
+  
+	if (NodeIsSuperior_(nodeA, nodeB)) {
+		// If possible try to preserve NID order for ISO mode.
+		if (isHeuristicISO && nodeA->GetNum() > nodeB->GetNum() && NodeIsSuperior_(nodeB, nodeA)) {
+			#ifdef IS_DEBUG_GRAPH_TRANS
+				Logger::Info("Trying to preserve ISO order for nodes %d and %d", nodeA->GetNum(), nodeB->GetNum());
+			#endif
+		  AddSuperiorEdge_(nodeB, nodeA);
+		}
+		else {
+			AddSuperiorEdge_(nodeA, nodeB);
+		}
+		edgeWasAdded = true;
+	}
+	else if (NodeIsSuperior_(nodeB, nodeA)) {
+		AddSuperiorEdge_(nodeB, nodeA);
+		edgeWasAdded = true;
+	}
+
+	return edgeWasAdded;
+}
+
+void RPOnlyNodeSupTrans::AddSuperiorEdge_(SchedInstruction* nodeA, SchedInstruction* nodeB) {
+  #ifdef IS_DEBUG_GRAPH_TRANS_RES
+    Logger::Info("Node %d is superior to node %d", nodeA->GetNum(), nodeB->GetNum());
+    #endif
+    GetDataDepGraph_()->CreateEdge(nodeA, nodeB, 0, DEP_OTHER);
+    UpdatePrdcsrAndScsr_(nodeA, nodeB);
+}
+
 FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
-  InstCount numNodes = GetNumNodesInGraph();
-  DataDepGraph* graph = GetDataDepGraph();
+  InstCount numNodes = GetNumNodesInGraph_();
+  DataDepGraph* graph = GetDataDepGraph_();
+  // A list of independent nodes.
+  std::list<std::pair<SchedInstruction*, SchedInstruction*>> indepNodes;
+  bool didAddEdge = false;
   #ifdef IS_DEBUG_GRAPH_TRANS
   Logger::Info("Applying RP-only node sup trans");
   #endif
 
+  // For the first pass visit all nodes. Add sets of independent nodes to a list.
   for (int i = 0; i < numNodes; i++) {
     SchedInstruction* nodeA = graph->GetInstByIndx(i);
     for (int j = i+1; j < numNodes; j++) {
@@ -137,48 +181,53 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
       #ifdef IS_DEBUG_GRAPH_TRANS
       Logger::Info("Checking nodes %d:%d", i, j);
       #endif
-			if (NodeIsSuperior_(nodeA, nodeB)) {
-        #ifdef IS_DEBUG_GRAPH_TRANS_RES
-        Logger::Info("Node %d is superior to node %d", i, j);
-        #endif
-				graph->CreateEdge(nodeA, nodeB, 0, DEP_OTHER);
-        UpdatePrdcsrAndScsr_(nodeA, nodeB);
-        #ifdef IS_DEBUG_GRAPH_TRANS
-        if (nodeA->GetNum() > nodeB->GetNum())
-          Logger::Info("Node %d before node %d invalidates ISO", nodeA->GetNum(), nodeB->GetNum());
-        #endif
-			}
-      else if (NodeIsSuperior_(nodeB, nodeA)) {
-        #ifdef IS_DEBUG_GRAPH_TRANS_RES
-        Logger::Info("Node %d is superior to node %d", j, i);
-        #endif
-				graph->CreateEdge(nodeB, nodeA, 0, DEP_OTHER);
-        UpdatePrdcsrAndScsr_(nodeB, nodeA);
-        #ifdef IS_DEBUG_GRAPH_TRANS
-        if (nodeB->GetNum() > nodeA->GetNum())
-          Logger::Info("Node %d before node %d invalidates ISO", nodeB->GetNum(), nodeA->GetNum());
-        #endif
+      if (AreNodesIndep_(nodeA, nodeB)) {
+        didAddEdge = TryAddingSuperiorEdge_(nodeA, nodeB);
+        // If the nodes are independent and no superiority was found add the nodes to a list for 
+        // future passes.
+        if (!didAddEdge)
+          indepNodes.push_back(std::make_pair(nodeA, nodeB));
       }
     }
   }
+  // Try to add superior edges until there are no more independent nodes or no
+  // edges can be added.
+  didAddEdge = true;
+  while (didAddEdge && indepNodes.size() > 0) {
+    std::list<std::pair<SchedInstruction*, SchedInstruction*>>::iterator pair = indepNodes.begin();
+    didAddEdge = false;
+
+    while(pair != indepNodes.end()) {
+      SchedInstruction* nodeA = (*pair).first;
+      SchedInstruction* nodeB = (*pair).second;
+
+      if (!AreNodesIndep_(nodeA, nodeB)) {
+        pair = indepNodes.erase(pair);
+      }
+      else {
+        bool result = TryAddingSuperiorEdge_(nodeA, nodeB);
+        // If a superior edge was added remove the pair of nodes from the list.
+        if (result) {
+          pair = indepNodes.erase(pair);
+          didAddEdge = true;
+        }
+        else
+          pair++;
+      }
+    } 
+  }
+
   return RES_SUCCESS;
 }
 
 bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstruction* nodeB) {
-  DataDepGraph* graph = GetDataDepGraph();
+  DataDepGraph* graph = GetDataDepGraph_();
 
   if (nodeA->GetIssueType() != nodeB->GetIssueType()) {
    #ifdef IS_DEBUG_GRAPH_TRANS
    Logger::Info("Node %d is not of the same issue type as node %d", nodeA->GetNum(), nodeB->GetNum());
    #endif
    return false;
-  }
-
-  if (!AreNodesIndep_(nodeA, nodeB)) {
-    #ifdef IS_DEBUG_GRAPH_TRANS
-    Logger::Info("Node %d is not independent from node %d", nodeA->GetNum(), nodeB->GetNum());
-    #endif
-    return false;
   }
 
   // The predecessor list of A must be a sub-list of the predecessor list of B.
@@ -247,54 +296,6 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
       }
     }
   }
-
-/*
-  // Find the intersection of recursive successors of A and B.
-  std::unique_ptr<BitVector> succsAandB = succsA->And(succsB);
-  if (succsAandB->GetOneCnt() > 0) {
-    Logger::Info("Checking condition 1");
-    for (int i = 0; i < succsAandB->GetSize(); i++) {
-      if (succsAandB->GetBit(i)) {
-        SchedInstruction* nodeC = graph->GetInstByIndx(i);
-      }
-    }
-  }
-  // We have already made sure the successor list of B is a subset
-  // of the successor list of A
-  // TODO(austin) Maybe registers should have a unique identifier and be put in a BitVector.
-  for (int i = 0; i < succsB->GetSize(); i++) {
-    // Check if there are no registers in usesOnlyB or we have found a user for every register.
-    if (!usesOnlyB.size())
-      break;
-
-    if (succsB->GetBit(i)) {
-      SchedInstruction* nodeC = graph->GetInstByIndx(i);
-      int useCntC = nodeC->GetUses(usesC);
-      std::list<Register*>::iterator reg;
-
-      // Search all uses in C for a register that uses the target registers in usesOnlyB.
-			for (int j = 0; j < useCntC; j++) {
-        reg = usesOnlyB.begin();
-
-        while (reg != usesOnlyB.end()) {
-          if (*reg == usesC[j]) {
-            Logger::Info("Found a user \"C\"");
-            reg = usesOnlyB.erase(reg);
-          }
-          else
-            reg++;
-        }
-			}
-    }
-  }
-
-  if (usesOnlyB.size()) {
-    #ifdef IS_DEBUG_GRAPH_TRANS
-    Logger::Info("Live range condition 1 failed");
-    #endif
-    return false;
-  }
- */ 
 
   // For each register type, the number of registers defined by A is less than or equal to the number of registers defined by B.
   Register** defsA;
