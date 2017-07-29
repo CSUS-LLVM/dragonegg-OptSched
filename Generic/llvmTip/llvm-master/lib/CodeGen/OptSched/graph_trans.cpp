@@ -204,6 +204,10 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
   // For every virtual register that belongs to the Use set of B but does not belong to the Use set of A
   // there must be at least one instruction C that is distint from A nad B and belongs to the 
   // recurisve sucessor lits of both A and B.
+  //
+  // For every vitrual register that would have its live range lengthened by scheduling B after A,
+  // there must be a register of the same time that would have its live range shortened by scheduling
+  // A before B.
   
   // First find registers that belong to the Use Set of B but not to the Use Set of A.
   // TODO (austin) modify wrapper code so it is easier to identify physical registers.
@@ -212,7 +216,18 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
   Register** usesC;
   int useCntA = nodeA->GetUses(usesA);
   int useCntB = nodeB->GetUses(usesB);
+  // Register used by B but not by A.
   std::list<Register*> usesOnlyB;
+  // A list of registers that will have their live range lengthened
+  // by scheduling B after A.
+  std::list<Register*> lengthenedLiveRegisters;
+  // The number of registers that will be lengthened by
+  // scheduling B after A. Indexed by register type.
+  std::vector<InstCount> lengthenedByB(graph->GetRegTypeCnt());
+  std::fill(lengthenedByB.begin(), lengthenedByB.end(), 0);
+  // The total number of live ranges that could be lengthened by
+  // scheduling B after A.
+  InstCount totalLengthenedByB = 0;
 
   for (int i = 0; i < useCntB; i++) {
     Register* useB = usesB[i];
@@ -241,11 +256,42 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
       }
       if (!foundC) {
         #ifdef IS_DEBUG_GRAPH_TRANS
-        Logger::Info("Live range condition 1 failed");
+        Logger::Info("Found register that has its live range lengthend by scheduling B after A");
         #endif
-        return false;
+        lengthenedByB[useB->GetType()]++;
+        totalLengthenedByB++;
       }
     }
+  }
+
+  for (int j = 0; j < useCntA && totalLengthenedByB > 0; j++) {
+    Register* useA = usesA[j];
+
+    if (lengthenedByB[useA->GetType()] < 1)
+      continue;
+
+    // Try to find an instruction that must be scheduled after A
+    // that uses register "useA".
+    bool foundLaterUse = false;
+    for (const SchedInstruction* user : useA->GetUseList()) {
+      // If "nodeA" is not a recursive predecessor of "user" nodeA is not the last
+      // user of this register.
+      if (user != nodeA && !nodeA->IsRcrsvPrdcsr(const_cast<SchedInstruction*>(user))) {
+        foundLaterUse = true;
+        break;
+      }
+    }
+
+    if (!foundLaterUse) {
+      lengthenedByB[useA->GetType()]--;
+      totalLengthenedByB--;
+    }
+  }
+
+  if (totalLengthenedByB > 0) {
+    #ifdef IS_DEBUG_GRAPH_TRANS
+    Logger::Info("Live range condition 1 failed");
+    #endif
   }
 
 /*
