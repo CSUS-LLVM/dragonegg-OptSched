@@ -744,16 +744,99 @@ void Enumerator::CreateRootNode_() {
 }
 /*****************************************************************************/
 
-FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
+namespace {
+std::vector<HistEnumTreeNode *>
+FindMatchingHistNodes(EnumTreeNode *const node, bool isHistDom,
+                      BinHashTable<HistEnumTreeNode> *const exmndSubProbs) {
+  std::vector<HistEnumTreeNode *> nodes;
+  if (isHistDom && exmndSubProbs != nullptr &&
+      exmndSubProbs->GetEntryCnt() > 0) {
+    for (auto histNode = exmndSubProbs->GetLastMatch(node->GetSig());
+         histNode != nullptr; histNode = exmndSubProbs->GetPrevMatch()) {
+      if (histNode->GetSuffix().size() > 0)
+        nodes.push_back(histNode);
+    }
+  }
+  return nodes;
+}
+void AppendAndCheckSuffixSchedules(
+    const std::vector<HistEnumTreeNode *> &matchingHistNodesWithSuffixes,
+    SchedRegion *const rgn_, InstSchedule *const crntSched_,
+    InstCount trgtSchedLngth_, LengthCostEnumerator *const thisAsLengthCostEnum,
+    EnumTreeNode *const crntNode_, DataDepGraph *const dataDepGraph_) {
+  // For each matching history node, concatenate the suffix with the
+  // current schedule and check to see if it's better than the best
+  // schedule found so far.
+  auto concatSched = std::unique_ptr<InstSchedule>(rgn_->AllocNewSched_());
+  for (auto histNode : matchingHistNodesWithSuffixes) {
+    // Get the prefix.
+    concatSched->Copy(crntSched_);
+
+    // Concatenate the suffix.
+    for (auto inst : histNode->GetSuffix())
+      concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
+
+    // Update and check.
+
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+    if (concatSched->GetCrntLngth() != trgtSchedLngth_) {
+      Logger::Fatal("Suffix Scheduling: Concatenated schedule length %d "
+                    "does not meet target length %d!",
+                    concatSched->GetCrntLngth(), trgtSchedLngth_);
+    }
+#endif
+    auto oldCost = thisAsLengthCostEnum->GetBestCost();
+    auto newCost =
+        rgn_->UpdtOptmlSched(concatSched.get(), thisAsLengthCostEnum);
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+    Logger::Info("Found a concatenated schedule with node instruction %d",
+                 crntNode_->GetInstNum());
+#endif
+    if (newCost < oldCost) {
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+      Logger::Info("Suffix Scheduling: Concatenated schedule has better "
+                   "cost %d than best schedule %d!",
+                   newCost, oldCost);
+#endif
+      // Don't forget to update the total cost and suffix for this node,
+      // because we intentionally backtrack without visiting its
+      // children.
+      crntNode_->SetTotalCost(newCost);
+      crntNode_->SetTotalCostIsActualCost(true);
+      crntNode_->SetSuffix(histNode->GetSuffix());
+    } else {
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+      Logger::Info("Suffix scheduling: Concatenated schedule does not have "
+                   "better cost %d than best schedule %d.",
+                   newCost, oldCost);
+#endif
+    }
+  }
+
+  // Before backtracking, reset the SchedRegion state to where it was before
+  // concatenation.
+  rgn_->InitForSchdulng();
+  InstCount cycleNum, slotNum;
+  for (auto instNum = crntSched_->GetFrstInst(cycleNum, slotNum);
+       instNum != INVALID_VALUE;
+       instNum = crntSched_->GetNxtInst(cycleNum, slotNum)) {
+    rgn_->SchdulInst(dataDepGraph_->GetInstByIndx(instNum), cycleNum, slotNum,
+                     false);
+  }
+}
+} // namespace
+
+FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule *sched,
                                               InstCount trgtLngth,
                                               Milliseconds deadline) {
-  EnumTreeNode*     nxtNode        = NULL;
-  bool              allNodesExplrd = false;
-  bool              foundFsblBrnch = false;
-  bool              isCrntNodeFsbl = true;
-  bool              isTimeout      = false;
+  EnumTreeNode *nxtNode = NULL;
+  bool allNodesExplrd = false;
+  bool foundFsblBrnch = false;
+  bool isCrntNodeFsbl = true;
+  bool isTimeout = false;
 
-  if (!isCnstrctd_) return RES_ERROR;
+  if (!isCnstrctd_)
+    return RES_ERROR;
 
   assert(trgtLngth <= schedUprBound_);
 
@@ -761,7 +844,7 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
     return RES_FAIL;
   }
 
-  #ifdef IS_DEBUG_NODES
+#ifdef IS_DEBUG_NODES
     uint64_t prevNodeCnt = exmndNodeCnt_;
   #endif
 
@@ -787,18 +870,7 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
       StepFrwrd_(nxtNode);
 
       // Find matching history nodes with suffixes.
-      auto matchingHistNodesWithSuffixes = [&]() {
-        std::vector<HistEnumTreeNode *> nodes;
-        if (IsHistDom() && exmndSubProbs_ != nullptr &&
-            exmndSubProbs_->GetEntryCnt() > 0) {
-          for (auto histNode = exmndSubProbs_->GetLastMatch(nxtNode->GetSig());
-               histNode != nullptr; histNode = exmndSubProbs_->GetPrevMatch()) {
-            if (histNode->GetSuffix().size() > 0)
-              nodes.push_back(histNode);
-          }
-        }
-        return nodes;
-      }();
+      auto matchingHistNodesWithSuffixes = FindMatchingHistNodes(nxtNode, IsHistDom(), exmndSubProbs_);
 
       // If there are no such matches, continue the search. Else,
       // generate concatenated schedules.
@@ -808,56 +880,8 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
         isCrntNodeFsbl = true;
       }
       else {
-        // For each matching history node, concatenate the suffix with the
-        // current schedule and check to see if it's better than the best
-        // schedule found so far.
-        { // begin block
-          for (auto histNode : matchingHistNodesWithSuffixes) {
-            // Get the prefix.
-            auto concatSched = std::unique_ptr<InstSchedule>(rgn_->AllocNewSched_());
-            concatSched->Copy(crntSched_);
-
-            // Concatenate the suffix.
-            for (auto inst : histNode->GetSuffix())
-              concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
-
-            // Update and check.
-#if defined(IS_DEBUG_SUFFIX_SCHED)
-            if (concatSched->GetCrntLngth() != trgtSchedLngth_) {
-              Logger::Fatal("Suffix Scheduling: Concatenated schedule length %d does not meet target length %d!", concatSched->GetCrntLngth(), trgtSchedLngth_);
-            }
-#endif
-            auto thisAsLengthCostEnum = static_cast<LengthCostEnumerator *>(this);
-            auto oldCost = thisAsLengthCostEnum->GetBestCost();
-            auto newCost = rgn_->UpdtOptmlSched(concatSched.get(), thisAsLengthCostEnum);
-            Logger::Info("Found a concatenated schedule with node instruction %d", crntNode_->GetInstNum());
-            if (newCost < oldCost) {
-#if defined(IS_DEBUG_SUFFIX_SCHED)
-              Logger::Info("Suffix Scheduling: Concatenated schedule has better cost %d than best schedule %d!", newCost, oldCost);
-#endif
-              // Don't forget to update the total cost and suffix for this node,
-              // because we intentionally backtrack without visiting its
-              // children.
-              crntNode_->SetTotalCost(newCost);
-              crntNode_->SetTotalCostIsActualCost(true);
-              crntNode_->SetSuffix(histNode->GetSuffix());
-            }
-            else {
-#if defined(IS_DEBUG_SUFFIX_SCHED)
-              Logger::Info("Suffix scheduling: Concatenated schedule does not have better cost %d than best schedule %d.", newCost, oldCost);
-#endif
-            }
-          }
-        } // end block
-
-        // Before backtracking, reset the SchedRegion state to where it was before concatenation.
-        { // begin block
-          rgn_->InitForSchdulng();
-          InstCount cycleNum, slotNum;
-          for (auto instNum = crntSched_->GetFrstInst(cycleNum, slotNum); instNum != INVALID_VALUE; instNum = crntSched_->GetNxtInst(cycleNum, slotNum)) {
-            rgn_->SchdulInst(dataDepGraph_->GetInstByIndx(instNum), cycleNum, slotNum, false);
-          }
-        } // end block
+        assert(this->IsCostEnum() && "Not a LengthCostEnum instance!");
+        AppendAndCheckSuffixSchedules(matchingHistNodesWithSuffixes, rgn_, crntSched_, trgtSchedLngth_, static_cast<LengthCostEnumerator *>(this), crntNode_, dataDepGraph_);
         isCrntNodeFsbl = BackTrack_();
       }
     } else {
