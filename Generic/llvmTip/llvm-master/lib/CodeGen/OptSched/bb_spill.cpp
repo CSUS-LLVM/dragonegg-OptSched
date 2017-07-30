@@ -212,7 +212,7 @@ static InstCount ComputeSLILStaticLowerBound(
     for (int j = 0; j < defRegCount; ++j) {
       for (const auto& dependentInst : definedRegisters[j]->GetUseList()) {
         auto recPredBV = const_cast<SchedInstruction*>(dependentInst)->GetRcrsvNghbrBitVector(DIR_BKWRD);
-        assert(recSuccBV->GetSize() != recPredBV->GetSize() && "Successor list size doesn't match predecessor list size!");
+        assert(recSuccBV->GetSize() == recPredBV->GetSize() && "Successor list size doesn't match predecessor list size!");
         for (int k = 0; k < recSuccBV->GetSize(); ++k) {
           if (recSuccBV->GetBit(k) & recPredBV->GetBit(k)) {
             if (definedRegisters[j]->AddToInterval(dataDepGraph_->GetInstByIndx(k))) {
@@ -243,7 +243,7 @@ static InstCount ComputeSLILStaticLowerBound(
     usedInsts.clear();
     for (int j = 0; j < usedRegCount; ++j) {
       Register* reg = usedRegisters[j];
-      assert(reg->GetDefList().size() != 1 && "Number of defs for register is not 1!");
+      assert(reg->GetDefList().size() == 1 && "Number of defs for register is not 1!");
       usedInsts.push_back(std::make_pair(*(reg->GetDefList().begin()), reg));
     }
 
@@ -619,7 +619,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
           }
         }
       }
-      assert(sumOfLiveIntervalLengths_[i] < 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
+      assert(sumOfLiveIntervalLengths_[i] >= 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
     }
   }
 
@@ -671,7 +671,7 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
         if (!use->IsInInterval(inst) && !use->IsInPossibleInterval(inst)) {
           --dynamicSlilLowerBound_;
         }
-        assert(sumOfLiveIntervalLengths_[i] < 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
+        assert(sumOfLiveIntervalLengths_[regType] >= 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
       }
       liveRegs_[regType].SetBit(regNum, true, use->GetWght());
 

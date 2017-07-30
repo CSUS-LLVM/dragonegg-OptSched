@@ -789,15 +789,15 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule* sched,
       // Find matching history nodes with suffixes.
       auto matchingHistNodesWithSuffixes = [&]() {
         std::vector<HistEnumTreeNode *> nodes;
-        if (IsHistDom()) {
-          if (exmndSubProbs_ != nullptr && exmndSubProbs_->GetEntryCnt() > 0) {
-            for (auto histNode = exmndSubProbs_->GetLastMatch(nxtNode->GetSig()); histNode != nullptr; histNode = exmndSubProbs_->GetPrevMatch()) {
-              if (histNode->GetSuffix().size() > 0)
-                nodes.push_back(histNode);
-              return nodes;
-            }
+        if (IsHistDom() && exmndSubProbs_ != nullptr &&
+            exmndSubProbs_->GetEntryCnt() > 0) {
+          for (auto histNode = exmndSubProbs_->GetLastMatch(nxtNode->GetSig());
+               histNode != nullptr; histNode = exmndSubProbs_->GetPrevMatch()) {
+            if (histNode->GetSuffix().size() > 0)
+              nodes.push_back(histNode);
           }
         }
+        return nodes;
       }();
 
       // If there are no such matches, continue the search. Else,
