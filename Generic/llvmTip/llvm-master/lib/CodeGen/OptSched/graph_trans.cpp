@@ -292,6 +292,7 @@ bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction* nodeA, SchedInstructi
     #ifdef IS_DEBUG_GRAPH_TRANS
     Logger::Info("Live range condition 1 failed");
     #endif
+    return false;
   }
 
 /*
