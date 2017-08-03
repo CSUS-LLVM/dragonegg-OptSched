@@ -64,6 +64,9 @@ void EnumTreeNode::Init_() {
   costLwrBound_ = INVALID_VALUE;
   crntCycleBlkd_ = false;
   rsrvSlots_ = NULL;
+  totalCostIsActualCost_ = false;
+  totalCost_ = -1;
+  suffix_.clear();
 }
 /*****************************************************************************/
 
