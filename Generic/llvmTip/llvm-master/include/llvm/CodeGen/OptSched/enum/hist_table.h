@@ -48,6 +48,7 @@ class HistEnumTreeNode {
                              bool isTemp,
                              Enumerator* enumrtr);
     const std::vector<SchedInstruction*>& GetSuffix() const;
+    std::vector<InstCount> GetPrefix() const;
 
   protected:
     HistEnumTreeNode* prevNode_;

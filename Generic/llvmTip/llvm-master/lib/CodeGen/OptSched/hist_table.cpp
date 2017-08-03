@@ -357,6 +357,16 @@ const std::vector<SchedInstruction*>& HistEnumTreeNode::GetSuffix() const {
   return suffix_;
 }
 
+std::vector<InstCount> HistEnumTreeNode::GetPrefix() const {
+  std::vector<InstCount> prefix;
+  for (auto histNode = const_cast<HistEnumTreeNode*>(this); histNode != nullptr; histNode = histNode->GetParent()) {
+    if (histNode->GetInstNum() != SCHD_STALL)
+      prefix.push_back(histNode->GetInstNum());
+  }
+  std::reverse(prefix.begin(), prefix.end());
+  return prefix;
+}
+
 CostHistEnumTreeNode::CostHistEnumTreeNode() {
   isLngthFsbl_ = true;
   #ifdef IS_DEBUG

@@ -65,8 +65,8 @@ void EnumTreeNode::Init_() {
   crntCycleBlkd_ = false;
   rsrvSlots_ = NULL;
   totalCostIsActualCost_ = false;
-  totalCost_ = -1;
-  suffix_.clear();
+  //totalCost_ = -1;
+  //suffix_.clear();
 }
 /*****************************************************************************/
 
@@ -762,6 +762,15 @@ FindMatchingHistNodes(EnumTreeNode *const node, bool isHistDom,
   }
   return nodes;
 }
+
+void PrintSchedule(InstSchedule* const sched, Logger::LOG_LEVEL level = Logger::INFO) {
+  InstCount cycle, slot;
+  std::stringstream s;
+  for (auto inst = sched->GetFrstInst(cycle, slot); inst != INVALID_VALUE; inst = sched->GetNxtInst(cycle, slot)) {
+    s << inst << ' ';
+  }
+  Logger::Log(level, false, "Schedule: %s", s.str().c_str());
+}
 void AppendAndCheckSuffixSchedules(
     const std::vector<HistEnumTreeNode *> &matchingHistNodesWithSuffixes,
     SchedRegion *const rgn_, InstSchedule *const crntSched_,
@@ -775,6 +784,22 @@ void AppendAndCheckSuffixSchedules(
     // Get the prefix.
     concatSched->Copy(crntSched_);
 
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+    {
+      PrintSchedule(crntSched_, Logger::ERROR);
+      std::stringstream s;
+      auto prefix = histNode->GetPrefix();
+      for (auto j : prefix) s << j << ' ';
+      Logger::Error("Prefix: %s", s.str().c_str());
+      s.str("");
+      for (auto j : histNode->GetSuffix()) s << (j == nullptr ? SCHD_STALL : j->GetNum()) << ' ';
+      Logger::Error("SUffix: %s", s.str().c_str());
+      if (prefix.size() != crntSched_->GetCrntLngth()) {
+        Logger::Fatal("Hist node prefix size %llu doesn't match current sched length %d!", prefix.size(), crntSched_->GetCrntLngth());
+      }
+    }
+#endif
+
     // Concatenate the suffix.
     for (auto inst : histNode->GetSuffix())
       concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
@@ -783,6 +808,15 @@ void AppendAndCheckSuffixSchedules(
 
 #if defined(IS_DEBUG_SUFFIX_SCHED)
     if (concatSched->GetCrntLngth() != trgtSchedLngth_) {
+      PrintSchedule(concatSched.get(), Logger::ERROR);
+      PrintSchedule(crntSched_, Logger::ERROR);
+      std::stringstream s;
+      auto prefix = histNode->GetPrefix();
+      for (auto j : prefix) s << j << ' ';
+      Logger::Error("Prefix: %s", s.str().c_str());
+      s.str("");
+      for (auto j : histNode->GetSuffix()) s << (j == nullptr ? SCHD_STALL : j->GetNum()) << ' ';
+      Logger::Error("SUffix: %s", s.str().c_str());
       Logger::Fatal("Suffix Scheduling: Concatenated schedule length %d "
                     "does not meet target length %d!",
                     concatSched->GetCrntLngth(), trgtSchedLngth_);
