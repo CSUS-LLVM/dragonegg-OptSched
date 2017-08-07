@@ -5,7 +5,6 @@ import optparse
 import re
 import subprocess
 import sys
-import os
 
 # Configuration.
 INT_BENCHMARKS = [
@@ -42,9 +41,7 @@ FP_BENCHMARKS = [
   'sphinx'
 ]
 ALL_BENCHMARKS = INT_BENCHMARKS + FP_BENCHMARKS
-COMMAND = "runspec --loose -size=ref -iterations=1 -config=%s --tune=base -r 1 -I -a build %s"
-LOG_FOLDER = "wrapperLogs/"
-STATS_FOLDER = "wrapperStats/"
+COMMAND = "runspec --loose -size=ref -iterations=1 -config=Intel_llvm_3.3.cfg --tune=base -r 1 -I -a build %s"
 
 # Regular expressions.
 SETTING_REGEX = re.compile(r'\bUSE_OPT_SCHED\b.*')
@@ -54,26 +51,19 @@ SPILLS_REGEX = re.compile(r'Function: (.*?)\nGREEDY RA: Number of spilled live r
 TIMES_REGEX = re.compile(r'(\d+) total seconds elapsed')
 BLOCK_NAME_AND_SIZE_REGEX = re.compile(r'Processing DAG (.*) with (\d+) insts')
 #BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'The list schedule .* is optimal')
-BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'(Bypassing optimal scheduling due to zero time limit|The list schedule .* is optimal)')
+BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'Bypassing optimal scheduling due to zero time limit')
 BLOCK_ENUMERATED_OPTIMAL_REGEX = re.compile(r'DAG solved optimally')
 BLOCK_COST_REGEX = re.compile(r'list schedule is of length \d+ and spill cost \d+. Tot cost = (\d+)')
 BLOCK_IMPROVEMENT_REGEX = re.compile(r'cost imp=(\d+)')
 BLOCK_START_TIME_REGEX = re.compile(r'-{20} \(Time = (\d+) ms\)')
 BLOCK_END_TIME_REGEX = re.compile(r'verified successfully \(Time = (\d+) ms\)')
 BLOCK_LIST_FAILED_REGEX = re.compile(r'List scheduling failed')
-BLOCK_PEAK_REG_PRESSURE_REGEX = re.compile(r'PeakRegPresAfter Dag (.*?) Index (\d+) Name (.*) Peak (\d+) Limit (\d+)')
-SLIL_HEURISTIC_REGEX = re.compile('SLIL after Heuristic Scheduler for dag (.*?) Type (\d+) (.*?) is (\d+)')
+BLOCK_PEAK_REG_PRESSURE_REGEX = re.compile(r'PeakRegPresAfter  Index (\d+) Name (.*) Peak (\d+) Limit (\d+)')
+BLOCK_PEAK_REG_BLOCK_NAME = re.compile(r'LLVM max pressure after scheduling for BB (\S+)')
 
-def writeStats(stats, args, dagSizesPerBenchmark):
-  statsFolder = ""
-  if not os.path.exists(STATS_FOLDER):
-    os.makedirs(STATS_FOLDER)
-    statsFolder = STATS_FOLDER
-  elif os.path.isdir(STATS_FOLDER):
-    statsFolder = STATS_FOLDER
-
+def writeStats(stats, spills, times, blocks, regp):
   # Write times.
-  with open(os.path.join(statsFolder, args.times), 'w') as times_file:
+  with open(times, 'w') as times_file:
     total_time = 0
     for benchName in stats:
       time = stats[benchName]['time']
@@ -83,7 +73,7 @@ def writeStats(stats, args, dagSizesPerBenchmark):
     times_file.write('     Total:%5d seconds\n' % total_time)
 
   # Write spill stats.
-  with open(os.path.join(statsFolder, args.spills), 'w') as spills_file:
+  with open(spills, 'w') as spills_file:
     totalSpills = 0
     for benchName in stats:
       totalSpillsPerBenchmark = 0
@@ -99,8 +89,19 @@ def writeStats(stats, args, dagSizesPerBenchmark):
     spills_file.write('------------\n')
     spills_file.write('Total:%5d\n' % totalSpills)
 
+    # for benchName in stats:
+    #   spills = stats[benchName]['spills']
+    #   total_spills += sum(spills)
+    #   spills_file.write('%s:\n' % benchName)
+    #   for spill in spills:
+    #     spills_file.write('      %5d\n' % spill)
+    #   spills_file.write('  ---------\n')
+    #   spills_file.write('  Sum:%5d\n\n' % sum(spills))
+    # spills_file.write('------------\n')
+    # spills_file.write('Total:%5d\n' % total_spills)
+
   # Write block stats.
-  with open(os.path.join(statsFolder, args.blocks), 'w') as blocks_file:
+  with open(blocks, 'w') as blocks_file:
     totalCount = 0
     totalSuccessful = 0
     totalEnumerated = 0
@@ -222,203 +223,97 @@ def writeStats(stats, args, dagSizesPerBenchmark):
     blocks_file.write('  Average optimal solution time: %d ms\n' %
                       ((sum(optimalTimes) / len(optimalTimes)) if optimalTimes else 0))
 
-  # # Write peak pressure stats
-  # with open(os.path.join(statsFolder, args.regp), 'w') as regp_file:
-  #   for benchName in stats:
-  #     regp_file.write('Benchmark %s:\n' % benchName)
-  #     regpressure = stats[benchName]['regpressure']
-  #     benchRegp = {}
-  #     for functionName in regpressure:
-  #       functionRegp = {}
-  #       regp_file.write('  Function %s:\n' % functionName)
-  #       for blockName in regpressure[functionName]:
-  #         # Note: In here you could write the BB name...
-  #         # regp_file.write('    Basic Block %s:\n' % blockName)
-  #         for setIndex, perp in regpressure[functionName][blockName]:
-  #           # NOTE: In here you could write the pressure per BB...
-  #           # regp_file.write('      %2d %5d\n' % (setIndex, perp))
-  #           if not setIndex in functionRegp: functionRegp[setIndex] = 0
-  #           functionRegp[setIndex] += perp
-  #       for setIndex in sorted(functionRegp.keys()):
-  #         regp_file.write('    %2d %5d\n' % (setIndex, functionRegp[setIndex]))
-  #         if not setIndex in benchRegp: benchRegp[setIndex] = 0
-  #         benchRegp[setIndex] += functionRegp[setIndex]
-  #     regp_file.write('Summary for Benchmark %s:\n' % benchName)
-  #     for setIndex in sorted(benchRegp.keys()):
-  #       regp_file.write('  %2d %5d\n' % (setIndex, benchRegp[setIndex]))
-        
-
-  # write regp csv file
-  with open(os.path.join(statsFolder, args.regp + ".mf.csv"), 'w') as regp_file:
-    with open(os.path.join(statsFolder, args.regp + ".bb.csv"), 'w') as regpBBFile:
-      regp_file.write('Benchmark,Function\n')
-      regpBBFile.write('Benchmark,Function,BB#\n')
-      for benchName in stats:
-        spills = stats[benchName]['spills']
-        regp_file.write('\n%s,' % benchName)
-        regpBBFile.write('\n%s,' % benchName)
-        regpressure = stats[benchName]['regpressure']
-        benchRegp = {}
-        counter = 0
-        for functionName in regpressure:
-          if counter > 0: 
-            regp_file.write('\n,')
-            regpBBFile.write('\n,')
-          counter += 1
-          functionRegp = {}
-          regp_file.write('%s,' % functionName)
-          regpBBFile.write('%s,' % functionName)
-          bbCounter = 0
-          for blockName in sorted(regpressure[functionName].keys()):
-            # Check to see that the block satisfies the constraints. If not, move on to the next iteration.
-            maxSetPerp = 0
-            for setIndex, perp in regpressure[functionName][blockName]:
-              maxSetPerp = max(maxSetPerp, perp)
-            if maxSetPerp < args.minperp:
-              # print("DAG %s:%d MaxSetPerp %d does not meet minimum PERP requirement %d. Skipping." % 
-              #   (functionName, blockName, maxSetPerp, args.minperp))
-              continue
-            dagName = "%s:%d" % (functionName, blockName)
-            if not dagSizesPerBenchmark[benchName] is None and dagSizesPerBenchmark[benchName][dagName] < args.mininstcnt:
-              # print("DAG %s:%d InstCnt %d does not meet minimum InstCnt requirement %d. Skipping." 
-              #   % (functionName, blockName, 
-              #      dagSizesPerBenchmark[benchName]["%s:%d" % (functionName, blockName)], 
-              #      args.mininstcnt))
-              continue
-            # print("DAG %s InstCnt %d MaxPERP %d meets contraints MinInstCnt %d MinPERP %d." % 
-            #   (dagName, 
-            #   dagSizesPerBenchmark[benchName][dagName], 
-            #   maxSetPerp, args.mininstcnt, args.minperp))
-            if bbCounter > 0: regpBBFile.write('\n,,')
-            bbCounter += 1
-            regpBBFile.write('%s,' % blockName)
-            for setIndex, perp in regpressure[functionName][blockName]:
-              regpBBFile.write('%d,' % perp)
-              if not setIndex in functionRegp: functionRegp[setIndex] = 0
-              functionRegp[setIndex] += perp
-            regpBBFile.write('%d' % spills[functionName])
-          for setIndex in sorted(functionRegp.keys()):
-            regp_file.write('%d,' % functionRegp[setIndex])
-            if not setIndex in benchRegp: benchRegp[setIndex] = 0
-            benchRegp[setIndex] += functionRegp[setIndex]
-          regp_file.write('%d' % spills[functionName])
-        
-  # # write SLIL
-  # with open(os.path.join(statsFolder, args.slil), 'w') as slilFile:
-  #   for benchName in stats:
-  #     benchmarkSlil = {}
-  #     slilStats = stats[benchName]['slil']
-  #     slilFile.write('Benchmark %s:\n' % benchName)
-  #     for functionName in slilStats:
-  #       functionSlil = {}
-  #       functionStats = slilStats[functionName]
-  #       slilFile.write('  Function %s:\n' % functionName)
-  #       for blockNum in sorted(functionStats.keys()):
-  #         for registerType in functionStats[blockNum]:
-  #           if not registerType in functionSlil:
-  #             functionSlil[registerType] = 0
-  #           functionSlil[registerType] += functionStats[blockNum][registerType]
-  #       for registerType in functionSlil:
-  #         slilFile.write('    %2d %5d\n' % (registerType, functionSlil[registerType]))
-  #         if not registerType in benchmarkSlil:
-  #           benchmarkSlil[registerType] = 0
-  #         benchmarkSlil[registerType] += functionSlil[registerType]
-  #     slilFile.write('Summary for Benchmark %s:\n' % benchName)
-  #     for registerType in sorted(benchmarkSlil.keys()):
-  #       slilFile.write('  %2d %5d\n' % (registerType, functionSlil[registerType]))
-  #     # slilFile.write('Total for benchmark %s: %d\n' % (benchName, benchmarkSlil))
-
-  with open(os.path.join(statsFolder, args.slil + '.mf.csv'), 'w') as slilCsvFile:
-    with open(os.path.join(statsFolder, args.slil + '.bb.csv'), 'w') as slilBBCsvFile:
-      slilCsvFile.write('Benchmark,Function\n')
-      slilBBCsvFile.write('Benchmark,Function,BB#\n')
-      for benchName in stats:
-        spills = stats[benchName]['spills']
-        slilCsvFile.write('\n%s,' % benchName)
-        slilBBCsvFile.write('\n%s,' % benchName)
-        slilStats = stats[benchName]['slil']
-        counter = 0
-        for functionName in slilStats:
-          functionStats = {}
-          if counter > 0: 
-            slilCsvFile.write('\n,')
-            slilBBCsvFile.write('\n,')
-          counter += 1
-          slilCsvFile.write('%s,' % functionName)
-          slilBBCsvFile.write('%s,' % functionName)
-          bbCounter = 0
-          for blockNum in sorted(slilStats[functionName].keys()):
-            # Check to see that the block satisfies the constraints. If not, move on to the next iteration.
-            maxSetPerp = 0
-            regpressure = stats[benchName]['regpressure']
-            for setIndex, perp in regpressure[functionName][blockNum]:
-              maxSetPerp = max(maxSetPerp, perp)
-            if maxSetPerp < args.minperp:
-              # print("DAG %s:%d MaxSetPerp %d does not meet minimum PERP requirement %d. Skipping." % 
-              #   (functionName, blockNum, maxSetPerp, args.minperp))
-              continue
-            dagName = "%s:%d" % (functionName, blockNum)
-            if not dagSizesPerBenchmark[benchName] is None and dagSizesPerBenchmark[benchName][dagName] < args.mininstcnt:
-              # print("DAG %s:%d InstCnt %d does not meet minimum InstCnt requirement %d. Skipping." 
-              #   % (functionName, blockNum, 
-              #      dagSizesPerBenchmark[benchName]["%s:%d" % (functionName, blockNum)], 
-              #      args.mininstcnt))
-              continue
-            # print("DAG %s InstCnt %d MaxPERP %d meets contraints MinInstCnt %d MinPERP %d." % 
-            #   (dagName, 
-            #   dagSizesPerBenchmark[benchName][dagName], 
-            #   maxSetPerp, args.mininstcnt, args.minperp))
-            if bbCounter > 0:
-              slilBBCsvFile.write('\n,,')
-            bbCounter += 1
-            slilBBCsvFile.write('%d,' % blockNum)
-            for registerType in sorted(slilStats[functionName][blockNum].keys()):
-              slilBBCsvFile.write('%d,' % slilStats[functionName][blockNum][registerType])
-              if not registerType in functionStats:
-                functionStats[registerType] = 0
-              functionStats[registerType] += slilStats[functionName][blockNum][registerType]
-            slilBBCsvFile.write('%d' % spills[functionName])
-          if len(functionStats) > 0:
-            for registerType in functionStats:
-              slilCsvFile.write('%d,' % functionStats[registerType])
-            slilCsvFile.write('%d' % spills[functionName])
-
-def calculateDagSizes(output):
-  dagSizes = None
-  matches = BLOCK_NAME_AND_SIZE_REGEX.findall(output)
-  if len(matches) > 0:
-    dagSizes = {}
-    for dagName, instCountString in matches:
-      dagSizes[dagName] = int(instCountString)
-  return dagSizes
-
-def calculateSLIL(output):
-  stats = {}
-  for dagName, registerType, setName, sumOfLiveIntervalLengths in SLIL_HEURISTIC_REGEX.findall(output):
-    functionName = dagName.split(':')[0]
-    blockNum = int(dagName.split(':')[1])
-    if not functionName in stats:
-      stats[functionName] = {}
-    if not blockNum in stats[functionName]:
-      stats[functionName][blockNum] = {}
-    registerTypeAsInt = int(registerType)
-    stats[functionName][blockNum][registerTypeAsInt] = int(sumOfLiveIntervalLengths)
-  return stats
+  # Write peak pressure stats
+  with open(regp, 'w') as regp_file:
+    for benchName in stats:
+      regp_file.write('Benchmark %s:\n' % benchName)
+      regpressure = stats[benchName]['regpressure']
+      numberOfFunctionsWithPeakExcess = 0
+      numberOfBlocksWithPeakExcess = 0
+      numberOfBlocks = 0
+      peakPressureSetSumsPerBenchmark = {}
+      for functionName in regpressure:
+        peakPressureSetSums = {}
+        regp_file.write('  Function %s:\n' % functionName)
+        listOfBlocks = regpressure[functionName]
+        if len(listOfBlocks) == 0: continue
+        for blockName, listOfExcessPressureTuples in listOfBlocks:
+          numberOfBlocks += 1
+          if len(listOfExcessPressureTuples) == 0: continue
+          # regp_file.write('    Block %s:\n' % blockName)
+          for setName, peakExcessPressure in listOfExcessPressureTuples:
+            # If we ever enter this loop, that means there exists a peak excess pressure
+            # regp_file.write('      %5d %s\n' % (peakExcessPressure, setName))
+            if not setName in peakPressureSetSums:
+              peakPressureSetSums[setName] = peakExcessPressure
+            else:
+              peakPressureSetSums[setName] += peakExcessPressure
+        regp_file.write('  Pressure Set Sums for Function %s:\n' % functionName)
+        for setName in peakPressureSetSums:
+          regp_file.write('    %5d %s\n' % (peakPressureSetSums[setName], setName))
+          if not setName in peakPressureSetSumsPerBenchmark:
+            peakPressureSetSumsPerBenchmark[setName] = peakPressureSetSums[setName]
+          else:
+            peakPressureSetSumsPerBenchmark[setName] += peakPressureSetSums[setName]
+      regp_file.write('Pressure Set Sums for Benchmark %s:\n' % benchName)
+      for setName in peakPressureSetSumsPerBenchmark:
+        regp_file.write('%5d %s\n' % (peakPressureSetSumsPerBenchmark[setName], setName))
+      # regp_file.write('Number of blocks with peak excess:    %d\n' % numberOfBlocksWithPeakExcess)
+      # regp_file.write('Number of blocks total:               %d\n' % numberOfBlocks)
+      # regp_file.write('Number of functions with peak excess: %d\n' % numberOfFunctionsWithPeakExcess)
+      # regp_file.write('Number of functions total:            %d\n' % len(regpressure))
+      regp_file.write('------------\n')
 
 def calculatePeakPressureStats(output):
-  stats = {}
-  for dagName, setIndexString, setName, peakSetPressureString, limitString in BLOCK_PEAK_REG_PRESSURE_REGEX.findall(output):
-    dagSplit = dagName.split(':')
-    functionName = dagSplit[0]
-    blockName = int(dagSplit[1])
-    if not functionName in stats: stats[functionName] = {}
-    # Each function gets a dict from blockName to tuple(setIndex, PERP)
-    if not blockName in stats[functionName]: stats[functionName][blockName] = []
-    peakExcessPressure = int(peakSetPressureString) - int(limitString)
-    if peakExcessPressure < 0: peakExcessPressure = 0
-    stats[functionName][blockName].append((int(setIndexString), peakExcessPressure))
-  return stats
-    
+  """
+  Output should look like:
+  Benchmark:
+    Function1:
+      Block1:
+        PERP1 RegName1
+        PERP2 RegName2
+        ...
+    Function1 Peak: PERPMax RegNameMax
+  Number of blocks with peak excess register pressure: M
+  Number of blocks total: N
+  Number of functions with excess register pressure: F
+  Number of functions total: G
+
+  Then the data structure will look like:
+  {
+    function1: [
+      (block1, [(SetName1, PERP1), ...]),
+      ...
+      ],
+    function2: ...
+  }
+  """
+  blocks = output.split('Scheduling **********')[1:]
+  functions = {}
+  for block in blocks:
+    if len(BLOCK_PEAK_REG_BLOCK_NAME.findall(block)) == 0:
+      continue
+    dagName = BLOCK_PEAK_REG_BLOCK_NAME.findall(block)[0]
+    functionName = dagName.split(':')[0]
+    blockName = dagName.split(':')[1]
+    pressureMatches = BLOCK_PEAK_REG_PRESSURE_REGEX.findall(block)
+    peakExcessPressures = []
+    for indexString, name, peakString, limitString in pressureMatches:
+      peak = int(peakString)
+      limit = int(limitString)
+      excessPressure = peak - limit
+      if excessPressure < 0:
+        excessPressure = 0
+      element = tuple((name, excessPressure))
+      peakExcessPressures.append(element)
+    if len(peakExcessPressures) > 0:
+      blockStats = (blockName, peakExcessPressures)
+      if not functionName in functions:
+        functions[functionName] = []
+      functions[functionName].append(blockStats)
+  # print(functions)
+  return functions
+
 def calculateBlockStats(output):
   blocks = output.split('Opt Scheduling **********')[1:]
   stats = []
@@ -493,17 +388,11 @@ def getBenchmarkResult(output):
     'time': int(TIMES_REGEX.findall(output)[0]),
     'spills': calculateSpills(output),
     'blocks': calculateBlockStats(output),
-    'regpressure': calculatePeakPressureStats(output),
-    'slil': calculateSLIL(output)
+    'regpressure': calculatePeakPressureStats(output)
   }
 
-def runBenchmarks(benchmarks, config):
+def runBenchmarks(benchmarks):
   results = {}
-  dagSizesPerBenchmark = {}
-  if not os.path.exists(LOG_FOLDER):
-    os.makedirs(LOG_FOLDER)
-  for fileName in os.listdir(LOG_FOLDER):
-    os.remove(os.path.join(LOG_FOLDER, fileName))
 
   for bench in benchmarks:
     print 'Running', bench
@@ -511,22 +400,17 @@ def runBenchmarks(benchmarks, config):
       p = subprocess.Popen('/bin/bash', stdin=subprocess.PIPE, 
                            stdout=subprocess.PIPE)
       p.stdin.write("source shrc" + "\n"); 
-      p.stdin.write(COMMAND % (config, bench) + "\n")
-      p.stdin.write("runspec --loose -size=ref -iterations=1 -config=%s --tune=base -r 1 -I -a scrub %s" % (config,bench))
+      p.stdin.write(COMMAND % bench + "\n");
+      p.stdin.write("runspec --loose -size=ref -iterations=1 -config=Intel_llvm_3.3.cfg --tune=base -r 1 -I -a scrub %s" % bench);
       p.stdin.close()
-      output = p.stdout.read()
-      logFilePath = os.path.join(LOG_FOLDER, bench + ".log")
-      with open(logFilePath, 'w') as logFile:
-        logFile.write(output)
-      print("Wrote log file of benchmark %s to log file %s." % (bench, logFilePath))
+      output = p.stdout.read();
 
     except subprocess.CalledProcessError as e:
       print '  WARNING: Benchmark command failed: %s.' % e
     else:
       results[bench] = getBenchmarkResult(output)
-      dagSizesPerBenchmark[bench] = calculateDagSizes(output)
 
-  return results, dagSizesPerBenchmark
+  return results
 
 
 def main(args):
@@ -543,27 +427,12 @@ def main(args):
       if bench not in ALL_BENCHMARKS:
         print 'WARNING: Unknown benchmark specified: "%s".' % bench
 
-  print('Using config file: %s' % args.config)
-  print('Specified benchmarks: %s' % args.bench)
-
+  # Parse single log file instead of running benchmark
   results = {}
-  dagSizesPerBenchmark = {}
-  # Parse previous run instead of rebuilding.
-  if args.readlogs is not None:
-    print("Reading log files of previous run instead of building benchmarks.")
-    if not os.path.isdir(args.readlogs):
-      print("ERROR: --readlogs=%s is not a valid folder! Quitting runspec wrapper." % args.readlogs)
-    else:
-      for filename in os.listdir(args.readlogs):
-        print("Parsing log file %s" % filename)
-        benchName = filename.split(".")[0]
-        logFilePath = os.path.join(args.readlogs, filename)
-        output = None
-        with open(logFilePath) as logFile:
-          output = logFile.read()
-        results[benchName] = getBenchmarkResult(output)
-        dagSizesPerBenchmark[benchName] = calculateDagSizes(output)
-    
+  if args.logfile is not None:
+    with open(args.logfile) as log_file:
+      output = log_file.read()
+      results[args.logfile] = getBenchmarkResult(output)
   # Run the benchmarks and collect results.
   elif args.opt is not None:
 
@@ -572,14 +441,14 @@ def main(args):
     new_ini = SETTING_REGEX.sub('USE_OPT_SCHED ' + args.opt, ini)
     with open(args.ini, 'w') as ini_file: ini_file.write(new_ini)
     try:
-      results, dagSizesPerBenchmark = runBenchmarks(banchmarks, args.config)
+      results = runBenchmarks(banchmarks)
     finally:
       with open(args.ini, 'w') as ini_file: ini_file.write(ini)
   else:
-    results, dagSizesPerBenchmark = runBenchmarks(benchmarks, args.config)
+    results = runBenchmarks(benchmarks)
 
   # Write out the results.
-  writeStats(results, args, dagSizesPerBenchmark)
+  writeStats(results, args.spills, args.times, args.blocks, args.regp)
 
 
 if __name__ == '__main__':
@@ -614,26 +483,10 @@ if __name__ == '__main__':
                     metavar='filepath',
                     default='regp.dat',
                     help='Where to write the reg pressure stats (%default).')
-  parser.add_option('-S', '--slil',
-                    metavar='filepath',
-                    default='slil.dat',
-                    help='Where to write the SLIL stats (%default).')
-  parser.add_option('-c', '--config',
-                   metavar='spec_config_file.cfg',
-                   default='Intel_llvm_3.3.cfg',
-                   help='Choose SPEC config file (%default).')
-  parser.add_option('--readlogs',
-                   metavar='log_file_folder/',
+
+  # Add the ability to parse log files.
+  parser.add_option('-l', '--logfile',
+                   metavar='CPU2006.###.log',
                    default=None,
-                   help='Specify folder of logs from previous run to gather statistics from log files instead of rebuilding.')
-  parser.add_option('--mininstcnt',
-                   metavar='number',
-                   default=0,
-                   type=int,
-                   help='Minimum basic block instruction count to write PERP and SLIL stats for.')
-  parser.add_option('--minperp',
-                   metavar='number',
-                   default=0,
-                   type=int,
-                   help='Minimum PERP count to write PERP and SLIL stats for.')
+                   help='Parse log file instead of running benchmark. Only single-benchmark log files produce valid statistics.')
   main(parser.parse_args()[0])

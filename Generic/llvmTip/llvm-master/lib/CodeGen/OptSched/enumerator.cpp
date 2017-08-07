@@ -966,7 +966,10 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule *sched,
 
       // If there are no such matches, continue the search. Else,
       // generate concatenated schedules.
-      if (!IsHistDom() || matchingHistNodesWithSuffixes.size() == 0) {
+      if (!IsHistDom() || matchingHistNodesWithSuffixes.size() == 0 ||
+          (IsCostEnum() &&
+           static_cast<LengthCostEnumerator *>(this)->GetSpillCostFunc() !=
+               SCF_SLIL)) {
         // If a branch from the current node that leads to a feasible node has
         // been found, move on down the tree to that feasible node.
         isCrntNodeFsbl = true;
