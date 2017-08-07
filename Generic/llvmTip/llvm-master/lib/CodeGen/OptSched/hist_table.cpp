@@ -435,10 +435,9 @@ bool CostHistEnumTreeNode::ChkCostDmntn_(EnumTreeNode* node,
   return ChkCostDmntnForBBSpill_(node, enumrtr);
 }
 
-static bool DoesSLILHistoryCostDominate(const int prefixCost,
-                                        const int totalCost,
-                                        const EnumTreeNode &node,
-                                        const LengthCostEnumerator &en) {
+static bool DoesHistoryCostDominate(const int prefixCost, const int totalCost,
+                                    const EnumTreeNode &node,
+                                    const LengthCostEnumerator &en) {
 
   // (Chris): If the history node's prefix cost is bigger (worse), then we also
   // need to check to see if the improvement we get is worth the trouble of
@@ -485,8 +484,8 @@ bool CostHistEnumTreeNode::ChkCostDmntnForBBSpill_(EnumTreeNode* node,
   #endif
   SPILL_COST_FUNCTION spillCostFunc = ((LengthCostEnumerator*)en)->GetSpillCostFunc();
   if (time_ > node->GetTime()) return false;
-  if (spillCostFunc == SCF_SLIL) {
-    if (!DoesSLILHistoryCostDominate(partialCost_, totalCost_, *node,
+  if (spillCostFunc == SCF_SLIL || spillCostFunc == SCF_PEAK) {
+    if (!DoesHistoryCostDominate(partialCost_, totalCost_, *node,
                                      static_cast<LengthCostEnumerator &>(*en)))
       return false;
   } 
