@@ -181,7 +181,7 @@ class SchedInstruction : public GraphNode {
     // Returns the number of successors in this instructions transitive
     // closure (i.e. total number of descendants).
     InstCount GetRcrsvScsrCnt() const;
-
+    
    /***************************************************************************
     * Iterators                                                               *
     ***************************************************************************/
@@ -414,6 +414,12 @@ class SchedInstruction : public GraphNode {
 
     int16_t GetDefCnt() {return defCnt_;}
     int16_t GetUseCnt() {return useCnt_;}
+
+    // Return the adjusted use count. The number of uses minus live-out uses.
+    int16_t GetAdjustedUseCnt() {return adjustedUseCnt_;}
+    // Computer the adjusted use count. Update "adjustedUseCnt_".
+    void ComputeAdjustedUseCnt(SchedInstruction* inst);
+    
     int16_t CmputLastUseCnt();
     int16_t GetLastUseCnt() {return lastUseCnt_;}
 
@@ -548,6 +554,9 @@ class SchedInstruction : public GraphNode {
     Register* uses_[MAX_USES_PER_INSTR];
     // The number of elements in uses.
     int16_t useCnt_;
+    // The number of uses minus live-out registers. Live-out registers are uses
+    // in the artifical leaf instruction.
+    int16_t adjustedUseCnt_;
     // The number of live virtual registers for which this instruction is 
     // the last use. This value changes dynamically during scheduling
     int16_t lastUseCnt_;
@@ -580,6 +589,8 @@ class SchedInstruction : public GraphNode {
     // Sets the successor order numbers on the edges between this node and its
     // successors.
     void SetScsrNums_();
+    // Computer the adjusted use count. Update "adjustedUseCnt_".
+    void ComputeAdjustedUseCnt_();
 };
 
 // A class to keep track of dynamic SchedInstruction lower bounds, i.e. lower

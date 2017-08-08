@@ -941,8 +941,13 @@ bool Enumerator::ProbeBranch_(SchedInstruction* inst, EnumTreeNode*& newNode,
   //if another instruction in the ready list does use a register.
   if (schedForRPOnly_)
     if (inst != NULL)
-      if (inst->GetUseCnt() == 0 && crntNode_->FoundInstWithUse())
-        return false;
+      if(crntNode_->FoundInstWithUse())
+        if (inst->GetAdjustedUseCnt() == 0 && !dataDepGraph_->DoesFeedUser(inst)) {
+          #ifdef IS_DEBUG_RP_ONLY_RES
+          Logger::Info("RP Only pruning");
+          #endif
+          return false;
+        }
 
   if (prune_.nodeSup) {
     if (inst != NULL)
@@ -1526,15 +1531,30 @@ bool Enumerator::IsUseInRdyLst_() {
   InstCount brnchCnt = crntNode_->GetBranchCnt(isEmptyNode);
   SchedInstruction* inst;
   bool foundUse = false;
-  
+
+  #ifdef IS_DEBUG_RP_ONLY
+  Logger::Info("Looking for a use in the ready list with nodes:");
   for (int i = 0; i < brnchCnt - 1; i++) {
     inst = rdyLst_->GetNextPriorityInst();
     assert(inst != NULL);
+    Logger::Info("#%d:%d", i, inst->GetNum());
+  }
+  rdyLst_->ResetIterator();
+  #endif
 
-    if (inst->GetUseCnt() != 0) {
+  for (int i = 0; i < brnchCnt - 1; i++) {
+    inst = rdyLst_->GetNextPriorityInst();
+    assert(inst != NULL);
+    if (inst->GetAdjustedUseCnt() != 0 || dataDepGraph_->DoesFeedUser(inst)) {
       foundUse = true;
+      #ifdef IS_DEBUG_RP_ONLY
+      Logger::Info("Inst %d uses a register", inst->GetNum());
+      #endif
       break;
     }
+    #ifdef IS_DEBUG_RP_ONLY
+    Logger::Info("Inst %d does not use a register", inst->GetNum());
+    #endif
   }
 
   rdyLst_->ResetIterator();

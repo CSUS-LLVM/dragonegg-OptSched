@@ -51,6 +51,8 @@ class SchedRegion {
     inline int GetCostLwrBound() { return costLwrBound_; }
     // Returns the best cost found so far for this region.
     inline InstCount GetBestCost() { return bestCost_; }
+    // Returns a pointer to the list scheduler heurisitcs.
+    inline SchedPriorities GetHeuristicPriorities() { return hurstcPrirts_; }
 
     // TODO(max): Document.
     virtual FUNC_RESULT FindOptimalSchedule(bool useFileBounds,

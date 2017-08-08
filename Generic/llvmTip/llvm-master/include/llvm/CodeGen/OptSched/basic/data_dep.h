@@ -12,7 +12,6 @@ Last Update:  Mar. 2011
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/buffers.h"
 #include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
-#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include <memory>
 
 namespace opt_sched {
@@ -223,6 +222,8 @@ class DataDepGraph : public DirAcycGraph, public DataDepStruct {
 
     UDT_GLABEL GetMaxLtncySum();
     UDT_GLABEL GetMaxLtncy();
+
+    bool DoesFeedUser(SchedInstruction* inst);
 
     //Get a lower bound on the schedule length
     InstCount GetSchedLwrBound();

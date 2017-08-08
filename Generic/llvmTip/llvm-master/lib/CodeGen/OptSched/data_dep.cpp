@@ -3415,6 +3415,36 @@ bool DataDepGraph::IsPrblmtc() {
   return isPrblmtc_;
 }
 
+bool DataDepGraph::DoesFeedUser(SchedInstruction* inst) {
+  #ifdef IS_DEBUG_RP_ONLY
+  Logger::Info("Testing inst %d",inst->GetNum());
+  #endif
+  LinkedList<GraphNode>* rcrsvSuccs = inst->GetRcrsvNghbrLst(DIR_FRWRD);
+  for (GraphNode* succ = rcrsvSuccs->GetFrstElmnt();
+       succ != NULL;
+       succ = rcrsvSuccs->GetNxtElmnt()) {
+    SchedInstruction* succInst = static_cast<SchedInstruction*>(succ);
+    Register** uses;
+    int numUses = succInst->GetUses(uses);
+    
+    for (int i = 0; i < numUses; i++) {
+      #ifdef IS_DEBUG_RP_ONLY
+      Logger::Info("inst %d has reg %d which has flag live/not-live: %d", succInst->GetNum(), uses[i]->GetNum(), uses[i]->IsLive());
+      #endif
+      if (uses[i]->IsLive())
+        // If a register is live-in and live-out don't count it as a user.
+        if (!uses[i]->IsLiveOut())
+          return true;
+    }
+  }
+  // Return false if there is no recursive successor of inst
+  // that uses a live register.
+  #ifdef IS_DEBUG_RP_ONLY
+  Logger::Info("No recursive use for inst %d", inst->GetNum());
+  #endif
+  return false;
+}
+
 
 int DataDepGraph::GetFileCostUprBound() {
   return fileCostUprBound_;
@@ -3464,7 +3494,6 @@ bool DataDepSubGraph::IsInGraph(SchedInstruction* inst) {
   bool isIn = numToIndx_[instNum] != INVALID_VALUE;
   return isIn;
 }
-
 
 InstCount DataDepSubGraph::GetInstIndx(SchedInstruction* inst) {
   assert(inst != NULL);
