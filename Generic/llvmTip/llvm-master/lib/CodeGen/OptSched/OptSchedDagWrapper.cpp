@@ -37,11 +37,12 @@ LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext *context,
                                    LLVMMachineModel *machMdl,
                                    LATENCY_PRECISION ltncyPrcsn,
                                    MachineBasicBlock *BB,
+                                   GraphTransTypes graphTransTypes,
                                    ScheduleDAGTopologicalSort &Topo,
                                    bool treatOrderDepsAsDataDeps,
                                    int maxDagSizeForPrcisLtncy,
                                    int regionNum)
-    : DataDepGraph(machMdl, ltncyPrcsn), llvmNodes_(llvmDag->SUnits),
+    : DataDepGraph(machMdl, ltncyPrcsn, graphTransTypes), llvmNodes_(llvmDag->SUnits),
       context_(context), schedDag_(llvmDag), topo_(Topo), target_(llvmDag->TM) {
   llvmMachMdl_ = static_cast<LLVMMachineModel *>(machMdl_);
   dagFileFormat_ = DFF_BB;
@@ -123,8 +124,9 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
       instType = machMdl_->GetInstTypeByName("Default");
     }
 
+    Logger::Info("Creating node %d", unit.NodeNum);
     CreateNode_(unit.NodeNum, instName.c_str(), instType, opCode.c_str(),
-                0, // nodeID
+                unit.NodeNum, // nodeID
                 0, 0,
                 0,  // fileInstLwrBound
                 0,  // fileInstUprBound
@@ -201,7 +203,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   }
 
   // add edges between equivalent instructions
-  PreOrderEquivalentInstr();
+  //PreOrderEquivalentInstr();
 
   size_t maxNodeNum = llvmNodes_.size() - 1;
 
@@ -299,7 +301,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       Register *reg = regFiles[regType].GetReg(regIndices[regType]++);
       insts_[rootIndex]->AddDef(reg);
       reg->SetWght(weight);
-      reg->AddDef();
+      reg->AddDef(insts_[rootIndex]);
       reg->SetIsLiveIn(true);
 #ifdef IS_DEBUG_DEFS_AND_USES
     Logger::Info("Adding live-in def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), rootIndex);
@@ -332,7 +334,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       for (Register *reg : regs) {
         if (!insts_[rootIndex]->FindUse(reg)) {
           insts_[startNode->NodeNum]->AddUse(reg);
-          reg->AddUse();
+          reg->AddUse(insts_[startNode->NodeNum]);
           #ifdef IS_DEBUG_DEFS_AND_USES
           Logger::Info("Adding use for OptSched register: type: %lu number: %lu  NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
           #endif
@@ -355,7 +357,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
         Register *reg = regFiles[regType].GetReg(regIndices[regType]++);
         insts_[startNode->NodeNum]->AddDef(reg);
         reg->SetWght(weight);
-        reg->AddDef();
+        reg->AddDef(insts_[startNode->NodeNum]);
         #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("Adding def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
         #endif
@@ -382,7 +384,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
     for (Register *reg : regs) {
       if (!insts_[rootIndex]->FindUse(reg)) {
         insts_[leafIndex]->AddUse(reg);
-        reg->AddUse();
+        reg->AddUse(insts_[leafIndex]);
         reg->SetIsLiveOut(true);
         #ifdef IS_DEBUG_DEFS_AND_USES
         Logger::Info("Adding live-out use for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), leafIndex);
@@ -395,6 +397,63 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
     }
   }
+
+
+  // (Chris) Debug: Count the number of defs and uses for each register.
+  // Ensure that any changes to how opt_sched::Register tracks defs and uses
+  // doesn't change these values.
+  //
+  // Also, make sure that iterating through all the registers gives the same use
+  // and def count as iterating through all the instructions.
+  #if defined(IS_DEBUG_DEF_USE_COUNT)
+  auto regTypeCount = machMdl_->GetRegTypeCnt();
+  uint64_t defsFromRegs = 0;
+  uint64_t usesFromRegs = 0;
+  for (int i = 0; i < regTypeCount; ++i) {
+    for (int j = 0; j < regFiles[i].GetRegCnt(); ++j) {
+      const auto& myReg = regFiles[i].GetReg(j);
+      if (myReg->GetDefCnt() != myReg->GetSizeOfDefList()) {
+        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+                      "old def count %d!", dagID_,
+                      i, j, myReg->GetSizeOfDefList(), myReg->GetDefCnt());
+      }
+      if (myReg->GetUseCnt() != myReg->GetSizeOfUseList()) {
+        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+                      "old def count %d!", dagID_,
+                      i, j, myReg->GetSizeOfUseList(), myReg->GetUseCnt());
+      }
+      defsFromRegs += myReg->GetDefCnt();
+      usesFromRegs += myReg->GetUseCnt();
+    }
+  }
+  uint64_t defsFromInsts = 0ull;
+  uint64_t usesFromInsts = 0ull;
+  for (int k = 0; k < instCnt_; ++k) {
+    const auto& instruction = insts_[k];
+    // Dummy pointer; all that matters here is the length of the uses and defs
+    // arrays for each instruction.
+    Register** dummy;
+    defsFromInsts += instruction->GetDefs(dummy);
+    usesFromInsts += instruction->GetUses(dummy);
+  }
+  bool different = false;
+  if (defsFromInsts != defsFromRegs) {
+    different = true;
+    Logger::Error("Dag %s: Total def count from instructions (%llu) doesn't "
+                  "match total def count from registers (%llu)!",
+                  dagID_, defsFromInsts, defsFromRegs);
+  }
+  if (usesFromInsts != usesFromRegs) {
+    different = true;
+    Logger::Error("Dag %s: Total use count from instructions (%llu) doesn't "
+                  "match total use count from registers (%llu)!",
+                  dagID_, usesFromInsts, usesFromRegs);
+  }
+  if (different) {
+    Logger::Fatal("Encountered fatal error. Exiting.");
+  }
+  #endif
+
 }
 
 void LLVMDataDepGraph::PreOrderEquivalentInstr() {
@@ -594,6 +653,9 @@ std::vector<int>
 LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   const TargetRegisterInfo &TRI = *schedDag_->TRI;
   std::vector<int> pSetTypes;
+
+  //if (TRI.isPhysicalRegister(resNo))
+   // return pSetTypes;
 
   PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
   for (; PSetI.isValid(); ++PSetI) {

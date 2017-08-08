@@ -86,6 +86,8 @@ class GraphNode {
     // Adds a new edge to the successor list and does some magic.
     // TODO(max): Elaborate on magic.
     void AddScsr(GraphEdge* edge);
+    // Adds a new node as a recursive successor.
+    void AddRcrsvScsr(GraphNode* node);
     // Removes the last edge from the successor list and optionally deletes
     // the edge object. scsr must be the destination node of that edge.
     void RmvLastScsr(GraphNode* scsr, bool delEdg);
@@ -97,6 +99,8 @@ class GraphNode {
     // Adds a new edge to the predecessor list and does some magic.
     // TODO(max): Elaborate on magic.
     void AddPrdcsr(GraphEdge* edge);
+    // Adds a new node as a recursive predecessor.
+    void AddRcrsvPrdcsr(GraphNode* node);
     // Removes the last edge from the predecessor list and optionally deletes
     // the edge object. scsr must be the destination node of that edge.
     void RmvLastPrdcsr(GraphNode* prdcsr, bool delEdg);
@@ -138,6 +142,15 @@ class GraphNode {
     // Checks if a given node is successor-equivalent to this node. Two nodes
     // are successor-equivalent if they have identical successor lists.
     bool IsScsrEquvlnt(GraphNode* othrNode);
+    // Returns a pointer to the first Predecesor of the node. Sets the predecesor
+    // iterator.
+    GraphNode* GetFrstPrdcsr(UDT_GLABEL& label);
+    // Returns a pointer to the next predecessor of the node. Must be called after
+    // GetFrstPrdcsr() which starts the predecessor iterator.
+    GraphNode* GetNxtPrdcsr(UDT_GLABEL& label);
+    // Checks if a given node is predecessor-equivalent to this node. Two nodes
+    // are predecessor-equivalent if they have identical predecessor lists.
+    bool IsPrdcsrEquvlnt(GraphNode* othrNode);
     // Checks if the successor list of this node is dominated by the successor
     // list of the given node. This is the case when the successor list of this
     // node is a subset of that of the given node and each edge label from this
@@ -332,6 +345,16 @@ inline void GraphNode::AddScsr(GraphEdge* edge) {
   }
 }
 
+inline void GraphNode::AddRcrsvPrdcsr(GraphNode* node) {
+  rcrsvPrdcsrLst_->InsrtElmnt(node);
+  isRcrsvPrdcsr_->SetBit(node->GetNum());
+}
+
+inline void GraphNode::AddRcrsvScsr(GraphNode* node) {
+  rcrsvScsrLst_->InsrtElmnt(node);
+  isRcrsvScsr_->SetBit(node->GetNum());
+}
+
 inline void GraphNode::UpdtMaxEdgLbl(UDT_GLABEL label) {
   if (label > maxEdgLbl_) maxEdgLbl_ = label;
 }
@@ -398,6 +421,20 @@ inline GraphNode* GraphNode::GetFrstScsr(UDT_GLABEL& label) {
 
 inline GraphNode* GraphNode::GetNxtScsr(UDT_GLABEL& label) {
   GraphEdge* edge = scsrLst_->GetNxtElmnt();
+  if (edge == NULL) return NULL;
+  label = edge->label;
+  return edge->to;
+}
+
+inline GraphNode* GraphNode::GetFrstPrdcsr(UDT_GLABEL& label) {
+  GraphEdge* edge = prdcsrLst_->GetFrstElmnt();
+  if (edge == NULL) return NULL;
+  label = edge->label;
+  return edge->to;
+}
+
+inline GraphNode* GraphNode::GetNxtPrdcsr(UDT_GLABEL& label) {
+  GraphEdge* edge = prdcsrLst_->GetNxtElmnt();
   if (edge == NULL) return NULL;
   label = edge->label;
   return edge->to;

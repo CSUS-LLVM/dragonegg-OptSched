@@ -9,6 +9,7 @@ Last Update:  Mar. 2011
 #define OPTSCHED_GENERIC_BIT_VECTOR_H
 
 #include <cstring>
+#include <memory>
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/mem_mngr.h"
 
@@ -38,6 +39,12 @@ class BitVector {
     int GetOneCnt() const;
     // Returns the number of bits in the vector.
     int GetSize() const;
+    // Create a bit vector that is the "bitwise and" of this bit vector and
+    // another bit vector.
+    std::unique_ptr<BitVector> And(BitVector* otherBitVector) const;
+    // Returns true if this BitVector's one bits are a subset of "otherBitVector".
+    bool IsSubVector(BitVector* otherBitVector) const;
+
 
     // Assigns the values from src to the vector. Both vectors must be of the
     // same size.
@@ -120,6 +127,38 @@ inline bool BitVector::GetBit(int index) const {
   int unitNum = index / BITS_IN_UNIT;
   int bitNum = index - unitNum * BITS_IN_UNIT;
   return (vctr_[unitNum] & GetMask_(bitNum, true)) != 0;
+}
+
+inline bool BitVector::IsSubVector(BitVector* other) const {
+  assert(other != NULL);
+  // The other vector must be at least as large as this vector.
+  if (unitCnt_ > other->unitCnt_)
+    return false;
+
+  for (int i = 0; i < unitCnt_; i++) {
+    if ((vctr_[i] & other->vctr_[i]) != vctr_[i])
+      return false;
+  }
+  return true;
+}
+
+inline std::unique_ptr<BitVector> BitVector::And(BitVector* otherBitVector) const {
+  assert(otherBitVector != NULL);
+  // Set length to the larger of the two vectors
+  int bitCnt = bitCnt_ > otherBitVector->bitCnt_ ? bitCnt_ : otherBitVector->bitCnt_;
+  std::unique_ptr<BitVector> andedVector (new BitVector(bitCnt));
+
+  for (int i = 0; i < andedVector->unitCnt_; i++) {
+    andedVector->vctr_[i] = vctr_[i] & otherBitVector->vctr_[i];
+    
+    // TODO(austin) This may not be portable enough.
+    // This is a built in gcc function for counting the number of 1 bits
+    // in a number. When using x86 it should be inplemented as a single
+    // instruction ie "popcnt %rdi, %rax"
+    andedVector->oneCnt_ += __builtin_popcountll(andedVector->vctr_[i]);
+  }
+
+  return andedVector;
 }
 
 inline int BitVector::GetSize() const {

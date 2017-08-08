@@ -118,7 +118,7 @@ FUNC_RESULT BBWithSpill::BuildFromFile() {
     liveRegs_[i].Construct(regFiles_[i].GetRegCnt());
   }
  
- // dataDepGraph_->LogGraph();
+  //dataDepGraph_->LogGraph();
   
   return RES_SUCCESS;
 }

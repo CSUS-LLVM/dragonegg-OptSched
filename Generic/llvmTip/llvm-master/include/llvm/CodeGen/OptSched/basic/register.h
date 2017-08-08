@@ -2,7 +2,7 @@
 Description:  Implements generic register and register file classes.
 Author:       Ghassan Shobaki
 Created:      Jun. 2010
-Last Update:  Mar. 2011
+Last Update:  Jun. 2017
 *******************************************************************************/
 
 #ifndef OPTSCHED_BASIC_REGISTER_H
@@ -10,6 +10,8 @@ Last Update:  Mar. 2011
 
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/bit_vector.h"
+#include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
+#include <set>
 
 namespace opt_sched {
 
@@ -32,12 +34,16 @@ class Register {
     int GetPhysicalNumber() const;
     void SetPhysicalNumber(int physicalNumber);
 
-    void AddUse();
+    void AddUse(const SchedInstruction * inst);
     int GetUseCnt() const;
+    const std::set<const SchedInstruction *> GetUseList() const;
+    size_t GetSizeOfUseList() const;
     int GetCrntUseCnt() const;
 
-    void AddDef();
+    void AddDef(const SchedInstruction * inst);
     int GetDefCnt() const;
+    const std::set<const SchedInstruction *> GetDefList() const;
+    size_t GetSizeOfDefList() const;
 
     void AddCrntUse();
     void DelCrntUse();
@@ -47,7 +53,7 @@ class Register {
     void DcrmntCrntLngth();
     void ResetCrntLngth(); 
     int GetCrntLngth() const;
-    
+
     bool IsLive() const;
     // Live in registers are defined by the artifical entry node.
     bool IsLiveIn() const;
@@ -78,7 +84,16 @@ class Register {
     int wght_;
     bool liveIn_;
     bool liveOut_;
-    
+
+    // (Chris): The OptScheduler's Register class should keep track of all the
+    // instructions that defined this register and all the instructions that use
+    // this register. This makes it easy to identify any instruction that does
+    // not already belong to the live interval of this register. This also
+    // requires changes to the way defs and uses are added to this register.
+    //
+    // A std::set is used to ensure no duplicates are entered.
+    std::set<const SchedInstruction *> uses_;
+    std::set<const SchedInstruction *> defs_; 
 };
 
 // Represents a file of registers of a certain type and tracks their usages.
