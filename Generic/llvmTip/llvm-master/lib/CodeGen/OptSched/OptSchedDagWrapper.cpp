@@ -7,7 +7,6 @@ Description:  A wrapper that convert an LLVM ScheduleDAG to an OptSched
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
-#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
@@ -32,18 +31,15 @@ namespace opt_sched {
 
 using namespace llvm;
 
-LLVMDataDepGraph::LLVMDataDepGraph(MachineSchedContext *context,
-                                   ScheduleDAGMILive *llvmDag,
-                                   LLVMMachineModel *machMdl,
-                                   LATENCY_PRECISION ltncyPrcsn,
-                                   MachineBasicBlock *BB,
-                                   GraphTransTypes graphTransTypes,
-                                   ScheduleDAGTopologicalSort &Topo,
-                                   bool treatOrderDepsAsDataDeps,
-                                   int maxDagSizeForPrcisLtncy,
-                                   int regionNum)
-    : DataDepGraph(machMdl, ltncyPrcsn, graphTransTypes), llvmNodes_(llvmDag->SUnits),
-      context_(context), schedDag_(llvmDag), topo_(Topo), target_(llvmDag->TM) {
+LLVMDataDepGraph::LLVMDataDepGraph(
+    MachineSchedContext *context, ScheduleDAGMILive *llvmDag,
+    LLVMMachineModel *machMdl, LATENCY_PRECISION ltncyPrcsn,
+    MachineBasicBlock *BB, GraphTransTypes graphTransTypes,
+    ScheduleDAGTopologicalSort &Topo, bool treatOrderDepsAsDataDeps,
+    int maxDagSizeForPrcisLtncy, int regionNum)
+    : DataDepGraph(machMdl, ltncyPrcsn, graphTransTypes),
+      llvmNodes_(llvmDag->SUnits), context_(context), schedDag_(llvmDag),
+      topo_(Topo), target_(llvmDag->TM) {
   llvmMachMdl_ = static_cast<LLVMMachineModel *>(machMdl_);
   dagFileFormat_ = DFF_BB;
   isTraceFormat_ = false;
@@ -153,8 +149,8 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
     const MachineInstr *instr = unit.getInstr();
     for (SUnit::const_succ_iterator it = unit.Succs.begin();
          it != unit.Succs.end(); it++) {
-     // check if the successor is a boundary node
-     if (it->getSUnit()->isBoundaryNode())
+      // check if the successor is a boundary node
+      if (it->getSUnit()->isBoundaryNode())
         continue;
 
       DependenceType depType;
@@ -203,7 +199,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   }
 
   // add edges between equivalent instructions
-  //PreOrderEquivalentInstr();
+  // PreOrderEquivalentInstr();
 
   size_t maxNodeNum = llvmNodes_.size() - 1;
 
@@ -304,14 +300,17 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       reg->AddDef(insts_[rootIndex]);
       reg->SetIsLiveIn(true);
 #ifdef IS_DEBUG_DEFS_AND_USES
-    Logger::Info("Adding live-in def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), rootIndex);
+      Logger::Info("Adding live-in def for OptSched register: type: %lu "
+                   "number: %lu NodeNum: %lu",
+                   reg->GetType(), reg->GetNum(), rootIndex);
 #endif
       regs.push_back(reg);
     }
     lastDef[resNo] = regs;
 
 #ifdef IS_DEBUG_DEFS_AND_USES
-    Logger::Info("Adding live-in def for LLVM register: %lu NodeNum: %lu", resNo, rootIndex);
+    Logger::Info("Adding live-in def for LLVM register: %lu NodeNum: %lu",
+                 resNo, rootIndex);
 #endif
   }
 
@@ -335,15 +334,17 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
         if (!insts_[rootIndex]->FindUse(reg)) {
           insts_[startNode->NodeNum]->AddUse(reg);
           reg->AddUse(insts_[startNode->NodeNum]);
-          #ifdef IS_DEBUG_DEFS_AND_USES
-          Logger::Info("Adding use for OptSched register: type: %lu number: %lu  NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
-          #endif
+#ifdef IS_DEBUG_DEFS_AND_USES
+          Logger::Info("Adding use for OptSched register: type: %lu number: "
+                       "%lu  NodeNum: %lu",
+                       reg->GetType(), reg->GetNum(), startNode->NodeNum);
+#endif
         }
       }
-      #ifdef IS_DEBUG_DEFS_AND_USES
+#ifdef IS_DEBUG_DEFS_AND_USES
       Logger::Info("Adding use for LLVM register: %lu NodeNum: %lu", resNo,
                    startNode->NodeNum);
-      #endif
+#endif
     }
 
     // add defs
@@ -358,9 +359,11 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
         insts_[startNode->NodeNum]->AddDef(reg);
         reg->SetWght(weight);
         reg->AddDef(insts_[startNode->NodeNum]);
-        #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("Adding def for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), startNode->NodeNum);
-        #endif
+#ifdef IS_DEBUG_DEFS_AND_USES
+        Logger::Info("Adding def for OptSched register: type: %lu number: %lu "
+                     "NodeNum: %lu",
+                     reg->GetType(), reg->GetNum(), startNode->NodeNum);
+#endif
         regs.push_back(reg);
       }
       lastDef[resNo] = regs;
@@ -386,41 +389,43 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
         insts_[leafIndex]->AddUse(reg);
         reg->AddUse(insts_[leafIndex]);
         reg->SetIsLiveOut(true);
-        #ifdef IS_DEBUG_DEFS_AND_USES
-        Logger::Info("Adding live-out use for OptSched register: type: %lu number: %lu NodeNum: %lu", reg->GetType(), reg->GetNum(), leafIndex);
-        #endif
+#ifdef IS_DEBUG_DEFS_AND_USES
+        Logger::Info("Adding live-out use for OptSched register: type: %lu "
+                     "number: %lu NodeNum: %lu",
+                     reg->GetType(), reg->GetNum(), leafIndex);
+#endif
       }
-      #ifdef IS_DEBUG_DEFS_AND_USES
+#ifdef IS_DEBUG_DEFS_AND_USES
       Logger::Info("Adding live-out use for register: %lu NodeNum: %lu", resNo,
                    leafIndex);
-      #endif
-
+#endif
     }
   }
 
-
-  // (Chris) Debug: Count the number of defs and uses for each register.
-  // Ensure that any changes to how opt_sched::Register tracks defs and uses
-  // doesn't change these values.
-  //
-  // Also, make sure that iterating through all the registers gives the same use
-  // and def count as iterating through all the instructions.
-  #if defined(IS_DEBUG_DEF_USE_COUNT)
+// (Chris) Debug: Count the number of defs and uses for each register.
+// Ensure that any changes to how opt_sched::Register tracks defs and uses
+// doesn't change these values.
+//
+// Also, make sure that iterating through all the registers gives the same use
+// and def count as iterating through all the instructions.
+#if defined(IS_DEBUG_DEF_USE_COUNT)
   auto regTypeCount = machMdl_->GetRegTypeCnt();
   uint64_t defsFromRegs = 0;
   uint64_t usesFromRegs = 0;
   for (int i = 0; i < regTypeCount; ++i) {
     for (int j = 0; j < regFiles[i].GetRegCnt(); ++j) {
-      const auto& myReg = regFiles[i].GetReg(j);
+      const auto &myReg = regFiles[i].GetReg(j);
       if (myReg->GetDefCnt() != myReg->GetSizeOfDefList()) {
-        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
-                      "old def count %d!", dagID_,
-                      i, j, myReg->GetSizeOfDefList(), myReg->GetDefCnt());
+        Logger::Error(
+            "Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+            "old def count %d!",
+            dagID_, i, j, myReg->GetSizeOfDefList(), myReg->GetDefCnt());
       }
       if (myReg->GetUseCnt() != myReg->GetSizeOfUseList()) {
-        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
-                      "old def count %d!", dagID_,
-                      i, j, myReg->GetSizeOfUseList(), myReg->GetUseCnt());
+        Logger::Error(
+            "Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+            "old def count %d!",
+            dagID_, i, j, myReg->GetSizeOfUseList(), myReg->GetUseCnt());
       }
       defsFromRegs += myReg->GetDefCnt();
       usesFromRegs += myReg->GetUseCnt();
@@ -429,10 +434,10 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   uint64_t defsFromInsts = 0ull;
   uint64_t usesFromInsts = 0ull;
   for (int k = 0; k < instCnt_; ++k) {
-    const auto& instruction = insts_[k];
+    const auto &instruction = insts_[k];
     // Dummy pointer; all that matters here is the length of the uses and defs
     // arrays for each instruction.
-    Register** dummy;
+    Register **dummy;
     defsFromInsts += instruction->GetDefs(dummy);
     usesFromInsts += instruction->GetUses(dummy);
   }
@@ -452,8 +457,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   if (different) {
     Logger::Fatal("Encountered fatal error. Exiting.");
   }
-  #endif
-
+#endif
 }
 
 void LLVMDataDepGraph::PreOrderEquivalentInstr() {
@@ -485,11 +489,13 @@ void LLVMDataDepGraph::PreOrderEquivalentInstr() {
       next++;
 
       while (next != depthList[i].end()) {
-        const SUnit& startNode = llvmNodes_[*start];
-        const SUnit& nextNode = llvmNodes_[*next];
-        // Do not create edge if nodes are equivalent but there is a path from next node to
+        const SUnit &startNode = llvmNodes_[*start];
+        const SUnit &nextNode = llvmNodes_[*next];
+        // Do not create edge if nodes are equivalent but there is a path from
+        // next node to
         // start node. This will create a cycle.
-        if (nodesAreEquivalent(startNode, nextNode) && !topo_.IsReachable(&startNode, &nextNode)) {
+        if (nodesAreEquivalent(startNode, nextNode) &&
+            !topo_.IsReachable(&startNode, &nextNode)) {
 #if defined(IS_DEBUG_BUILD_DAG) || defined(IS_DEBUG_PRE_ORDER)
           Logger::Info("Nodes %d and %d are equivalent", *start, *next);
 #endif
@@ -532,9 +538,10 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                   E = srcNode.Succs.end();
        I != E; ++I) {
     SUnit *succ = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Source Instr: %d has succ %d", srcNode.NodeNum, succ->NodeNum);
-    #endif
+#ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Source Instr: %d has succ %d", srcNode.NodeNum,
+                 succ->NodeNum);
+#endif
     srcSuccs.insert(succ->NodeNum);
   }
 
@@ -543,9 +550,10 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                   E = dstNode.Succs.end();
        I != E; ++I) {
     SUnit *succ = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Destination Instr: %d has succ %d", dstNode.NodeNum, succ->NodeNum);
-    #endif
+#ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Destination Instr: %d has succ %d", dstNode.NodeNum,
+                 succ->NodeNum);
+#endif
     dstSuccs.insert(succ->NodeNum);
   }
 
@@ -557,9 +565,10 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                   E = srcNode.Preds.end();
        I != E; ++I) {
     SUnit *pred = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Source Instr: %d has pred %d", srcNode.NodeNum, pred->NodeNum);
-    #endif
+#ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Source Instr: %d has pred %d", srcNode.NodeNum,
+                 pred->NodeNum);
+#endif
     srcPreds.insert(pred->NodeNum);
   }
 
@@ -568,9 +577,10 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
                                   E = dstNode.Preds.end();
        I != E; ++I) {
     SUnit *pred = I->getSUnit();
-    #ifdef IS_DEBUG_PRE_ORDER
-    Logger::Info("Destination Instr: %d has pred %d", dstNode.NodeNum, pred->NodeNum);
-    #endif
+#ifdef IS_DEBUG_PRE_ORDER
+    Logger::Info("Destination Instr: %d has pred %d", dstNode.NodeNum,
+                 pred->NodeNum);
+#endif
     dstPreds.insert(pred->NodeNum);
   }
 
@@ -582,10 +592,11 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
     unsigned resNo = D.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
     for (int regType : regTypes) {
-     #ifdef IS_DEBUG_PRE_ORDER
-     Logger::Info("Source Instr: %d defines reg of type %s", srcNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-     #endif
-     srcDefs.push_back(regType);
+#ifdef IS_DEBUG_PRE_ORDER
+      Logger::Info("Source Instr: %d defines reg of type %s", srcNode.NodeNum,
+                   llvmMachMdl_->GetRegTypeName(regType).c_str());
+#endif
+      srcDefs.push_back(regType);
     }
   }
 
@@ -594,9 +605,11 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
     unsigned resNo = D.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
     for (int regType : regTypes) {
-      #ifdef IS_DEBUG_PRE_ORDER
-      Logger::Info("Destination Instr: %d defines reg of type %s", dstNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-      #endif
+#ifdef IS_DEBUG_PRE_ORDER
+      Logger::Info("Destination Instr: %d defines reg of type %s",
+                   dstNode.NodeNum,
+                   llvmMachMdl_->GetRegTypeName(regType).c_str());
+#endif
       dstDefs.push_back(regType);
     }
   }
@@ -612,9 +625,10 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
     unsigned resNo = U.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
     for (int regType : regTypes) {
-      #ifdef IS_DEBUG_PRE_ORDER
-      Logger::Info("Source Instr: %d uses reg of type %s", srcNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-      #endif
+#ifdef IS_DEBUG_PRE_ORDER
+      Logger::Info("Source Instr: %d uses reg of type %s", srcNode.NodeNum,
+                   llvmMachMdl_->GetRegTypeName(regType).c_str());
+#endif
       srcUses.push_back(regType);
     }
   }
@@ -624,9 +638,10 @@ bool LLVMDataDepGraph::nodesAreEquivalent(const SUnit &srcNode,
     unsigned resNo = U.RegUnit;
     std::vector<int> regTypes = GetRegisterType_(resNo);
     for (int regType : regTypes) {
-      #ifdef IS_DEBUG_PRE_ORDER
-      Logger::Info("Source Instr: %d uses reg of type %s", dstNode.NodeNum, llvmMachMdl_->GetRegTypeName(regType).c_str());
-      #endif
+#ifdef IS_DEBUG_PRE_ORDER
+      Logger::Info("Source Instr: %d uses reg of type %s", dstNode.NodeNum,
+                   llvmMachMdl_->GetRegTypeName(regType).c_str());
+#endif
       dstUses.push_back(regType);
     }
   }
@@ -646,23 +661,25 @@ int LLVMDataDepGraph::GetRegisterWeight_(const unsigned resNo) const {
   return PSetI.getWeight();
 }
 
-// A register type is an int value that corresponds to a register type in our scheduler.
-// We assign multiple register types to each register class in LLVM to account for all
+// A register type is an int value that corresponds to a register type in our
+// scheduler.
+// We assign multiple register types to each register class in LLVM to account
+// for all
 // register sets associated with the class.
 std::vector<int>
 LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   const TargetRegisterInfo &TRI = *schedDag_->TRI;
   std::vector<int> pSetTypes;
 
-  //if (TRI.isPhysicalRegister(resNo))
-   // return pSetTypes;
+  // if (TRI.isPhysicalRegister(resNo))
+  // return pSetTypes;
 
   PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
   for (; PSetI.isValid(); ++PSetI) {
-   const char *pSetName = TRI.getRegPressureSetName(*PSetI);
-   int type = llvmMachMdl_->GetRegTypeByName(pSetName);
+    const char *pSetName = TRI.getRegPressureSetName(*PSetI);
+    int type = llvmMachMdl_->GetRegTypeByName(pSetName);
 
-    pSetTypes.push_back(type); 
+    pSetTypes.push_back(type);
 #ifdef IS_DEBUG_REG_TYPES
     Logger::Info("Pset is %s", pSetName);
 #endif
