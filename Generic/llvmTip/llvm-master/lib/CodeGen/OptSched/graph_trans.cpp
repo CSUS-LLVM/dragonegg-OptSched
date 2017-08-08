@@ -128,19 +128,27 @@ bool RPOnlyNodeSupTrans::TryAddingSuperiorEdge_(SchedInstruction* nodeA, SchedIn
   bool isHeuristicISO = false;
   SchedRegion* region = GetSchedRegion_();
   SchedPriorities hurPrio = region->GetHeuristicPriorities();
-  if (hurPrio.cnt == 1 && (hurPrio.vctr[0] == LSH_ISO || hurPrio.vctr[0] == LSH_NID))
-    isHeuristicISO = true;
+  //if (hurPrio.cnt == 1 && (hurPrio.vctr[0] == LSH_ISO || hurPrio.vctr[0] == LSH_NID))
+  //  isHeuristicISO = true;
   
 	if (NodeIsSuperior_(nodeA, nodeB)) {
 		// If possible try to preserve NID order for ISO mode.
-		if (isHeuristicISO && nodeA->GetNum() > nodeB->GetNum() && NodeIsSuperior_(nodeB, nodeA)) {
-			#ifdef IS_DEBUG_GRAPH_TRANS
-				Logger::Info("Trying to preserve ISO order for nodes %d and %d", nodeA->GetNum(), nodeB->GetNum());
-			#endif
-		  AddSuperiorEdge_(nodeB, nodeA);
-		}
+    if (/*isHeuristicISO*/nodeA->GetNum() > nodeB->GetNum()) {
+		  if (NodeIsSuperior_(nodeB, nodeA)) {
+			  #ifdef IS_DEBUG_GRAPH_TRANS
+				  Logger::Info("Trying to preserve ISO order for nodes %d and %d", nodeA->GetNum(), nodeB->GetNum());
+			  #endif
+		    AddSuperiorEdge_(nodeB, nodeA);
+		  }
+      else {
+			  #ifdef IS_DEBUG_GRAPH_TRANS
+				  Logger::Info("ISO schedule invalidated for nodes %d and %d", nodeA->GetNum(), nodeB->GetNum());
+			  #endif
+		    AddSuperiorEdge_(nodeA, nodeB);
+      }
+    }
 		else {
-			AddSuperiorEdge_(nodeA, nodeB);
+		 AddSuperiorEdge_(nodeA, nodeB);
 		}
 		edgeWasAdded = true;
 	}
@@ -190,6 +198,7 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
       }
     }
   }
+  /* DISABLE MULTI_PASS
   // Try to add superior edges until there are no more independent nodes or no
   // edges can be added.
   didAddEdge = true;
@@ -216,6 +225,7 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
       }
     } 
   }
+  */
 
   return RES_SUCCESS;
 }
