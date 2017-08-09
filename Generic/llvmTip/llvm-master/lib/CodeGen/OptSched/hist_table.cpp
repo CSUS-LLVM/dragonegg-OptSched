@@ -353,8 +353,12 @@ void HistEnumTreeNode::SetCostInfo(EnumTreeNode*, bool, Enumerator*) {
   // Nothing.
 }
 
-const std::vector<SchedInstruction*>& HistEnumTreeNode::GetSuffix() const {
+const std::shared_ptr<std::vector<SchedInstruction*>>& HistEnumTreeNode::GetSuffix() const {
   return suffix_;
+}
+
+void HistEnumTreeNode::SetSuffix(const std::shared_ptr<std::vector<SchedInstruction*>>& suffix) {
+  suffix_ = suffix;
 }
 
 std::vector<InstCount> HistEnumTreeNode::GetPrefix() const {
@@ -512,7 +516,8 @@ void CostHistEnumTreeNode::SetCostInfo(EnumTreeNode* node, bool, Enumerator*) {
   partialCost_ = node->GetCostLwrBound();
   totalCost_ = node->GetTotalCost();
   totalCostIsActualCost_ = node->GetTotalCostIsActualCost();
-  suffix_ = node->GetSuffix();
+  if (suffix_ == nullptr && node->GetSuffix().size() > 0)
+    suffix_ = std::make_shared<std::vector<SchedInstruction*>>(node->GetSuffix());
 
   #ifdef IS_DEBUG
   costInfoSet_ = true;

@@ -12,6 +12,7 @@ Last Update:  Mar. 2011
 #include <cstdio>
 #include <iostream>
 #include <vector>
+#include <memory>
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/hash_table.h"
 #include "llvm/CodeGen/OptSched/generic/mem_mngr.h"
@@ -47,7 +48,8 @@ class HistEnumTreeNode {
     virtual void SetCostInfo(EnumTreeNode* node,
                              bool isTemp,
                              Enumerator* enumrtr);
-    const std::vector<SchedInstruction*>& GetSuffix() const;
+    const std::shared_ptr<std::vector<SchedInstruction*>>& GetSuffix() const;
+    void SetSuffix(const std::shared_ptr<std::vector<SchedInstruction*>>& suffix);
     std::vector<InstCount> GetPrefix() const;
 
   protected:
@@ -67,7 +69,7 @@ class HistEnumTreeNode {
     ReserveSlot* rsrvSlots_;
 
     // (Chris)
-    std::vector<SchedInstruction*> suffix_;
+    std::shared_ptr<std::vector<SchedInstruction*>> suffix_;
 
     InstCount SetLastInsts_(SchedInstruction* lastInsts[],
                               InstCount thisTime,

@@ -755,7 +755,9 @@ void printVector(const std::vector<InstCount> &v, const char *label) {
   Logger::Info("%s: %s", label, s.str().c_str());
 }
 
-void CheckHistNodeMatches(EnumTreeNode* const node, HistEnumTreeNode* const histNode, const char* loc = "CheckHistNodeMatches") {
+void CheckHistNodeMatches(EnumTreeNode *const node,
+                          HistEnumTreeNode *const histNode,
+                          const char *loc = "CheckHistNodeMatches") {
 #if defined(IS_DEBUG_SUFFIX_SCHED)
   auto histPrefix = histNode->GetPrefix();
   auto currPrefix = [&]() {
@@ -771,26 +773,31 @@ void CheckHistNodeMatches(EnumTreeNode* const node, HistEnumTreeNode* const hist
   if (histPrefix.size() != currPrefix.size()) {
     printVector(histPrefix, "HistPrefix");
     printVector(currPrefix, "CurrPrefix");
-    Logger::Fatal("%s: Hist prefix size %llu doesn't match current prefix %llu!", loc, histPrefix.size(), currPrefix.size());
+    Logger::Fatal(
+        "%s: Hist prefix size %llu doesn't match current prefix %llu!", loc,
+        histPrefix.size(), currPrefix.size());
   }
   if (histPrefix != currPrefix) {
     printVector(histPrefix, "HistPrefix");
     printVector(currPrefix, "CurrPrefix");
-    Logger::Fatal("%s: Hist prefix and current prefix are not permutations of each other!", loc, histPrefix.size(), currPrefix.size());
+    Logger::Fatal("%s: Hist prefix and current prefix are not permutations of "
+                  "each other!",
+                  loc, histPrefix.size(), currPrefix.size());
   }
 #endif
 }
 
-std::vector<HistEnumTreeNode *>
+HistEnumTreeNode *
 FindMatchingHistNodes(EnumTreeNode *const node, bool isHistDom,
-                      BinHashTable<HistEnumTreeNode> *const exmndSubProbs, Enumerator* const enumerator) {
-  std::vector<HistEnumTreeNode *> nodes;
+                      BinHashTable<HistEnumTreeNode> *const exmndSubProbs,
+                      Enumerator *const enumerator) {
+  HistEnumTreeNode *histNode = nullptr;
   if (isHistDom && exmndSubProbs != nullptr &&
       exmndSubProbs->GetEntryCnt() > 0) {
-    for (auto histNode = exmndSubProbs->GetLastMatch(node->GetSig());
+    for (histNode = exmndSubProbs->GetLastMatch(node->GetSig());
          histNode != nullptr; histNode = exmndSubProbs->GetPrevMatch()) {
       if (!histNode->DoesMatch(node, enumerator)) {
-#if defined(IS_DEBUG_SCHED_SUFFIX)
+#if defined(IS_DEBUG_SUFFIX_SCHED)
         auto histPrefix = histNode->GetPrefix();
         auto currPrefix = [&]() {
           std::vector<InstCount> prefix;
@@ -805,104 +812,120 @@ FindMatchingHistNodes(EnumTreeNode *const node, bool isHistDom,
         Logger::Info(
             "History node does not match current node. Continuing search.");
 #endif
-        continue;
       }
-      CheckHistNodeMatches(node, histNode, "FindMatchingHistNodes: CheckHistNodeMatches");
-      if (histNode->GetSuffix().size() > 0)
-        nodes.push_back(histNode);
+      else {
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+        if (histNode->GetSuffix() != nullptr && histNode->GetSuffix()->size() == 0)
+          Logger::Fatal("Hist node has a suffix of size zero!");
+#endif
+        break;
+      }
     }
   }
-  return nodes;
+  if (histNode != nullptr && (histNode->GetSuffix() == nullptr || histNode->GetSuffix()->size() == 0))
+    return nullptr;
+  return histNode;
 }
 
-void PrintSchedule(InstSchedule* const sched, Logger::LOG_LEVEL level = Logger::INFO) {
+void PrintSchedule(InstSchedule *const sched,
+                   Logger::LOG_LEVEL level = Logger::INFO) {
   InstCount cycle, slot;
   std::stringstream s;
-  for (auto inst = sched->GetFrstInst(cycle, slot); inst != INVALID_VALUE; inst = sched->GetNxtInst(cycle, slot)) {
+  for (auto inst = sched->GetFrstInst(cycle, slot); inst != INVALID_VALUE;
+       inst = sched->GetNxtInst(cycle, slot)) {
     s << inst << ' ';
   }
   Logger::Log(level, false, "Schedule: %s", s.str().c_str());
 }
-bool AppendAndCheckSuffixSchedules(
-    const std::vector<HistEnumTreeNode *> &matchingHistNodesWithSuffixes,
-    SchedRegion *const rgn_, InstSchedule *const crntSched_,
-    InstCount trgtSchedLngth_, LengthCostEnumerator *const thisAsLengthCostEnum,
+void AppendAndCheckSuffixSchedules(
+    HistEnumTreeNode *const matchingHistNodeWithSuffix, SchedRegion *const rgn_,
+    InstSchedule *const crntSched_, InstCount trgtSchedLngth_,
+    LengthCostEnumerator *const thisAsLengthCostEnum,
     EnumTreeNode *const crntNode_, DataDepGraph *const dataDepGraph_) {
+  assert(matchingHistNodeWithSuffix != nullptr && "Hist node is null");
+  assert(matchingHistNodeWithSuffix->GetSuffix() != nullptr &&
+         "Hist node suffix is null");
+  assert(matchingHistNodeWithSuffix->GetSuffix()->size() > 0 &&
+         "Hist node suffix size is zero");
   // For each matching history node, concatenate the suffix with the
   // current schedule and check to see if it's better than the best
   // schedule found so far.
   auto concatSched = std::unique_ptr<InstSchedule>(rgn_->AllocNewSched_());
-  for (auto histNode : matchingHistNodesWithSuffixes) {
-    // Get the prefix.
-    concatSched->Copy(crntSched_);
+  // Get the prefix.
+  concatSched->Copy(crntSched_);
 
 #if defined(IS_DEBUG_SUFFIX_SCHED)
-    {
-      auto prefix = histNode->GetPrefix();
-      if (prefix.size() != crntSched_->GetCrntLngth()) {
-        PrintSchedule(crntSched_, Logger::ERROR);
-        std::stringstream s;
-        for (auto j : prefix) s << j << ' ';
-        Logger::Error("Prefix: %s", s.str().c_str());
-        s.str("");
-        for (auto j : histNode->GetSuffix()) s << (j == nullptr ? SCHD_STALL : j->GetNum()) << ' ';
-        Logger::Error("SUffix: %s", s.str().c_str());
-        Logger::Fatal("Hist node prefix size %llu doesn't match current sched length %d!", prefix.size(), crntSched_->GetCrntLngth());
-      }
-    }
-#endif
-
-    // Concatenate the suffix.
-    for (auto inst : histNode->GetSuffix())
-      concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
-
-    // Update and check.
-
-#if defined(IS_DEBUG_SUFFIX_SCHED)
-    if (concatSched->GetCrntLngth() != trgtSchedLngth_) {
-      PrintSchedule(concatSched.get(), Logger::ERROR);
+  {
+    auto prefix = matchingHistNodeWithSuffix->GetPrefix();
+    if (prefix.size() != crntSched_->GetCrntLngth()) {
       PrintSchedule(crntSched_, Logger::ERROR);
       std::stringstream s;
-      auto prefix = histNode->GetPrefix();
-      for (auto j : prefix) s << j << ' ';
+      for (auto j : prefix)
+        s << j << ' ';
       Logger::Error("Prefix: %s", s.str().c_str());
       s.str("");
-      for (auto j : histNode->GetSuffix()) s << (j == nullptr ? SCHD_STALL : j->GetNum()) << ' ';
+      for (auto j : *matchingHistNodeWithSuffix->GetSuffix())
+        s << (j == nullptr ? SCHD_STALL : j->GetNum()) << ' ';
       Logger::Error("SUffix: %s", s.str().c_str());
-      Logger::Fatal("Suffix Scheduling: Concatenated schedule length %d "
-                    "does not meet target length %d!",
-                    concatSched->GetCrntLngth(), trgtSchedLngth_);
+      Logger::Fatal(
+          "Hist node prefix size %llu doesn't match current sched length %d!",
+          prefix.size(), crntSched_->GetCrntLngth());
     }
+  }
 #endif
-    auto oldCost = thisAsLengthCostEnum->GetBestCost();
-    auto newCost =
-        rgn_->UpdtOptmlSched(concatSched.get(), thisAsLengthCostEnum);
+
+  // Concatenate the suffix.
+  for (auto inst : *matchingHistNodeWithSuffix->GetSuffix())
+    concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
+
+// Update and check.
+
 #if defined(IS_DEBUG_SUFFIX_SCHED)
-    Logger::Info("Found a concatenated schedule with node instruction %d",
-                 crntNode_->GetInstNum());
+  if (concatSched->GetCrntLngth() != trgtSchedLngth_) {
+    PrintSchedule(concatSched.get(), Logger::ERROR);
+    PrintSchedule(crntSched_, Logger::ERROR);
+    std::stringstream s;
+    auto prefix = matchingHistNodeWithSuffix->GetPrefix();
+    for (auto j : prefix)
+      s << j << ' ';
+    Logger::Error("Prefix: %s", s.str().c_str());
+    s.str("");
+    for (auto j : *matchingHistNodeWithSuffix->GetSuffix())
+      s << (j == nullptr ? SCHD_STALL : j->GetNum()) << ' ';
+    Logger::Error("SUffix: %s", s.str().c_str());
+    Logger::Fatal("Suffix Scheduling: Concatenated schedule length %d "
+                  "does not meet target length %d!",
+                  concatSched->GetCrntLngth(), trgtSchedLngth_);
+  }
 #endif
-    if (newCost < oldCost) {
+  auto oldCost = thisAsLengthCostEnum->GetBestCost();
+  auto newCost = rgn_->UpdtOptmlSched(concatSched.get(), thisAsLengthCostEnum);
 #if defined(IS_DEBUG_SUFFIX_SCHED)
-      Logger::Info("Suffix Scheduling: Concatenated schedule has better "
-                   "cost %d than best schedule %d!",
-                   newCost, oldCost);
+  Logger::Info("Found a concatenated schedule with node instruction %d",
+               crntNode_->GetInstNum());
 #endif
-      // Don't forget to update the total cost and suffix for this node,
-      // because we intentionally backtrack without visiting its
-      // children.
-      crntNode_->SetTotalCost(newCost);
-      crntNode_->SetTotalCostIsActualCost(true);
-      crntNode_->SetSuffix(histNode->GetSuffix());
-      if (newCost == 0) {
-        Logger::Info("Suffix Scheduling: ***GOOD*** Schedule of cost 0 was found!");
-      }
-    } else {
+  if (newCost < oldCost) {
 #if defined(IS_DEBUG_SUFFIX_SCHED)
-      Logger::Info("Suffix scheduling: Concatenated schedule does not have "
-                   "better cost %d than best schedule %d.",
-                   newCost, oldCost);
+    Logger::Info("Suffix Scheduling: Concatenated schedule has better "
+                 "cost %d than best schedule %d!",
+                 newCost, oldCost);
 #endif
+    // Don't forget to update the total cost and suffix for this node,
+    // because we intentionally backtrack without visiting its
+    // children.
+    crntNode_->SetTotalCost(newCost);
+    crntNode_->SetTotalCostIsActualCost(true);
+    crntNode_->SetSuffix(*matchingHistNodeWithSuffix->GetSuffix());
+    if (newCost == 0) {
+      Logger::Info(
+          "Suffix Scheduling: ***GOOD*** Schedule of cost 0 was found!");
     }
+  } else {
+#if defined(IS_DEBUG_SUFFIX_SCHED)
+    Logger::Info("Suffix scheduling: Concatenated schedule does not have "
+                 "better cost %d than best schedule %d.",
+                 newCost, oldCost);
+#endif
   }
 
   // Before backtracking, reset the SchedRegion state to where it was before
@@ -962,18 +985,18 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule *sched,
       StepFrwrd_(nxtNode);
 
       // Find matching history nodes with suffixes.
-      auto matchingHistNodesWithSuffixes = FindMatchingHistNodes(nxtNode, IsHistDom(), exmndSubProbs_, this);
+      auto matchingHistNodesWithSuffix = FindMatchingHistNodes(nxtNode, IsHistDom(), exmndSubProbs_, this);
 
       // If there are no such matches, continue the search. Else,
       // generate concatenated schedules.
-      if (!IsHistDom() || matchingHistNodesWithSuffixes.size() == 0) {
+      if (!IsHistDom() || matchingHistNodesWithSuffix == nullptr) {
         // If a branch from the current node that leads to a feasible node has
         // been found, move on down the tree to that feasible node.
         isCrntNodeFsbl = true;
       }
       else {
         assert(this->IsCostEnum() && "Not a LengthCostEnum instance!");
-        AppendAndCheckSuffixSchedules(matchingHistNodesWithSuffixes, rgn_, crntSched_, trgtSchedLngth_, static_cast<LengthCostEnumerator *>(this), crntNode_, dataDepGraph_);
+        AppendAndCheckSuffixSchedules(matchingHistNodesWithSuffix, rgn_, crntSched_, trgtSchedLngth_, static_cast<LengthCostEnumerator *>(this), crntNode_, dataDepGraph_);
         isCrntNodeFsbl = BackTrack_();
       }
     } else {
@@ -1353,15 +1376,16 @@ void Enumerator::InitNewNode_(EnumTreeNode* newNode) {
   crntNode_->SetNum(createdNodeCnt_);
 }
 /*****************************************************************************/
-static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
-                          EnumTreeNode *const parentNode) {
+namespace {
+void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
+                              EnumTreeNode *const parentNode) {
   // (Chris): Before archiving, set the total cost info of this node. If it's a
   // leaf node, then the total cost is the current cost. If it's an inner node,
   // then the total cost either has already been set (if one of its children had
   // a real cost), or hasn't been set, which means the total cost right now is
   // the dynamic lower bound of this node.
-  
-  std::vector<SchedInstruction*> parentSuffix;
+
+  std::vector<SchedInstruction *> parentSuffix;
   parentSuffix.reserve(currentNode->GetSuffix().size() + 1);
   parentSuffix.push_back(currentNode->GetInst());
   if (currentNode->IsLeaf()) {
@@ -1384,7 +1408,8 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
   }
 
 #if defined(IS_DEBUG_SUFFIX_SCHED)
-  if (currentNode->GetTotalCostIsActualCost() && currentNode->GetTotalCost() == -1) {
+  if (currentNode->GetTotalCostIsActualCost() &&
+      currentNode->GetTotalCost() == -1) {
     Logger::Fatal("Actual cost was not set even though its flag was!");
   }
 #endif
@@ -1394,7 +1419,8 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
   // parent node's cost.
   if (parentNode != nullptr) {
     if (currentNode->GetTotalCostIsActualCost()) {
-      parentSuffix.insert(parentSuffix.end(), currentNode->GetSuffix().begin(), currentNode->GetSuffix().end());
+      parentSuffix.insert(parentSuffix.end(), currentNode->GetSuffix().begin(),
+                          currentNode->GetSuffix().end());
       if (!parentNode->GetTotalCostIsActualCost()) {
 #if defined(IS_DEBUG_ARCHIVE)
         Logger::Info("Current node has a real cost, but its parent doesn't. "
@@ -1416,8 +1442,8 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
     }
   }
 
-  // (Chris): Ensure that the prefix and the suffix of the current node contain
-  // no common instructions. This can be compiled out once the code is working.
+// (Chris): Ensure that the prefix and the suffix of the current node contain
+// no common instructions. This can be compiled out once the code is working.
 #if defined(IS_DEBUG_SUFFIX_SCHED)
   std::vector<InstCount> prefix;
   for (auto n = currentNode; n != nullptr; n = n->GetParent())
@@ -1433,24 +1459,45 @@ static void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
   std::sort(sortedSuffix.begin(), sortedSuffix.end());
 
   std::vector<InstCount> intersection;
-  std::set_intersection(sortedPrefix.begin(), sortedPrefix.end(), sortedSuffix.begin(),
-    sortedSuffix.end(), std::back_inserter(intersection));
+  std::set_intersection(sortedPrefix.begin(), sortedPrefix.end(),
+                        sortedSuffix.begin(), sortedSuffix.end(),
+                        std::back_inserter(intersection));
 
-  auto printVector = [](const std::vector<InstCount>& v, const char* prefix) {
+  auto printVector = [](const std::vector<InstCount> &v, const char *prefix) {
     std::stringstream s;
-    for (auto i : v) s << i << ' ';
+    for (auto i : v)
+      s << i << ' ';
     Logger::Error("SetTotalCostsAndSuffixes: %s: %s", prefix, s.str().c_str());
   };
   if (intersection.size() != 0) {
     printVector(prefix, "prefix");
     printVector(suffix, "suffix");
     printVector(intersection, "intersection");
-    Logger::Error("SetTotalCostsAndSuffixes: Error occurred when archiving node with InstNum %d", currentNode->GetInstNum());
-    Logger::Fatal("Prefix schedule and suffix schedule contain common instructions!");
+    Logger::Error("SetTotalCostsAndSuffixes: Error occurred when archiving "
+                  "node with InstNum %d",
+                  currentNode->GetInstNum());
+    Logger::Fatal(
+        "Prefix schedule and suffix schedule contain common instructions!");
   }
-  CheckHistNodeMatches(currentNode, currentNode->GetHistory(), "SetTotalCostsAndSuffixes: CheckHistNodeMatches");
+  CheckHistNodeMatches(currentNode, currentNode->GetHistory(),
+                       "SetTotalCostsAndSuffixes: CheckHistNodeMatches");
 #endif
 }
+
+void CopySuffixToNextHistNode(BinHashTable<HistEnumTreeNode>* exmndSubProbs_, EnumTreeNode* const crntNode_, Enumerator* const en) {
+  auto matchingHistNodeWithSuffix = [&]() {
+    HistEnumTreeNode* histNode = nullptr;
+    for (histNode = exmndSubProbs_->GetLastMatch(crntNode_->GetSig()); histNode != nullptr; histNode = exmndSubProbs_->GetPrevMatch()) {
+      if (histNode->DoesMatch(crntNode_, en) && histNode->GetSuffix() != nullptr)
+        break;
+    }
+    return histNode;
+  }();
+  if (matchingHistNodeWithSuffix != nullptr) {
+    crntNode_->GetHistory()->SetSuffix(matchingHistNodeWithSuffix->GetSuffix());
+  }
+}
+} // namespace
 
 bool Enumerator::BackTrack_() {
   bool fsbl = true;
@@ -1462,6 +1509,7 @@ bool Enumerator::BackTrack_() {
   if (IsHistDom()) {
     assert(!crntNode_->IsArchived());
     HistEnumTreeNode* crntHstry = crntNode_->GetHistory();
+    CopySuffixToNextHistNode(exmndSubProbs_, crntNode_, this);
     exmndSubProbs_->InsertElement(crntNode_->GetSig(), crntHstry,
                                   hashTblEntryAlctr_);
     SetTotalCostsAndSuffixes(crntNode_, trgtNode);
