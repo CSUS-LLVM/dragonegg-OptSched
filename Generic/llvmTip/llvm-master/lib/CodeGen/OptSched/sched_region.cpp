@@ -92,20 +92,20 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   Stats::problemSize.Record(dataDepGraph_->GetInstCnt());
 
+  // Setup graph transformations
+  dataDepGraph_->InitGraphTrans();
+  std::unique_ptr<GraphTrans>* graphTrans = dataDepGraph_->GetGraphTrans();
+
   // In the future if we apply graph transformations that require the transitive closure to be
   // computed this will have to be changed. Or if there is some other reason that we may want
   // the transitive closure to be computed when only using the list scheduler.
-  if (rgnTimeout > 0) needTrnstvClsr_ = true; 
+  if (rgnTimeout > 0 || dataDepGraph_->GetGraphTransCnt() > 0) needTrnstvClsr_ = true; 
   rslt = dataDepGraph_->SetupForSchdulng(needTrnstvClsr_);
   if (rslt != RES_SUCCESS ) {
    Logger::Info("Invalid input DAG");
    return rslt;
   }
   
-  // Setup graph transformations
-  dataDepGraph_->InitGraphTrans();
-  std::unique_ptr<GraphTrans>* graphTrans = dataDepGraph_->GetGraphTrans();
-
   // Apply graph transformations
   for (InstCount i = 0; i < dataDepGraph_->GetGraphTransCnt(); i++) {
       rslt = graphTrans[i]->ApplyTrans();
