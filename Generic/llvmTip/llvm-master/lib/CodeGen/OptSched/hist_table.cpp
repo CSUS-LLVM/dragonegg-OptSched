@@ -26,6 +26,7 @@ void HistEnumTreeNode::Construct(EnumTreeNode* node, bool) {
   #endif
 
   crntCycleBlkd_ = node->crntCycleBlkd_;
+  suffix_ = nullptr;
   SetRsrvSlots_(node);
 }
 

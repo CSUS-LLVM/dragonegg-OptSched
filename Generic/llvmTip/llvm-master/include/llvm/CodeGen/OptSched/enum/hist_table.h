@@ -69,7 +69,7 @@ class HistEnumTreeNode {
     ReserveSlot* rsrvSlots_;
 
     // (Chris)
-    std::shared_ptr<std::vector<SchedInstruction*>> suffix_;
+    std::shared_ptr<std::vector<SchedInstruction*>> suffix_ = nullptr;
 
     InstCount SetLastInsts_(SchedInstruction* lastInsts[],
                               InstCount thisTime,

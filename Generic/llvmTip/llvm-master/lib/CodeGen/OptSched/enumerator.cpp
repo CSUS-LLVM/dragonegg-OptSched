@@ -915,7 +915,7 @@ void AppendAndCheckSuffixSchedules(
     // children.
     crntNode_->SetTotalCost(newCost);
     crntNode_->SetTotalCostIsActualCost(true);
-    crntNode_->SetSuffix(*matchingHistNodeWithSuffix->GetSuffix());
+    //crntNode_->SetSuffix(*matchingHistNodeWithSuffix->GetSuffix());
     if (newCost == 0) {
       Logger::Info(
           "Suffix Scheduling: ***GOOD*** Schedule of cost 0 was found!");
@@ -1378,16 +1378,13 @@ void Enumerator::InitNewNode_(EnumTreeNode* newNode) {
 /*****************************************************************************/
 namespace {
 void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
-                              EnumTreeNode *const parentNode) {
+                              EnumTreeNode *const parentNode, InstCount const targetLength) {
   // (Chris): Before archiving, set the total cost info of this node. If it's a
   // leaf node, then the total cost is the current cost. If it's an inner node,
   // then the total cost either has already been set (if one of its children had
   // a real cost), or hasn't been set, which means the total cost right now is
   // the dynamic lower bound of this node.
 
-  std::vector<SchedInstruction *> parentSuffix;
-  parentSuffix.reserve(currentNode->GetSuffix().size() + 1);
-  parentSuffix.push_back(currentNode->GetInst());
   if (currentNode->IsLeaf()) {
 #if defined(IS_DEBUG_ARCHIVE)
     Logger::Info("Leaf node total cost %d", currentNode->GetCost());
@@ -1417,10 +1414,15 @@ void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
   // (Chris): If this node has an actual cost associated with the best schedule,
   // we want to propagate it backward only if this node's cost is less than the
   // parent node's cost.
+  std::vector<SchedInstruction *> parentSuffix;
   if (parentNode != nullptr) {
     if (currentNode->GetTotalCostIsActualCost()) {
-      parentSuffix.insert(parentSuffix.end(), currentNode->GetSuffix().begin(),
-                          currentNode->GetSuffix().end());
+      if (currentNode->IsLeaf() || (!currentNode->IsLeaf() && currentNode->GetSuffix().size() > 0)) {
+        parentSuffix.reserve(currentNode->GetSuffix().size() + 1);
+        parentSuffix.push_back(currentNode->GetInst());
+        parentSuffix.insert(parentSuffix.end(), currentNode->GetSuffix().begin(),
+          currentNode->GetSuffix().end());
+      }
       if (!parentNode->GetTotalCostIsActualCost()) {
 #if defined(IS_DEBUG_ARCHIVE)
         Logger::Info("Current node has a real cost, but its parent doesn't. "
@@ -1446,8 +1448,10 @@ void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
 // no common instructions. This can be compiled out once the code is working.
 #if defined(IS_DEBUG_SUFFIX_SCHED)
   std::vector<InstCount> prefix;
-  for (auto n = currentNode; n != nullptr; n = n->GetParent())
-    prefix.push_back(n->GetInstNum());
+  for (auto n = currentNode; n != nullptr; n = n->GetParent()) {
+    if (n->GetInstNum() != SCHD_STALL)
+      prefix.push_back(n->GetInstNum());
+  }
   auto sortedPrefix = prefix;
   std::sort(sortedPrefix.begin(), sortedPrefix.end());
 
@@ -1478,6 +1482,11 @@ void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
                   currentNode->GetInstNum());
     Logger::Fatal(
         "Prefix schedule and suffix schedule contain common instructions!");
+  }
+  if (suffix.size() > 0 && suffix.size() + prefix.size() != targetLength) {
+    printVector(prefix, "prefix");
+    printVector(suffix, "suffix");
+    Logger::Fatal("Sum of suffix (%llu) and prefix (%llu) sizes doesn't match target length %d!", suffix.size(), prefix.size(), targetLength);
   }
   CheckHistNodeMatches(currentNode, currentNode->GetHistory(),
                        "SetTotalCostsAndSuffixes: CheckHistNodeMatches");
@@ -1512,7 +1521,7 @@ bool Enumerator::BackTrack_() {
     CopySuffixToNextHistNode(exmndSubProbs_, crntNode_, this);
     exmndSubProbs_->InsertElement(crntNode_->GetSig(), crntHstry,
                                   hashTblEntryAlctr_);
-    SetTotalCostsAndSuffixes(crntNode_, trgtNode);
+    SetTotalCostsAndSuffixes(crntNode_, trgtNode, trgtSchedLngth_);
     crntNode_->Archive();
   } else {
     assert(crntNode_->IsArchived() == false);
