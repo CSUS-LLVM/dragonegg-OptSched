@@ -3043,6 +3043,7 @@ bool InstSchedule::Verify(MachineModel* machMdl, DataDepGraph* dataDepGraph) {
 #endif
 
   Logger::Info("Schedule verified successfully");
+
   return true;
 }
 

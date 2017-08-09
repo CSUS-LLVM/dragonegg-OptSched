@@ -717,7 +717,6 @@ bool BBWithSpill::ChkInstLglty(SchedInstruction *inst) {
 }
 
 bool BBWithSpill::ChkSchedule_ (InstSchedule* bestSched, InstSchedule* lstSched) {
-Logger::Info("Checking schedule. bestSched = %p, lstSched = %p", bestSched, lstSched);
   if (bestSched == NULL || bestSched == lstSched) return true;
   if (chkSpillCostSum_) {
 

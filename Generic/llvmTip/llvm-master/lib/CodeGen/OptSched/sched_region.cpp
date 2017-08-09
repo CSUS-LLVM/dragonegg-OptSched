@@ -176,8 +176,6 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
                                   "CP Lower Bounds");
   #endif
 
-  if (rgnTimeout == 0) isLstOptml = true;
-
   if (EnableEnum_() == false) {
     delete lstSchdulr;
     return RES_FAIL;
@@ -207,12 +205,19 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
         enumBestSched_->Print(Logger::GetLogStream(), "Optimal");
       #endif
     }
-  } else {
-      if (rgnTimeout == 0)
-        Logger::Info("Bypassing optimal scheduling due to zero time limit with cost %d", bestCost_);
-      else
-        Logger::Info("The list schedule of length %d and cost %d is optimal.",
+  }
+  else if (rgnTimeout == 0) {
+      Logger::Info("Bypassing optimal scheduling due to zero time limit with cost %d", bestCost_);
+  }
+  else {
+      Logger::Info("The list schedule of length %d and cost %d is optimal.",
                       bestSchedLngth_, bestCost_);
+  }
+
+  if (rgnTimeout != 0) {
+    bool optimalSchedule = isLstOptml || (rslt == RES_SUCCESS);
+    Logger::Info("Best schedule for DAG %s has cost %d and length %d. The schedule is %s",
+                 dataDepGraph_->GetDagID(), bestCost_, bestSchedLngth_, optimalSchedule ? "optimal" : "not optimal");
   }
 
   enumTime = Utilities::GetProcessorTime() - enumStart;

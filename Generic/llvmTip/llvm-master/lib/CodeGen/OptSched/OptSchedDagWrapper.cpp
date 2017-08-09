@@ -120,7 +120,6 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
       instType = machMdl_->GetInstTypeByName("Default");
     }
 
-    Logger::Info("Creating node %d", unit.NodeNum);
     CreateNode_(unit.NodeNum, instName.c_str(), instType, opCode.c_str(),
                 unit.NodeNum, // nodeID
                 0, 0,
