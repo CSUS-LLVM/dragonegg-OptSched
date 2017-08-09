@@ -3,53 +3,55 @@
 import sys
 import re
 
-RE_DAG_NAME = re.compile(r'INFO: Processing DAG (.*) with')
-RE_OPT_DAG_COST = re.compile(r'INFO: DAG solved optimally in (\d+) ms with length=(\d+), spill cost = (\d+),')
-RE_DAG_COST = re.compile(r'INFO: DAG timed out with length=(\d+), spill cost = (\d+),')
-RE_OPT_LIST_COST = re.compile(r'INFO: The list schedule of length (\d+) and cost (\d+) is optimal.')
+RE_DAG_COST = re.compile(r"INFO: Best schedule for DAG (.*) has cost (\d+) and length (\d+). The schedule is (.*) \(Time")
 
-dagCosts = []
+dags1 = {}
+dags2 = {}
 
 with open(str(sys.argv[1])) as logfile1:
     log1 = logfile1.read()
-    blocks1 = log1.split('INFO: ********** Opt Scheduling **********')
+    for dag in RE_DAG_COST.finditer(log1):
+        dagName = dag.group(1)
+        cost = dag.group(2)
+        length = dag.group(3)
+        isOptimal = dag.group(4)
+        dags1[dagName] = {}
+        dags1[dagName]['cost'] = int(cost)
+        dags1[dagName]['length'] = int(length)
+        dags1[dagName]['isOptimal'] = (isOptimal == 'optimal')
 
 with open(str(sys.argv[2])) as logfile2:
     log2 = logfile2.read()
-    blocks2 = log2.split('INFO: ********** Opt Scheduling **********')
+    for dag in RE_DAG_COST.finditer(log2):
+        dagName = dag.group(1)
+        cost = dag.group(2)
+        length = dag.group(3)
+        isOptimal = dag.group(4)
+        dags2[dagName] = {}
+        dags2[dagName]['cost'] = int(cost)
+        dags2[dagName]['length'] = int(length)
+        dags2[dagName]['isOptimal'] = (isOptimal == 'optimal')
 
-for index, block in enumerate(blocks1):
-    if (len(RE_DAG_NAME.findall(block)) == 0):
-        continue
-    
-    name = RE_DAG_NAME.findall(block)[0]
+if len(dags1) != len(dags2):
+    print('Error: Different number of dags in each log file')
 
-    if (len(RE_OPT_DAG_COST.findall(block)) != 0):
-        time, length, cost = RE_OPT_DAG_COST.findall(block)[0]
-    elif (len(RE_DAG_COST.findall(block)) != 0):
-        length, cost = RE_DAG_COST.findall(block)[0]
-    elif (len(RE_OPT_LIST_COST.findall(block)) != 0):
-        length, cost = RE_OPT_LIST_COST.findall(block)[0]
-        
-    dagCosts.append((name, int(cost)))
-
-for index, block in enumerate(blocks2):
-    if (len(RE_DAG_NAME.findall(block)) == 0):
+for dagName in dags1:
+    if dagName not in dags2:
+        print('Error: Could not find ' + dagName + ' in the second log file.')
         continue
 
-    name = RE_DAG_NAME.findall(block)[0]
+    dag1 = dags1[dagName]
+    dag2 = dags2[dagName]
+    if dag1['isOptimal'] and dag2['isOptimal']:
+        if dag1['cost'] != dag2['cost']:
+            print('Mismatch for dag ' + dagName)
 
-    if (len(RE_OPT_DAG_COST.findall(block)) != 0):
-        time, length, cost = RE_OPT_DAG_COST.findall(block)[0]
-    elif (len(RE_DAG_COST.findall(block)) != 0):
-        length, cost = RE_DAG_COST.findall(block)[0]
-    elif (len(RE_OPT_LIST_COST.findall(block)) != 0):
-        length, cost = RE_OPT_LIST_COST.findall(block)[0]
+    elif dag1['isOptimal']:
+        print('dag1 is optimal and dag2 is not for ' + dagName)
+        if dag1['cost'] > dag2['cost']:
+            print('Mismatch for dag ' + dagName)
 
-    for entry in dagCosts:
-        if (entry[0] == name):
-            if (entry[1] < int(cost)):
-                print ('DAG ' + name + 'is worse in new test. Length = ' + length)
-            #else:
-                #print ('DAG ' + name + 'matches')
-            continue
+    elif dag2['isOptimal']:
+        print('dag2 is optimal and dag1 is not for ' + dagName)
+        if dag2['cost'] > dag1['cost']:
+            print('Mismatch for dag ' + dagName)
