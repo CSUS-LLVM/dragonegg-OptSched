@@ -171,9 +171,9 @@ def writeStats(stats, spills, times, blocks, regp):
       blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)\n' %
                         (timedOutNotImproved, (100 * timedOutNotImproved / enumerated) if enumerated else 0))
       blocks_file.write('  Heuristic cost: %d\n' %
-                        cost if cost else 0)
+                        cost)
       blocks_file.write('  B&B cost: %d\n' %
-                        (cost - improvement) if cost else 0)
+                        (cost - improvement))
       blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                         (improvement, (100 * improvement / cost) if cost else 0))
 
@@ -204,9 +204,9 @@ def writeStats(stats, spills, times, blocks, regp):
     blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)\n' %
                       (totalTimedOutNotImproved, (100 * totalTimedOutNotImproved / totalEnumerated) if totalEnumerated else 0))
     blocks_file.write('  Heuristic cost: %d\n' %
-                      totalCost if totalCost else 0)
+                      totalCost)
     blocks_file.write('  B&B cost: %d\n' %
-                      (totalCost - totalImprovement) if totalCost else 0)
+                      (totalCost - totalImprovement))
     blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                       (totalImprovement, (100 * totalImprovement / totalCost) if totalCost else 0))
 
