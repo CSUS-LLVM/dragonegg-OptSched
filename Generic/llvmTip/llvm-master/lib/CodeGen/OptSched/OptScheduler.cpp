@@ -387,6 +387,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   prune.nodeSup = schedIni.GetBool("APPLY_NODE_SUPERIORITY");
   prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION");
   prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING");
+  prune.useSuffixConcatenation = schedIni.GetBool("ENABLE_SUFFIX_CONCATENATION");
 
   schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY"); 
   histTableHashBits =

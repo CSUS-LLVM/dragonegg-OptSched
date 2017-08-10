@@ -34,6 +34,8 @@ struct Pruning {
   bool histDom;
   // Whether to apply spill-cost pruning
   bool spillCost;
+  // Whether to use suffix concatenation with history domination
+  bool useSuffixConcatenation;
 };
 
 enum ENUMTREE_NODEMODE {
