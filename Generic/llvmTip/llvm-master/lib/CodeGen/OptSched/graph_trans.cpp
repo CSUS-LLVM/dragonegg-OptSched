@@ -207,7 +207,6 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
       }
     }
   }
-  /* DISABLE MULTI_PASS
   // Try to add superior edges until there are no more independent nodes or no
   // edges can be added.
   didAddEdge = true;
@@ -235,7 +234,6 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
       }
     }
   }
-  */
 
   return RES_SUCCESS;
 }
