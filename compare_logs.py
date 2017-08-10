@@ -32,8 +32,20 @@ with open(str(sys.argv[2])) as logfile2:
         dags2[dagName]['length'] = int(length)
         dags2[dagName]['isOptimal'] = (isOptimal == 'optimal')
 
-if len(dags1) != len(dags2):
-    print('Error: Different number of dags in each log file')
+numDagsLog1 = len(dags1)
+numDagsLog2 = len(dags2)
+# The number of blocks that are optimal in both logs.
+optimalInBoth = 0
+# The number of blocks that are only optimal in log 1.
+optimalLog1 = 0
+# The number of blocks that are only optimal in log 2.
+optimalLog2 = 0
+
+if numDagsLog1 != numDagsLog2:
+    print('Error: Different number of dags in each log file.')
+
+print(str(numDagsLog1) + ' blocks in log file 1.')
+print(str(numDagsLog2) + ' blocks in log file 2.')
 
 for dagName in dags1:
     if dagName not in dags2:
@@ -43,15 +55,22 @@ for dagName in dags1:
     dag1 = dags1[dagName]
     dag2 = dags2[dagName]
     if dag1['isOptimal'] and dag2['isOptimal']:
+        optimalInBoth+=1
         if dag1['cost'] != dag2['cost']:
             print('Mismatch for dag ' + dagName)
 
     elif dag1['isOptimal']:
-        print('dag1 is optimal and dag2 is not for ' + dagName)
+        optimalLog1+=1
+        #print('dag1 is optimal and dag2 is not for ' + dagName)
         if dag1['cost'] > dag2['cost']:
             print('Mismatch for dag ' + dagName)
 
     elif dag2['isOptimal']:
-        print('dag2 is optimal and dag1 is not for ' + dagName)
+        optimalLog2+=1
+        #print('dag2 is optimal and dag1 is not for ' + dagName)
         if dag2['cost'] > dag1['cost']:
             print('Mismatch for dag ' + dagName)
+
+print(str(optimalInBoth) + ' blocks are optimal in both files.')
+print(str(optimalLog1) + ' blocks are optimal in log 1 but not in log 2.')
+print(str(optimalLog2) + ' blocks are optimal in log 2 but not in log 1.')
