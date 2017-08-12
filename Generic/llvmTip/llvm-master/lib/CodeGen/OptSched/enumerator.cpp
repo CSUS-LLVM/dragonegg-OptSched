@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <sstream>
 #include <memory>
+#include <iterator>
 
 namespace opt_sched {
 
@@ -787,46 +788,6 @@ void CheckHistNodeMatches(EnumTreeNode *const node,
 #endif
 }
 
-HistEnumTreeNode *
-FindMatchingHistNodes(EnumTreeNode *const node, Pruning prune,
-                      BinHashTable<HistEnumTreeNode> *const exmndSubProbs,
-                      Enumerator *const enumerator) {
-  HistEnumTreeNode *histNode = nullptr;
-  if (prune.histDom && prune.useSuffixConcatenation && exmndSubProbs != nullptr &&
-      exmndSubProbs->GetEntryCnt() > 0) {
-    for (histNode = exmndSubProbs->GetLastMatch(node->GetSig());
-         histNode != nullptr; histNode = exmndSubProbs->GetPrevMatch()) {
-      if (!histNode->DoesMatch(node, enumerator)) {
-#if defined(IS_DEBUG_SUFFIX_SCHED)
-        auto histPrefix = histNode->GetPrefix();
-        auto currPrefix = [&]() {
-          std::vector<InstCount> prefix;
-          for (auto n = node; n != nullptr; n = n->GetParent()) {
-            if (n->GetInstNum() != SCHD_STALL)
-              prefix.push_back(n->GetInstNum());
-          }
-          return prefix;
-        }();
-        printVector(histPrefix, "HistPrefix");
-        printVector(currPrefix, "CurrPrefix");
-        Logger::Info(
-            "History node does not match current node. Continuing search.");
-#endif
-      }
-      else {
-#if defined(IS_DEBUG_SUFFIX_SCHED)
-        if (histNode->GetSuffix() != nullptr && histNode->GetSuffix()->size() == 0)
-          Logger::Fatal("Hist node has a suffix of size zero!");
-#endif
-        break;
-      }
-    }
-  }
-  if (histNode != nullptr && (histNode->GetSuffix() == nullptr || histNode->GetSuffix()->size() == 0))
-    return nullptr;
-  return histNode;
-}
-
 void PrintSchedule(InstSchedule *const sched,
                    Logger::LOG_LEVEL level = Logger::INFO) {
   InstCount cycle, slot;
@@ -837,6 +798,7 @@ void PrintSchedule(InstSchedule *const sched,
   }
   Logger::Log(level, false, "Schedule: %s", s.str().c_str());
 }
+
 void AppendAndCheckSuffixSchedules(
     HistEnumTreeNode *const matchingHistNodeWithSuffix, SchedRegion *const rgn_,
     InstSchedule *const crntSched_, InstCount trgtSchedLngth_,
@@ -878,7 +840,7 @@ void AppendAndCheckSuffixSchedules(
   for (auto inst : *matchingHistNodeWithSuffix->GetSuffix())
     concatSched->AppendInst((inst == nullptr) ? SCHD_STALL : inst->GetNum());
 
-// Update and check.
+  // Update and check.
 
 #if defined(IS_DEBUG_SUFFIX_SCHED)
   if (concatSched->GetCrntLngth() != trgtSchedLngth_) {
@@ -915,7 +877,6 @@ void AppendAndCheckSuffixSchedules(
     // children.
     crntNode_->SetTotalCost(newCost);
     crntNode_->SetTotalCostIsActualCost(true);
-    //crntNode_->SetSuffix(*matchingHistNodeWithSuffix->GetSuffix());
     if (newCost == 0) {
       Logger::Info(
           "Suffix Scheduling: ***GOOD*** Schedule of cost 0 was found!");
@@ -963,16 +924,14 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule *sched,
     uint64_t prevNodeCnt = exmndNodeCnt_;
   #endif
 
-#if defined(IS_DEBUG_SUFFIX_SCHED)
-    if (prune_.histDom)
-      Logger::Info("Suffix concatenation %s", (prune_.useSuffixConcatenation ? "enabled" : "disabled"));
-#endif
-
   while (!(allNodesExplrd || WasObjctvMet_())) {
     if (deadline != INVALID_VALUE && Utilities::GetProcessorTime() > deadline) {
       isTimeout = true;
       break;
     }
+
+    mostRecentMatchingHistNode_ = nullptr;
+
     if (isCrntNodeFsbl) {
       foundFsblBrnch = FindNxtFsblBrnch_(nxtNode);
     } else {
@@ -983,14 +942,12 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule *sched,
       // (Chris): It's possible that the node we just determined to be feasible
       // dominates a history node with a suffix schedule. If this is the case,
       // then instead of continuing the search, we should generate schedules by
-      // concatenating the suffixes of all matching history nodes, and updating
-      // the optimal schedule. Then, backtrack immediately.
-
+      // concatenating the best known suffix.
 
       StepFrwrd_(nxtNode);
 
       // Find matching history nodes with suffixes.
-      auto matchingHistNodesWithSuffix = FindMatchingHistNodes(nxtNode, prune_, exmndSubProbs_, this);
+      auto matchingHistNodesWithSuffix = mostRecentMatchingHistNode_;
 
       // If there are no such matches, continue the search. Else,
       // generate concatenated schedules.
@@ -1001,7 +958,11 @@ FUNC_RESULT Enumerator::FindFeasibleSchedule_(InstSchedule *sched,
       }
       else {
         assert(this->IsCostEnum() && "Not a LengthCostEnum instance!");
-        AppendAndCheckSuffixSchedules(matchingHistNodesWithSuffix, rgn_, crntSched_, trgtSchedLngth_, static_cast<LengthCostEnumerator *>(this), crntNode_, dataDepGraph_);
+        crntNode_->GetHistory()->SetSuffix(matchingHistNodesWithSuffix->GetSuffix());
+        AppendAndCheckSuffixSchedules(matchingHistNodesWithSuffix, rgn_,
+                                      crntSched_, trgtSchedLngth_,
+                                      static_cast<LengthCostEnumerator *>(this),
+                                      crntNode_, dataDepGraph_);
         isCrntNodeFsbl = BackTrack_();
       }
     } else {
@@ -1503,20 +1464,6 @@ void SetTotalCostsAndSuffixes(EnumTreeNode *const currentNode,
   }
 #endif
 }
-
-void CopySuffixToNextHistNode(BinHashTable<HistEnumTreeNode>* exmndSubProbs_, EnumTreeNode* const crntNode_, Enumerator* const en) {
-  auto matchingHistNodeWithSuffix = [&]() {
-    HistEnumTreeNode* histNode = nullptr;
-    for (histNode = exmndSubProbs_->GetLastMatch(crntNode_->GetSig()); histNode != nullptr; histNode = exmndSubProbs_->GetPrevMatch()) {
-      if (histNode->DoesMatch(crntNode_, en) && histNode->GetSuffix() != nullptr)
-        break;
-    }
-    return histNode;
-  }();
-  if (matchingHistNodeWithSuffix != nullptr) {
-    crntNode_->GetHistory()->SetSuffix(matchingHistNodeWithSuffix->GetSuffix());
-  }
-}
 } // namespace
 
 bool Enumerator::BackTrack_() {
@@ -1529,8 +1476,6 @@ bool Enumerator::BackTrack_() {
   if (IsHistDom()) {
     assert(!crntNode_->IsArchived());
     HistEnumTreeNode* crntHstry = crntNode_->GetHistory();
-    if (prune_.useSuffixConcatenation)
-      CopySuffixToNextHistNode(exmndSubProbs_, crntNode_, this);
     exmndSubProbs_->InsertElement(crntNode_->GetSig(), crntHstry,
                                   hashTblEntryAlctr_);
     SetTotalCostsAndSuffixes(crntNode_, trgtNode, trgtSchedLngth_, prune_.useSuffixConcatenation);
@@ -1601,6 +1546,8 @@ bool Enumerator::WasDmnntSubProbExmnd_(SchedInstruction*,
   int listSize = exmndSubProbs_->GetListSize(newNode->GetSig());
   int trvrsdListSize = 0;
   Stats::historyListSize.Record(listSize);
+  mostRecentMatchingHistNode_ = nullptr;
+  bool mostRecentMatchWasSet = false;
 
   for (exNode = exmndSubProbs_->GetLastMatch(newNode->GetSig());
        exNode != NULL;
@@ -1610,8 +1557,12 @@ bool Enumerator::WasDmnntSubProbExmnd_(SchedInstruction*,
       Stats::signatureMatches++;
     #endif
 
-    if (exNode->DoesDominate(newNode, this)) {
-      if (exNode->DoesMatch(newNode, this)) {
+    if (exNode->DoesMatch(newNode, this)) {
+      if (!mostRecentMatchWasSet) {
+        mostRecentMatchingHistNode_ = (exNode->GetSuffix() != nullptr) ? exNode : nullptr;
+        mostRecentMatchWasSet = true;
+      }
+      if (exNode->DoesDominate(newNode, this)) {
 
         #ifdef IS_DEBUG_SPD
           Logger::Info("Node %d is dominated. Partial scheds:",

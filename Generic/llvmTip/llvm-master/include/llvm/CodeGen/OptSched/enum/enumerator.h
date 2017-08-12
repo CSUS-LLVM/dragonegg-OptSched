@@ -425,6 +425,10 @@ class Enumerator : public ConstrainedScheduler {
     //Should we ignore ilp and only schedule for register pressure.
     bool schedForRPOnly_;
 
+    // (Chris): Store the most recent matching hist node when checking for
+    // history domination
+    HistEnumTreeNode* mostRecentMatchingHistNode_ = nullptr;
+
     inline void ClearState_();
     inline bool IsStateClear_();
 
