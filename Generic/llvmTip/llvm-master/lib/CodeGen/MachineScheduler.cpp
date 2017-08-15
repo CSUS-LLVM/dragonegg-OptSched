@@ -2605,6 +2605,7 @@ void GenericScheduler::initPolicy(MachineBasicBlock::iterator Begin,
   // compile time. As a rough heuristic, only track pressure when the number of
   // schedulable instructions exceeds half the integer register file.
   RegionPolicy.ShouldTrackPressure = true;
+  /*
   for (unsigned VT = MVT::i32; VT > (unsigned)MVT::i1; --VT) {
     MVT::SimpleValueType LegalIntVT = (MVT::SimpleValueType)VT;
     if (TLI->isTypeLegal(LegalIntVT)) {
@@ -2613,6 +2614,7 @@ void GenericScheduler::initPolicy(MachineBasicBlock::iterator Begin,
       RegionPolicy.ShouldTrackPressure = NumRegionInstrs > (NIntRegs / 2);
     }
   }
+  */
 
   // For generic targets, we default to bottom-up, because it's simpler and more
   // compile-time optimizations have been implemented in that direction.

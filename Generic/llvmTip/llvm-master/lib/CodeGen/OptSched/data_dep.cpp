@@ -307,11 +307,8 @@ FUNC_RESULT DataDepGraph::UpdateSetupForSchdulng(bool cmputTrnstvClsr) {
 void DataDepGraph::InitGraphTrans() {
   graphTransCnt_ = 0;
 
-  if (graphTransTypes_.equivDect)
-    graphTrans_[graphTransCnt_++] = GraphTrans::CreateGraphTrans(TT_EQDECT, this);
-
-  if (graphTransTypes_.rpOnlyNodeSup) 
-    graphTrans_[graphTransCnt_++] = GraphTrans::CreateGraphTrans(TT_RPONSP, this);
+  if (graphTransTypes_.staticNodeSup) 
+    graphTrans_[graphTransCnt_++] = GraphTrans::CreateGraphTrans(TT_NSP, this);
 }
 
 void DataDepGraph::CmputBasicLwrBounds_() {

@@ -78,8 +78,7 @@ enum SUB_GRAPH_TYPE {
 
 // Graph transformations we should apply.
 typedef struct GraphTransTypes {
-  bool equivDect;
-  bool rpOnlyNodeSup;
+  bool staticNodeSup;
 } GraphTransTypes;
 
 // TODO(max): Document.
@@ -93,7 +92,7 @@ const int SCHED_UB_EXTRA = 20;
 const int MAX_LATENCY_VALUE = 10;
 
 // The total number of possible graph transformations.
-const int NUM_GRAPH_TRANS = 2;
+const int NUM_GRAPH_TRANS = 1;
 
 // Forward declarations used to reduce the number of #includes.
 class MachineModel;

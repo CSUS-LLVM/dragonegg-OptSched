@@ -412,14 +412,12 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
 
   // setup pruning
   prune.rlxd = schedIni.GetBool("APPLY_RELAXED_PRUNING");
-  prune.nodeSup = schedIni.GetBool("APPLY_NODE_SUPERIORITY");
+  prune.nodeSup = schedIni.GetBool("DYNAMIC_NODE_SUPERIORITY");
   prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION");
   prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING");
 
   // setup graph transformations
-  graphTransTypes.equivDect =
-      schedIni.GetBool("EQUIVALENCE_DETECTION_TRANSFORMATION");
-  graphTransTypes.rpOnlyNodeSup = schedIni.GetBool("RP_ONLY_NODE_SUPERIORITY");
+  graphTransTypes.staticNodeSup = schedIni.GetBool("STATIC_NODE_SUPERIORITY");
 
   schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY");
   histTableHashBits =

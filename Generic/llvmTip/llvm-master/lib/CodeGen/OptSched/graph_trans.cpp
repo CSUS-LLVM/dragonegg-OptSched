@@ -17,10 +17,8 @@ std::unique_ptr<GraphTrans>
 GraphTrans::CreateGraphTrans(TRANS_TYPE type, DataDepGraph *dataDepGraph) {
   switch (type) {
   // Create equivalence detection graph transformation.
-  case TT_EQDECT:
-    return std::unique_ptr<GraphTrans>(new EquivDectTrans(dataDepGraph));
-  case TT_RPONSP:
-    return std::unique_ptr<GraphTrans>(new RPOnlyNodeSupTrans(dataDepGraph));
+  case TT_NSP:
+    return std::unique_ptr<GraphTrans>(new StaticNodeSupTrans(dataDepGraph));
   }
 }
 
@@ -56,106 +54,13 @@ void GraphTrans::UpdatePrdcsrAndScsr_(SchedInstruction *nodeA,
   }
 }
 
-FUNC_RESULT EquivDectTrans::ApplyTrans() {
-  InstCount numNodes = GetNumNodesInGraph_();
-  DataDepGraph *graph = GetDataDepGraph_();
-#ifdef IS_DEBUG_GRAPH_TRANS
-  Logger::Info("Applying Equiv Dect trans");
-#endif
-
-  std::list<InstCount> nodes;
-  // Initialize list of nodes.
-  for (InstCount n = 0; n < numNodes; n++)
-    nodes.push_back(n);
-
-  std::list<InstCount>::iterator start, next;
-  start = next = nodes.begin();
-  // After we add an edge between two equivalent instructions
-  // it will invalidate the equal predecessor condition for
-  // future nodes. Therefore we should wait until we have checked all
-  // potentially equivalent nodes before adding edges between them.
-  std::vector<std::pair<InstCount, InstCount>> edgesToAdd;
-  while (start != nodes.end()) {
-    edgesToAdd.clear();
-    next++;
-
-    while (next != nodes.end()) {
-      SchedInstruction *srcInst = graph->GetInstByIndx(*start);
-      SchedInstruction *dstInst = graph->GetInstByIndx(*next);
-#ifdef IS_DEBUG_GRAPH_TRANS
-      Logger::Info("Checking nodes %d:%d", *start, *next);
-#endif
-
-      if (NodesAreEquiv_(srcInst, dstInst)) {
-#ifdef IS_DEBUG_GRAPH_TRANS
-        Logger::Info("Nodes %d and %d are equivalent", *start, *next);
-#endif
-        edgesToAdd.push_back(std::make_pair(*start, *next));
-        nodes.erase(start);
-        start = next;
-      }
-      next++;
-    }
-    // Add edges, we have found all nodes that are equivalent to the original
-    // "start"
-    for (InstCount i = 0; i < edgesToAdd.size(); i++) {
-      SchedInstruction *from = graph->GetInstByIndx(edgesToAdd[i].first);
-      SchedInstruction *to = graph->GetInstByIndx(edgesToAdd[i].second);
-#ifdef IS_DEBUG_GRAPH_TRANS
-      Logger::Info("Creating edge from %d to %d", from->GetNum(), to->GetNum());
-#endif
-      graph->CreateEdge(from, to, 0, DEP_OTHER);
-    }
-    start++;
-    next = start;
-  }
-  return RES_SUCCESS;
-}
-
-bool EquivDectTrans::NodesAreEquiv_(SchedInstruction *srcInst,
-                                    SchedInstruction *dstInst) {
-  if (srcInst->GetIssueType() != dstInst->GetIssueType())
-    return false;
-
-  if (!srcInst->IsScsrEquvlnt(dstInst) || !srcInst->IsPrdcsrEquvlnt(dstInst))
-    return false;
-
-  // All tests passed return true
-  return true;
-}
-
-bool RPOnlyNodeSupTrans::TryAddingSuperiorEdge_(SchedInstruction *nodeA,
+bool StaticNodeSupTrans::TryAddingSuperiorEdge_(SchedInstruction *nodeA,
                                                 SchedInstruction *nodeB) {
   // Return this flag which designates whether an edge was added.
   bool edgeWasAdded = false;
 
-  // Check if ISO is the only heuristic priority.
-  bool isHeuristicISO = false;
-  SchedRegion *region = GetSchedRegion_();
-  SchedPriorities hurPrio = region->GetHeuristicPriorities();
-  // if (hurPrio.cnt == 1 && (hurPrio.vctr[0] == LSH_ISO || hurPrio.vctr[0] ==
-  // LSH_NID))
-  //  isHeuristicISO = true;
-
   if (NodeIsSuperior_(nodeA, nodeB)) {
-    // If possible try to preserve NID order for ISO mode.
-    if (/*isHeuristicISO*/ nodeA->GetNum() > nodeB->GetNum()) {
-      if (NodeIsSuperior_(nodeB, nodeA)) {
-#ifdef IS_DEBUG_GRAPH_TRANS
-        Logger::Info("Trying to preserve ISO order for nodes %d and %d",
-                     nodeA->GetNum(), nodeB->GetNum());
-#endif
-        AddSuperiorEdge_(nodeB, nodeA);
-      } else {
-#ifdef IS_DEBUG_GRAPH_TRANS
-        Logger::Info("ISO schedule invalidated for nodes %d and %d",
-                     nodeA->GetNum(), nodeB->GetNum());
-#endif
-        AddSuperiorEdge_(nodeA, nodeB);
-      }
-    } else {
-      AddSuperiorEdge_(nodeA, nodeB);
-    }
+    AddSuperiorEdge_(nodeA, nodeB);
     edgeWasAdded = true;
   } else if (NodeIsSuperior_(nodeB, nodeA)) {
     AddSuperiorEdge_(nodeB, nodeA);
@@ -165,9 +70,9 @@ bool RPOnlyNodeSupTrans::TryAddingSuperiorEdge_(SchedInstruction *nodeA,
   return edgeWasAdded;
 }
 
-void RPOnlyNodeSupTrans::AddSuperiorEdge_(SchedInstruction *nodeA,
+void StaticNodeSupTrans::AddSuperiorEdge_(SchedInstruction *nodeA,
                                           SchedInstruction *nodeB) {
-#ifdef IS_DEBUG_GRAPH_TRANS_RES
+#if defined(IS_DEBUG_GRAPH_TRANS_RES) || defined(IS_DEBUG_GRAPH_TRANS)
   Logger::Info("Node %d is superior to node %d", nodeA->GetNum(),
                nodeB->GetNum());
 #endif
@@ -175,14 +80,14 @@ void RPOnlyNodeSupTrans::AddSuperiorEdge_(SchedInstruction *nodeA,
   UpdatePrdcsrAndScsr_(nodeA, nodeB);
 }
 
-FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
+FUNC_RESULT StaticNodeSupTrans::ApplyTrans() {
   InstCount numNodes = GetNumNodesInGraph_();
   DataDepGraph *graph = GetDataDepGraph_();
   // A list of independent nodes.
   std::list<std::pair<SchedInstruction *, SchedInstruction *>> indepNodes;
   bool didAddEdge = false;
 #ifdef IS_DEBUG_GRAPH_TRANS
-  Logger::Info("Applying RP-only node sup trans");
+  Logger::Info("Applying node superiority graph transformation.");
 #endif
 
   // For the first pass visit all nodes. Add sets of independent nodes to a
@@ -211,25 +116,23 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
   // edges can be added.
   didAddEdge = true;
   while (didAddEdge && indepNodes.size() > 0) {
-    std::list<std::pair<SchedInstruction*, SchedInstruction*>>::iterator pair =
-  indepNodes.begin();
+    std::list<std::pair<SchedInstruction *, SchedInstruction *>>::iterator
+        pair = indepNodes.begin();
     didAddEdge = false;
 
-    while(pair != indepNodes.end()) {
-      SchedInstruction* nodeA = (*pair).first;
-      SchedInstruction* nodeB = (*pair).second;
+    while (pair != indepNodes.end()) {
+      SchedInstruction *nodeA = (*pair).first;
+      SchedInstruction *nodeB = (*pair).second;
 
       if (!AreNodesIndep_(nodeA, nodeB)) {
         pair = indepNodes.erase(pair);
-      }
-      else {
+      } else {
         bool result = TryAddingSuperiorEdge_(nodeA, nodeB);
         // If a superior edge was added remove the pair of nodes from the list.
         if (result) {
           pair = indepNodes.erase(pair);
           didAddEdge = true;
-        }
-        else
+        } else
           pair++;
       }
     }
@@ -238,7 +141,7 @@ FUNC_RESULT RPOnlyNodeSupTrans::ApplyTrans() {
   return RES_SUCCESS;
 }
 
-bool RPOnlyNodeSupTrans::NodeIsSuperior_(SchedInstruction *nodeA,
+bool StaticNodeSupTrans::NodeIsSuperior_(SchedInstruction *nodeA,
                                          SchedInstruction *nodeB) {
   DataDepGraph *graph = GetDataDepGraph_();
 
