@@ -8,8 +8,11 @@ Last Update:  Mar. 2011
 #ifndef OPTSCHED_ENUM_HIST_TABLE_H
 #define OPTSCHED_ENUM_HIST_TABLE_H
 
+#include <limits>
 #include <cstdio>
 #include <iostream>
+#include <vector>
+#include <memory>
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/hash_table.h"
 #include "llvm/CodeGen/OptSched/generic/mem_mngr.h"
@@ -45,6 +48,9 @@ class HistEnumTreeNode {
     virtual void SetCostInfo(EnumTreeNode* node,
                              bool isTemp,
                              Enumerator* enumrtr);
+    const std::shared_ptr<std::vector<SchedInstruction*>>& GetSuffix() const;
+    void SetSuffix(const std::shared_ptr<std::vector<SchedInstruction*>>& suffix);
+    std::vector<InstCount> GetPrefix() const;
 
   protected:
     HistEnumTreeNode* prevNode_;
@@ -61,6 +67,9 @@ class HistEnumTreeNode {
 
     bool crntCycleBlkd_;
     ReserveSlot* rsrvSlots_;
+
+    // (Chris)
+    std::shared_ptr<std::vector<SchedInstruction*>> suffix_ = nullptr;
 
     InstCount SetLastInsts_(SchedInstruction* lastInsts[],
                               InstCount thisTime,
@@ -102,6 +111,12 @@ class CostHistEnumTreeNode : public HistEnumTreeNode {
     InstCount cost_;
     InstCount peakSpillCost_;
     InstCount spillCostSum_;
+
+    // (Chris)
+    InstCount totalCost_ = -1;
+    InstCount partialCost_ = -1;
+    bool totalCostIsActualCost_ = false;
+
     bool isLngthFsbl_;
     #ifdef IS_DEBUG
       bool costInfoSet_;

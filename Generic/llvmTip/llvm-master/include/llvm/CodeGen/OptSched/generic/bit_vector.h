@@ -23,14 +23,14 @@ class BitVector {
     // Constructs a bit vector of a given length.
     BitVector(int length = 0);
     // Deallocates the vector.
-    ~BitVector();
+    virtual ~BitVector();
 
     // Reconstructs the vector to hold a vector of the new length. All old data
     // is discarded.
     void Construct(int length);
 
     // Sets all bits to 0.
-    void Reset();
+    virtual void Reset();
     // Sets the bit at the given index to the given value.
     void SetBit(int index, bool value = true);
     // Returns the value of the bit at a given index.
@@ -206,6 +206,7 @@ class WeightedBitVector : public BitVector {
     ~WeightedBitVector();
     void SetBit(int index, bool bitVal, int weight);
     int GetWghtedCnt() const;
+    virtual void Reset() override;
   private:
     // The weighted sum of 1 in the vector times their weight
     int wghtedCnt_;
@@ -240,6 +241,11 @@ inline void WeightedBitVector::SetBit(int index, bool bitVal, int weight) {
 
 inline int WeightedBitVector::GetWghtedCnt() const {
   return wghtedCnt_;
+}
+
+inline void WeightedBitVector::Reset() {
+  BitVector::Reset();
+  wghtedCnt_ = 0;
 }
 
 /*

@@ -10,6 +10,8 @@
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
 #include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 
+extern bool OPTSCHED_gPrintSpills;
+
 namespace opt_sched {
 
 SchedRegion::SchedRegion(MachineModel* machMdl,
@@ -99,7 +101,9 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   // In the future if we apply graph transformations that require the transitive closure to be
   // computed this will have to be changed. Or if there is some other reason that we may want
   // the transitive closure to be computed when only using the list scheduler.
-  if (rgnTimeout > 0 || dataDepGraph_->GetGraphTransCnt() > 0) needTrnstvClsr_ = true; 
+  // (Chris) SLIL needs the transitive closure in order to calculate the static lower bound,
+  // even when only using the list scheduler. 
+  if (rgnTimeout > 0 || dataDepGraph_->GetGraphTransCnt() > 0 || spillCostFunc_ == SCF_SLIL) needTrnstvClsr_ = true; 
   rslt = dataDepGraph_->SetupForSchdulng(needTrnstvClsr_);
   if (rslt != RES_SUCCESS ) {
    Logger::Info("Invalid input DAG");
@@ -142,7 +146,20 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   hurstcTime = Utilities::GetProcessorTime() - hurstcStart;
   Stats::heuristicTime.Record(hurstcTime);
-if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
+  if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
+
+  #ifdef IS_DEBUG_SLIL_PRINTOUT
+  if (OPTSCHED_gPrintSpills) {
+    const auto& slilVector = this->GetSLIL_();
+    for (int j = 0; j < slilVector.size(); j++) {
+      Logger::Info("SLIL after Heuristic Scheduler for dag %s Type %d %s is %d.", 
+        dataDepGraph_->GetDagID(),
+        j,
+        machMdl_->GetRegTypeName(j).c_str(),
+        slilVector[j]);
+    }
+  }
+  #endif
 
   Milliseconds boundStart = Utilities::GetProcessorTime();
   hurstcSchedLngth_ = lstSched->GetCrntLngth();
@@ -156,6 +173,10 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
   else
     CmputLwrBounds_(useFileBounds);
   assert(schedLwrBound_ <= lstSched->GetCrntLngth());
+
+  #if defined(IS_DEBUG_STATIC_LOWER_BOUND)
+  Logger::Info("Static Lower Bound is %d for Dag %s", costLwrBound_, dataDepGraph_->GetDagID());
+  #endif
 
   isLstOptml = CmputUprBounds_(lstSched, useFileBounds);
   boundTime = Utilities::GetProcessorTime() - boundStart;
@@ -176,6 +197,38 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
                                   "CP Lower Bounds");
   #endif
 
+  // (Chris): If the cost function is SLIL, then the list schedule is considered
+  // optimal if PERP is 0.
+  if (!isLstOptml && spillCostFunc_ == SCF_SLIL) {
+    const InstCount* regPressures = nullptr;
+    auto regTypeCount = lstSched->GetPeakRegPressures(regPressures);
+    InstCount sumPerp = 0;
+    for (int i = 0; i < regTypeCount; ++i) {
+      int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
+      if (perp > 0) sumPerp += perp;
+    }
+    if (sumPerp == 0) {
+      isLstOptml = true;
+      Logger::Info("Marking SLIL list schedule as optimal due to zero PERP.");
+    }
+  }
+
+#if defined(IS_DEBUG_SLIL_OPTIMALITY)
+  // (Chris): This code prints a statement when a schedule is SLIL-optimal but
+  // not PERP-optimal.
+  if (spillCostFunc_ == SCF_SLIL && bestCost_ == 0) {
+    const InstCount* regPressures = nullptr;
+    auto regTypeCount = lstSched->GetPeakRegPressures(regPressures);
+    InstCount sumPerp = 0;
+    for (int i = 0; i < regTypeCount; ++i) {
+      int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
+      if (perp > 0) sumPerp += perp;
+    }
+    if (sumPerp > 0) {
+      Logger::Info("Dag %s is SLIL optimal but not PERP optimal (PERP=%d).", dataDepGraph_->GetDagID(), sumPerp);
+    }
+  }
+#endif
   if (EnableEnum_() == false) {
     delete lstSchdulr;
     return RES_FAIL;
@@ -259,7 +312,25 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
-
+#if defined(IS_DEBUG_COMPARE_SLIL_BB)
+  if (!isLstOptml) {
+    const auto& status = [&]() {
+      switch (rslt) {
+      case RES_SUCCESS:
+        return "optimal";
+      case RES_TIMEOUT:
+        return "timeout";
+      default:
+        return "failed";
+      }
+    }();
+    Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_, enumTime);
+  }
+#endif
+#if defined(IS_DEBUG_FINAL_SPILL_COST)
+  // (Chris): Unconditionally Print out the spill cost of the final schedule. This makes it easy to compare results.
+  Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(), dataDepGraph_->GetDagID());
+#endif
   return rslt;
 }
 

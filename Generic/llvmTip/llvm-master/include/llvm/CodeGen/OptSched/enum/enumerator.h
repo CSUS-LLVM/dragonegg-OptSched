@@ -9,6 +9,7 @@ Last Update:  Jun. 2017
 #define OPTSCHED_ENUM_ENUMERATOR_H
 
 #include <iostream>
+#include <vector>
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/mem_mngr.h"
 #include "llvm/CodeGen/OptSched/basic/gen_sched.h"
@@ -33,6 +34,8 @@ struct Pruning {
   bool histDom;
   // Whether to apply spill-cost pruning
   bool spillCost;
+  // Whether to use suffix concatenation with history domination
+  bool useSuffixConcatenation;
 };
 
 enum ENUMTREE_NODEMODE {
@@ -155,8 +158,13 @@ class EnumTreeNode {
     InstCount costLwrBound_;
     InstCount peakSpillCost_;
     InstCount spillCostSum_;
-
+    InstCount totalCost_ = -1;
+    bool totalCostIsActualCost_ = false;
     ReserveSlot* rsrvSlots_;
+
+    // (Chris)
+    using SuffixType = std::vector<SchedInstruction *>;
+    SuffixType suffix_;
 
     inline void CreateTmpHstry_();
     void FormPrtilSchedSig_();
@@ -289,6 +297,16 @@ class EnumTreeNode {
     void SetRealSlotNum(int num) {
       realSlotNum_ = num;
     }
+
+    inline InstCount GetTotalCost() const { return totalCost_; }
+    inline void SetTotalCost(InstCount totalCost) { totalCost_ = totalCost; }
+
+    inline InstCount GetTotalCostIsActualCost() const { return totalCostIsActualCost_; }
+    inline void SetTotalCostIsActualCost(bool totalCostIsActualCost) { totalCostIsActualCost_ = totalCostIsActualCost; }
+
+    inline const SuffixType& GetSuffix() const { return suffix_; }
+    inline void SetSuffix(const SuffixType& suffix) { suffix_ = suffix; }
+    inline void SetSuffix(SuffixType&& suffix) { suffix_ = std::move(suffix); }
 };
 /*****************************************************************************/
 
@@ -407,6 +425,10 @@ class Enumerator : public ConstrainedScheduler {
     //Should we ignore ilp and only schedule for register pressure.
     bool schedForRPOnly_;
 
+    // (Chris): Store the most recent matching hist node when checking for
+    // history domination
+    HistEnumTreeNode* mostRecentMatchingHistNode_ = nullptr;
+
     inline void ClearState_();
     inline bool IsStateClear_();
 
@@ -516,6 +538,9 @@ class Enumerator : public ConstrainedScheduler {
     inline bool IsHistDom();
     inline bool IsRlxdPrnng();
     virtual bool IsCostEnum() = 0;
+
+    // (Chris)
+    inline bool IsSchedForRPOnly() const { return schedForRPOnly_; }
 };
 /*****************************************************************************/
 
@@ -617,6 +642,7 @@ class LengthCostEnumerator: public Enumerator {
                                      Milliseconds deadline);
     bool IsCostEnum();
     SPILL_COST_FUNCTION GetSpillCostFunc() {return spillCostFunc_;}
+    inline InstCount GetBestCost() { return GetBestCost_(); }
 };
 /*****************************************************************************/
 

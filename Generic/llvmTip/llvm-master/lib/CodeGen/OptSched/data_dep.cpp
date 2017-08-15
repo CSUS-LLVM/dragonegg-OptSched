@@ -2917,6 +2917,11 @@ void InstSchedule::SetPeakRegPressures(InstCount peakRegPressures[]) {
   }
 }
 
+InstCount InstSchedule::GetPeakRegPressures(const InstCount*& regPressures) const {
+  regPressures = peakRegPressures_;
+  return machMdl_->GetRegTypeCnt();
+}
+
 InstCount InstSchedule::GetSpillCost(InstCount stepNum) {
   assert(stepNum >=0 && stepNum < totInstCnt_);
   return spillCosts_[stepNum];

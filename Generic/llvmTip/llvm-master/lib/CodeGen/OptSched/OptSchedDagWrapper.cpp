@@ -401,30 +401,29 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
     }
   }
 
-// (Chris) Debug: Count the number of defs and uses for each register.
-// Ensure that any changes to how opt_sched::Register tracks defs and uses
-// doesn't change these values.
-//
-// Also, make sure that iterating through all the registers gives the same use
-// and def count as iterating through all the instructions.
-#if defined(IS_DEBUG_DEF_USE_COUNT)
+
+  // (Chris) Debug: Count the number of defs and uses for each register.
+  // Ensure that any changes to how opt_sched::Register tracks defs and uses
+  // doesn't change these values.
+  //
+  // Also, make sure that iterating through all the registers gives the same use
+  // and def count as iterating through all the instructions.
+  #if defined(IS_DEBUG_DEF_USE_COUNT)
   auto regTypeCount = machMdl_->GetRegTypeCnt();
   uint64_t defsFromRegs = 0;
   uint64_t usesFromRegs = 0;
   for (int i = 0; i < regTypeCount; ++i) {
     for (int j = 0; j < regFiles[i].GetRegCnt(); ++j) {
-      const auto &myReg = regFiles[i].GetReg(j);
+      const auto& myReg = regFiles[i].GetReg(j);
       if (myReg->GetDefCnt() != myReg->GetSizeOfDefList()) {
-        Logger::Error(
-            "Dag %s: Register Type %d Num %d: New def count %d doesn't match "
-            "old def count %d!",
-            dagID_, i, j, myReg->GetSizeOfDefList(), myReg->GetDefCnt());
+        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+                      "old def count %d!", dagID_,
+                      i, j, myReg->GetSizeOfDefList(), myReg->GetDefCnt());
       }
       if (myReg->GetUseCnt() != myReg->GetSizeOfUseList()) {
-        Logger::Error(
-            "Dag %s: Register Type %d Num %d: New def count %d doesn't match "
-            "old def count %d!",
-            dagID_, i, j, myReg->GetSizeOfUseList(), myReg->GetUseCnt());
+        Logger::Error("Dag %s: Register Type %d Num %d: New def count %d doesn't match "
+                      "old def count %d!", dagID_,
+                      i, j, myReg->GetSizeOfUseList(), myReg->GetUseCnt());
       }
       defsFromRegs += myReg->GetDefCnt();
       usesFromRegs += myReg->GetUseCnt();
@@ -433,10 +432,10 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   uint64_t defsFromInsts = 0ull;
   uint64_t usesFromInsts = 0ull;
   for (int k = 0; k < instCnt_; ++k) {
-    const auto &instruction = insts_[k];
+    const auto& instruction = insts_[k];
     // Dummy pointer; all that matters here is the length of the uses and defs
     // arrays for each instruction.
-    Register **dummy;
+    Register** dummy;
     defsFromInsts += instruction->GetDefs(dummy);
     usesFromInsts += instruction->GetUses(dummy);
   }
@@ -456,7 +455,8 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   if (different) {
     Logger::Fatal("Encountered fatal error. Exiting.");
   }
-#endif
+  #endif
+
 }
 
 void LLVMDataDepGraph::PreOrderEquivalentInstr() {
