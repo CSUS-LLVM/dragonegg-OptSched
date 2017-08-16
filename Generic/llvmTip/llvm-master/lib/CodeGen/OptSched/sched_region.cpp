@@ -176,6 +176,8 @@ if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
                                   "CP Lower Bounds");
   #endif
 
+  if (rgnTimeout == 0) isLstOptml = true;
+
   if (EnableEnum_() == false) {
     delete lstSchdulr;
     return RES_FAIL;
