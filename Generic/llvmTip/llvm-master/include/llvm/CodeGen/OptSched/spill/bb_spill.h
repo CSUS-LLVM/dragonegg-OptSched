@@ -11,6 +11,9 @@ Last Update:  Apr. 2011
 
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
+#include <vector>
+#include <map>
+#include <set>
 
 namespace opt_sched {
 
@@ -44,6 +47,17 @@ class BBWithSpill : public SchedRegion {
     // that physical register is live
     WeightedBitVector* livePhysRegs_;
 
+    // Sum of lengths of live ranges. This vector is indexed by register type,
+    // and each type will have its sum of live interval lengths computed.
+    std::vector<int> sumOfLiveIntervalLengths_;
+
+    InstCount staticSlilLowerBound_ = 0;
+
+    // (Chris): The dynamic lower bound for SLIL is calculated differently from
+    // the other cost functions. It is first set when the static lower bound is
+    // calculated.
+    InstCount dynamicSlilLowerBound_ = 0;
+
     int entryInstCnt_;
     int exitInstCnt_;
     int schduldEntryInstCnt_;
@@ -57,7 +71,7 @@ class BBWithSpill : public SchedRegion {
     InstCount crntStepNum_;
     InstCount peakSpillCost_;
     InstCount totSpillCost_;
-    SPILL_COST_FUNCTION spillCostFunc_;
+    InstCount slilSpillCost_;
     bool chkSpillCostSum_;
     bool chkCnflcts_;
     int maxSpillCost_;
@@ -115,6 +129,12 @@ class BBWithSpill : public SchedRegion {
     void SetSttcLwrBounds(EnumTreeNode* node);
     bool ChkInstLglty(SchedInstruction* inst);
     void InitForSchdulng();
+
+  protected:
+    // (Chris)
+    inline virtual const std::vector<int>& GetSLIL_() const { 
+      return sumOfLiveIntervalLengths_;
+    }
 };
 
 } // end namespace opt_sched

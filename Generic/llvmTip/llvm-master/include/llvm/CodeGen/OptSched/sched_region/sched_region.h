@@ -98,6 +98,9 @@ class SchedRegion {
 
     virtual bool ChkSchedule_(InstSchedule* bestSched, InstSchedule* lstSched) = 0;
 
+    // TODO(max): Document.
+    InstSchedule* AllocNewSched_();
+
   protected:
     // The dependence graph of this region.
     DataDepGraph* dataDepGraph_;
@@ -123,6 +126,9 @@ class SchedRegion {
     InstSchedule* enumBestSched_;
     // The best schedule found so far (may be heuristic or enumerator generated)
     InstSchedule* bestSched_;
+
+    // (Chris): The cost function. Defaults to PEAK.
+    SPILL_COST_FUNCTION spillCostFunc_ = SCF_PEAK;
 
     // The absolute cost lower bound to be used as a ref for normalized costs.
     InstCount costLwrBound_;
@@ -156,8 +162,6 @@ class SchedRegion {
     // TODO(max): Document.
     InstCount crntSlotNum_;
 
-    // TODO(max): Document.
-    InstSchedule* AllocNewSched_();
     // TODO(max): Document.
     void UseFileBounds_();
 
@@ -205,6 +209,9 @@ class SchedRegion {
 
     // Prepares the region for being scheduled.
     virtual void SetupForSchdulng_() = 0;
+
+    // (Chris) Get the SLIL for each set
+    virtual const std::vector<int>& GetSLIL_() const = 0;
 };
 
 } // end namespace opt_sched

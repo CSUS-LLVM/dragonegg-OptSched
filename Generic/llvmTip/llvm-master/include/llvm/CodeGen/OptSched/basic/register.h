@@ -11,7 +11,7 @@ Last Update:  Jun. 2017
 #include "llvm/CodeGen/OptSched/generic/defines.h"
 #include "llvm/CodeGen/OptSched/generic/bit_vector.h"
 #include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
-#include <set>
+#include "llvm/ADT/SmallPtrSet.h"
 
 namespace opt_sched {
 
@@ -20,6 +20,8 @@ namespace opt_sched {
 class Register {
   public:
     Register(int16_t type = 0, int num = 0, int physicalNumber = INVALID_VALUE);
+
+    using InstSetType = llvm::SmallPtrSet<const SchedInstruction *, 8>;
 
     int16_t GetType() const;
     void SetType(int16_t type);
@@ -36,13 +38,13 @@ class Register {
 
     void AddUse(const SchedInstruction * inst);
     int GetUseCnt() const;
-    const std::set<const SchedInstruction *> GetUseList() const;
+    const InstSetType& GetUseList() const;
     size_t GetSizeOfUseList() const;
     int GetCrntUseCnt() const;
 
     void AddDef(const SchedInstruction * inst);
     int GetDefCnt() const;
-    const std::set<const SchedInstruction *> GetDefList() const;
+    const InstSetType& GetDefList() const;
     size_t GetSizeOfDefList() const;
 
     void AddCrntUse();
@@ -70,6 +72,15 @@ class Register {
     int GetConflictCnt() const;
     bool IsSpillCandidate() const;
     
+    // Returns true if an insertion actually occurred.
+    bool AddToInterval(const SchedInstruction* inst);
+    bool IsInInterval(const SchedInstruction* inst) const;
+    const InstSetType& GetLiveInterval() const;
+
+    // Returns true if an insertion actually occurred.
+    bool AddToPossibleInterval(const SchedInstruction* inst);
+    bool IsInPossibleInterval(const SchedInstruction* inst) const;
+    const InstSetType& GetPossibleLiveInterval() const;
 
   private:
     int16_t type_;
@@ -91,9 +102,19 @@ class Register {
     // not already belong to the live interval of this register. This also
     // requires changes to the way defs and uses are added to this register.
     //
-    // A std::set is used to ensure no duplicates are entered.
-    std::set<const SchedInstruction *> uses_;
-    std::set<const SchedInstruction *> defs_; 
+    // A set is used to ensure no duplicates are entered.
+    InstSetType uses_;
+    InstSetType defs_;
+
+    // (Chris): The live interval set is the set of instructions that are
+    // guaranteed to be in this register's live interval. This is computed
+    // during the naive and closure static lower bound analysis.
+    InstSetType liveIntervalSet_;
+
+    // (Chris): The possible live interval set is the set of instructions that
+    // may or may not be added to the live interval of this register. This is
+    // computed during the common use lower boudn analysis.
+    InstSetType possibleLiveIntervalSet_;
 };
 
 // Represents a file of registers of a certain type and tracks their usages.
