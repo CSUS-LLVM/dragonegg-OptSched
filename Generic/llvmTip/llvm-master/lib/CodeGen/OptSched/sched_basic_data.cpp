@@ -355,6 +355,10 @@ int SchedInstruction::GetNodeID() const {
   return nodeID_;
 }
 
+void SchedInstruction::SetNodeID(int nodeID) {
+  nodeID_ = nodeID;
+}
+
 int SchedInstruction::GetLtncySum() const {
   return GetScsrLblSum();
 }

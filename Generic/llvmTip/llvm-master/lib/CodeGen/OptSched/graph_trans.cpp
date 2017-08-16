@@ -59,11 +59,17 @@ bool StaticNodeSupTrans::TryAddingSuperiorEdge_(SchedInstruction *nodeA,
   // Return this flag which designates whether an edge was added.
   bool edgeWasAdded = false;
 
+  if (nodeA->GetNodeID() > nodeB->GetNodeID()) std::swap(nodeA, nodeB);
+
   if (NodeIsSuperior_(nodeA, nodeB)) {
     AddSuperiorEdge_(nodeA, nodeB);
     edgeWasAdded = true;
   } else if (NodeIsSuperior_(nodeB, nodeA)) {
     AddSuperiorEdge_(nodeB, nodeA);
+    // Swap nodeIDs
+    int tmp = nodeA->GetNodeID();
+    nodeA->SetNodeID(nodeB->GetNodeID());
+    nodeB->SetNodeID(tmp);
     edgeWasAdded = true;
   }
 

@@ -143,7 +143,7 @@ unsigned long ReadyList::CmputKey_(SchedInstruction* inst, bool isUpdate, bool& 
         AddPrirtyToKey_(key,
                         keySize,
                         nodeID_Bits_,
-                        maxNodeID_ - inst->GetNum(),
+                        maxNodeID_ - inst->GetNodeID(),
                         maxNodeID_);
         break;
 

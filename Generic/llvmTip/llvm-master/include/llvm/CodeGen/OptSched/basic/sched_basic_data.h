@@ -158,6 +158,7 @@ class SchedInstruction : public GraphNode {
     const char * GetOpCode() const;
     // Returns the ID of the node as specified in the constructor.
     int GetNodeID() const;
+    void SetNodeID(int nodeID);
     // Returns the sum of latencies from this instruction.
     int GetLtncySum() const;
     // Returns the maximum latency from this instruction.

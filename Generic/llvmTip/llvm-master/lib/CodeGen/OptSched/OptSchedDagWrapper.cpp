@@ -208,7 +208,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   root_ =
       CreateNode_(rootNum, "artificial",
                   machMdl_->GetInstTypeByName("artificial"), "__optsched_entry",
-                  0,  // nodeID
+                  rootNum,  // nodeID
                   0,  // fileSchedOrder
                   0,  // fileSchedCycle
                   0,  // fileInstLwrBound
@@ -223,7 +223,7 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   int leafNum = ++maxNodeNum;
   CreateNode_(leafNum, "artificial", machMdl_->GetInstTypeByName("artificial"),
               "__optsched_exit",
-              0, // nodeID
+              leafNum, // nodeID
               0, 0,
               0,  // fileInstLwrBound
               0,  // fileInstUprBound
