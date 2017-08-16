@@ -24,7 +24,7 @@ if not os.path.isfile(bruteForceFile):
 if not os.path.isfile(bbFile):
   raise Error("Please specify a valid dynamic log file.")
 
-regex = re.compile(r'Dag (.*?) (.*?) cost (\d+?) time (\d+)')
+regex = re.compile(r'Dag (.*?) (.*?) absolute cost (\d+?) time (\d+)')
 
 results = {}
 
