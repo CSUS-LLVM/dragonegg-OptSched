@@ -13,8 +13,8 @@ Last Update:  Mar. 2011
 
 // For integral types of specific byte length.
 // The new standard <cinttypes> is still not supported everywhere.
-#include <stdint.h>
 #include <cassert>
+#include <stdint.h>
 
 namespace opt_sched {
 
@@ -31,13 +31,13 @@ const int INVALID_VALUE = -1;
 // Possible function call outcomes.
 enum FUNC_RESULT {
   // The function encountered an error.
-  RES_ERROR   = -1,
+  RES_ERROR = -1,
   // The function consciously failed.
-  RES_FAIL    = 0,
+  RES_FAIL = 0,
   // The function succeeded.
   RES_SUCCESS = 1,
   // The function reached the end of the resource (e.g. file) it operated on.
-  RES_END     = 2,
+  RES_END = 2,
   // The function did not finish in the time allocated for it.
   RES_TIMEOUT = 3
 };

@@ -2,13 +2,13 @@
 // For atoi().
 #include <cstdlib>
 // for setiosflags(), setprecision().
-#include <iomanip>
-#include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/buffers.h"
+#include "llvm/CodeGen/OptSched/generic/logger.h"
+#include <iomanip>
 
 namespace opt_sched {
 
-MachineModel::MachineModel(const string& modelFile) {
+MachineModel::MachineModel(const string &modelFile) {
   SpecsBuffer buf;
   char buffer[MAX_NAMESIZE];
 
@@ -23,26 +23,30 @@ MachineModel::MachineModel(const string& modelFile) {
   issueTypes_.resize(buf.ReadIntSpec("ISSUE_TYPE_COUNT:"));
   for (size_t j = 0; j < issueTypes_.size(); j++) {
     int pieceCnt;
-    char* strngs[INBUF_MAX_PIECES_PERLINE];
+    char *strngs[INBUF_MAX_PIECES_PERLINE];
     int lngths[INBUF_MAX_PIECES_PERLINE];
     buf.GetNxtVldLine(pieceCnt, strngs, lngths);
 
-    if (pieceCnt != 2) Logger::Fatal("Invalid issue type spec");
+    if (pieceCnt != 2)
+      Logger::Fatal("Invalid issue type spec");
 
     issueTypes_[j].name = strngs[0];
     issueTypes_[j].slotsCount = atoi(strngs[1]);
   }
 
-  dependenceLatencies_[DEP_DATA] = 1;  // Shouldn't be used!
-  dependenceLatencies_[DEP_ANTI] = (int16_t)buf.ReadIntSpec("DEP_LATENCY_ANTI:");
-  dependenceLatencies_[DEP_OUTPUT] = (int16_t)buf.ReadIntSpec("DEP_LATENCY_OUTPUT:");
-  dependenceLatencies_[DEP_OTHER] = (int16_t)buf.ReadIntSpec("DEP_LATENCY_OTHER:");
+  dependenceLatencies_[DEP_DATA] = 1; // Shouldn't be used!
+  dependenceLatencies_[DEP_ANTI] =
+      (int16_t)buf.ReadIntSpec("DEP_LATENCY_ANTI:");
+  dependenceLatencies_[DEP_OUTPUT] =
+      (int16_t)buf.ReadIntSpec("DEP_LATENCY_OUTPUT:");
+  dependenceLatencies_[DEP_OTHER] =
+      (int16_t)buf.ReadIntSpec("DEP_LATENCY_OTHER:");
 
   registerTypes_.resize(buf.ReadIntSpec("REG_TYPE_COUNT:"));
 
   for (size_t i = 0; i < registerTypes_.size(); i++) {
     int pieceCnt;
-    char* strngs[INBUF_MAX_PIECES_PERLINE];
+    char *strngs[INBUF_MAX_PIECES_PERLINE];
     int lngths[INBUF_MAX_PIECES_PERLINE];
     buf.GetNxtVldLine(pieceCnt, strngs, lngths);
 
@@ -58,8 +62,7 @@ MachineModel::MachineModel(const string& modelFile) {
   instTypes_.resize(buf.ReadIntSpec("INST_TYPE_COUNT:"));
 
   for (vector<InstTypeInfo>::iterator it = instTypes_.begin();
-       it != instTypes_.end();
-       it++) {
+       it != instTypes_.end(); it++) {
     buf.ReadSpec("INST_TYPE:", buffer);
     it->name = buffer;
     it->isCntxtDep = (it->name.find("_after_") != string::npos);
@@ -68,8 +71,8 @@ MachineModel::MachineModel(const string& modelFile) {
     IssueType issuType = GetIssueTypeByName(buffer);
 
     if (issuType == INVALID_ISSUE_TYPE) {
-      Logger::Fatal("Invalid issue type %s for inst. type %s",
-                    buffer, it->name.c_str());
+      Logger::Fatal("Invalid issue type %s for inst. type %s", buffer,
+                    it->name.c_str());
     }
 
     it->issuType = issuType;
@@ -80,8 +83,8 @@ MachineModel::MachineModel(const string& modelFile) {
   }
 }
 
-InstType MachineModel::GetInstTypeByName(const string& typeName,
-                                         const string& prevName) const {
+InstType MachineModel::GetInstTypeByName(const string &typeName,
+                                         const string &prevName) const {
   string composite = prevName.size() ? typeName + "_after_" + prevName : "";
   for (size_t i = 0; i < instTypes_.size(); i++) {
     if (instTypes_[i].isCntxtDep && instTypes_[i].name == composite) {
@@ -90,11 +93,11 @@ InstType MachineModel::GetInstTypeByName(const string& typeName,
       return (InstType)i;
     }
   }
-//  Logger::Error("Unrecognized instruction type %s.", typeName.c_str());
+  //  Logger::Error("Unrecognized instruction type %s.", typeName.c_str());
   return INVALID_INST_TYPE;
 }
 
-int16_t MachineModel::GetRegTypeByName(char const * const regTypeName) const {
+int16_t MachineModel::GetRegTypeByName(char const *const regTypeName) const {
   for (size_t i = 0; i < registerTypes_.size(); i++) {
     if (regTypeName == registerTypes_[i].name) {
       return (int16_t)i;
@@ -104,8 +107,8 @@ int16_t MachineModel::GetRegTypeByName(char const * const regTypeName) const {
   return INVALID_VALUE;
 }
 
-IssueType MachineModel::GetIssueTypeByName(
-    char const * const issuTypeName) const {
+IssueType
+MachineModel::GetIssueTypeByName(char const *const issuTypeName) const {
   for (size_t i = 0; i < issueTypes_.size(); i++) {
     if (issuTypeName == issueTypes_[i].name) {
       return (InstType)i;
@@ -119,7 +122,7 @@ int MachineModel::GetPhysRegCnt(int16_t regType) const {
   return registerTypes_[regType].count;
 }
 
-const string& MachineModel::GetRegTypeName(int16_t regType) const {
+const string &MachineModel::GetRegTypeName(int16_t regType) const {
   return registerTypes_[regType].name;
 }
 
@@ -164,12 +167,11 @@ int MachineModel::GetSlotsPerCycle(int slotsPerCycle[]) const {
   return issueTypes_.size();
 }
 
-char const * MachineModel::GetInstTypeNameByCode(InstType typeCode) const {
+char const *MachineModel::GetInstTypeNameByCode(InstType typeCode) const {
   return instTypes_[typeCode].name.c_str();
 }
 
-char const * MachineModel::GetIssueTypeNameByCode(
-    IssueType typeCode) const {
+char const *MachineModel::GetIssueTypeNameByCode(IssueType typeCode) const {
   return issueTypes_[typeCode].name.c_str();
 }
 
@@ -189,25 +191,15 @@ bool MachineModel::IsFloat(InstType instTypeCode) const {
   return instTypes_[instTypeCode].name[0] == 'f';
 }
 
-const string& MachineModel::GetModelName() const {
-  return mdlName_;
-}
+const string &MachineModel::GetModelName() const { return mdlName_; }
 
-int MachineModel::GetInstTypeCnt() const {
-  return instTypes_.size();
-}
+int MachineModel::GetInstTypeCnt() const { return instTypes_.size(); }
 
-int MachineModel::GetIssueTypeCnt() const {
-  return issueTypes_.size();
-}
+int MachineModel::GetIssueTypeCnt() const { return issueTypes_.size(); }
 
-int MachineModel::GetIssueRate() const {
-  return issueRate_;
-}
+int MachineModel::GetIssueRate() const { return issueRate_; }
 
-int MachineModel::GetIssueSlotCnt() const {
-  return issueSlotCnt_;
-}
+int MachineModel::GetIssueSlotCnt() const { return issueSlotCnt_; }
 
 int16_t MachineModel::GetRegTypeCnt() const {
   return (int16_t)registerTypes_.size();

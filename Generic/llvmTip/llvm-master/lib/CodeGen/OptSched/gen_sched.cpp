@@ -1,14 +1,13 @@
 #include "llvm/CodeGen/OptSched/basic/gen_sched.h"
-#include "llvm/CodeGen/OptSched/generic/logger.h"
-#include "llvm/CodeGen/OptSched/basic/ready_list.h"
-#include "llvm/CodeGen/OptSched/basic/machine_model.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/basic/machine_model.h"
+#include "llvm/CodeGen/OptSched/basic/ready_list.h"
+#include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 
 namespace opt_sched {
 
-InstScheduler::InstScheduler(DataDepStruct* dataDepGraph,
-                             MachineModel* machMdl,
+InstScheduler::InstScheduler(DataDepStruct *dataDepGraph, MachineModel *machMdl,
                              InstCount schedUprBound) {
   assert(dataDepGraph != NULL);
   assert(machMdl != NULL);
@@ -49,7 +48,8 @@ InstScheduler::~InstScheduler() {
 
 void ConstrainedScheduler::AllocRsrvSlots_() {
   rsrvSlots_ = new ReserveSlot[issuRate_];
-  if (rsrvSlots_ == NULL) Logger::Fatal("Out of memory.");
+  if (rsrvSlots_ == NULL)
+    Logger::Fatal("Out of memory.");
   ResetRsrvSlots_();
 }
 
@@ -65,16 +65,17 @@ void ConstrainedScheduler::ResetRsrvSlots_() {
   rsrvSlotCnt_ = 0;
 }
 
-ConstrainedScheduler::ConstrainedScheduler(DataDepGraph* dataDepGraph,
-                                           MachineModel* machMdl,
+ConstrainedScheduler::ConstrainedScheduler(DataDepGraph *dataDepGraph,
+                                           MachineModel *machMdl,
                                            InstCount schedUprBound)
     : InstScheduler(dataDepGraph, machMdl, schedUprBound) {
   dataDepGraph_ = dataDepGraph;
 
   // Allocate the array of first-ready lists - one list per cycle.
   assert(schedUprBound_ > 0);
-  frstRdyLstPerCycle_ = new LinkedList<SchedInstruction>*[schedUprBound_];
-  if (frstRdyLstPerCycle_ == NULL) Logger::Fatal("Out of memory.");
+  frstRdyLstPerCycle_ = new LinkedList<SchedInstruction> *[schedUprBound_];
+  if (frstRdyLstPerCycle_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   for (InstCount i = 0; i < schedUprBound_; i++) {
     frstRdyLstPerCycle_[i] = NULL;
@@ -89,7 +90,8 @@ ConstrainedScheduler::ConstrainedScheduler(DataDepGraph* dataDepGraph,
   isCrntCycleBlkd_ = false;
 
   avlblSlotsInCrntCycle_ = new int16_t[issuTypeCnt_];
-  if (avlblSlotsInCrntCycle_ == NULL) Logger::Fatal("Out of memory.");
+  if (avlblSlotsInCrntCycle_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   rsrvSlots_ = NULL;
   rsrvSlotCnt_ = 0;
@@ -102,20 +104,23 @@ ConstrainedScheduler::~ConstrainedScheduler() {
   }
   delete[] frstRdyLstPerCycle_;
   delete[] avlblSlotsInCrntCycle_;
-  if (rsrvSlots_) delete[] rsrvSlots_;
+  if (rsrvSlots_)
+    delete[] rsrvSlots_;
 }
 
 bool ConstrainedScheduler::Initialize_(InstCount trgtSchedLngth,
-                                       LinkedList<SchedInstruction>* fxdLst) {
+                                       LinkedList<SchedInstruction> *fxdLst) {
   for (int i = 0; i < totInstCnt_; i++) {
-    SchedInstruction* inst = dataDepGraph_->GetInstByIndx(i);
-    if (!inst->InitForSchdulng(trgtSchedLngth, fxdLst)) return false;
+    SchedInstruction *inst = dataDepGraph_->GetInstByIndx(i);
+    if (!inst->InitForSchdulng(trgtSchedLngth, fxdLst))
+      return false;
   }
 
   // Allocate the first entry in the array.
   if (frstRdyLstPerCycle_[0] == NULL) {
     frstRdyLstPerCycle_[0] = new LinkedList<SchedInstruction>;
-    if (frstRdyLstPerCycle_[0] == NULL) Logger::Fatal("Out of memory.");
+    if (frstRdyLstPerCycle_[0] == NULL)
+      Logger::Fatal("Out of memory.");
   }
 
   frstRdyLstPerCycle_[0]->InsrtElmnt(rootInst_);
@@ -138,15 +143,14 @@ bool ConstrainedScheduler::Initialize_(InstCount trgtSchedLngth,
   return true;
 }
 
-void ConstrainedScheduler::SchdulInst_(SchedInstruction* inst, InstCount) {
+void ConstrainedScheduler::SchdulInst_(SchedInstruction *inst, InstCount) {
   InstCount prdcsrNum, scsrRdyCycle;
 
   // Notify each successor of this instruction that it has been scheduled.
-  for (SchedInstruction* crntScsr = inst->GetFrstScsr(&prdcsrNum);
-       crntScsr != NULL;
-       crntScsr = inst->GetNxtScsr(&prdcsrNum)) {
-    bool wasLastPrdcsr = crntScsr->PrdcsrSchduld(
-        prdcsrNum, crntCycleNum_, scsrRdyCycle);
+  for (SchedInstruction *crntScsr = inst->GetFrstScsr(&prdcsrNum);
+       crntScsr != NULL; crntScsr = inst->GetNxtScsr(&prdcsrNum)) {
+    bool wasLastPrdcsr =
+        crntScsr->PrdcsrSchduld(prdcsrNum, crntCycleNum_, scsrRdyCycle);
 
     if (wasLastPrdcsr) {
       // If all other predecessors of this successor have been scheduled then
@@ -161,8 +165,8 @@ void ConstrainedScheduler::SchdulInst_(SchedInstruction* inst, InstCount) {
         }
       }
 
-      //Add this succesor to the first-ready list of the future cycle
-      //in which we now know it will become ready
+      // Add this succesor to the first-ready list of the future cycle
+      // in which we now know it will become ready
       frstRdyLstPerCycle_[scsrRdyCycle]->InsrtElmnt(crntScsr);
     }
   }
@@ -174,7 +178,7 @@ void ConstrainedScheduler::SchdulInst_(SchedInstruction* inst, InstCount) {
   schduldInstCnt_++;
 }
 
-void ConstrainedScheduler::UnSchdulInst_(SchedInstruction* inst) {
+void ConstrainedScheduler::UnSchdulInst_(SchedInstruction *inst) {
   InstCount prdcsrNum, scsrRdyCycle;
 
   assert(inst->IsSchduld());
@@ -183,9 +187,8 @@ void ConstrainedScheduler::UnSchdulInst_(SchedInstruction* inst) {
   // The successors are visted in the reverse order so that each one will be
   // at the bottom of its first-ready list (if the scheduling of this
   // instruction has caused it to go there).
-  for (SchedInstruction* crntScsr = inst->GetLastScsr(&prdcsrNum);
-       crntScsr != NULL;
-       crntScsr = inst->GetPrevScsr(&prdcsrNum)) {
+  for (SchedInstruction *crntScsr = inst->GetLastScsr(&prdcsrNum);
+       crntScsr != NULL; crntScsr = inst->GetPrevScsr(&prdcsrNum)) {
     bool wasLastPrdcsr = crntScsr->PrdcsrUnSchduld(prdcsrNum, scsrRdyCycle);
 
     if (wasLastPrdcsr) {
@@ -202,19 +205,22 @@ void ConstrainedScheduler::UnSchdulInst_(SchedInstruction* inst) {
   schduldInstCnt_--;
 }
 
-void ConstrainedScheduler::DoRsrvSlots_(SchedInstruction* inst) {
-  if (inst == NULL) return;
+void ConstrainedScheduler::DoRsrvSlots_(SchedInstruction *inst) {
+  if (inst == NULL)
+    return;
 
   if (!inst->IsPipelined()) {
-    if (rsrvSlots_ == NULL) AllocRsrvSlots_();
+    if (rsrvSlots_ == NULL)
+      AllocRsrvSlots_();
     rsrvSlots_[crntSlotNum_].strtCycle = crntCycleNum_;
     rsrvSlots_[crntSlotNum_].endCycle = crntCycleNum_ + inst->GetMaxLtncy() - 1;
     rsrvSlotCnt_++;
   }
 }
 
-void ConstrainedScheduler::UndoRsrvSlots_(SchedInstruction* inst) {
-  if (inst == NULL) return;
+void ConstrainedScheduler::UndoRsrvSlots_(SchedInstruction *inst) {
+  if (inst == NULL)
+    return;
 
   if (!inst->IsPipelined()) {
     assert(rsrvSlots_ != NULL);
@@ -236,7 +242,7 @@ void ConstrainedScheduler::InitNewCycle_() {
   isCrntCycleBlkd_ = false;
 }
 
-bool ConstrainedScheduler::MovToNxtSlot_(SchedInstruction* inst) {
+bool ConstrainedScheduler::MovToNxtSlot_(SchedInstruction *inst) {
   // If we are currently in the last slot of the current cycle.
   if (crntSlotNum_ == (issuRate_ - 1)) {
     crntCycleNum_++;
@@ -245,7 +251,8 @@ bool ConstrainedScheduler::MovToNxtSlot_(SchedInstruction* inst) {
     return true;
   } else {
     crntSlotNum_++;
-    if (inst && machMdl_->IsRealInst(inst->GetInstType())) crntRealSlotNum_++;
+    if (inst && machMdl_->IsRealInst(inst->GetInstType()))
+      crntRealSlotNum_++;
     return false;
   }
 }
@@ -260,7 +267,8 @@ bool ConstrainedScheduler::MovToPrevSlot_(int prevRealSlotNum) {
     return true;
   } else {
     crntSlotNum_--;
-    //if (inst && machMdl_->IsRealInst(inst->GetInstType())) crntRealSlotNum_--;
+    // if (inst && machMdl_->IsRealInst(inst->GetInstType()))
+    // crntRealSlotNum_--;
     return false;
   }
 }
@@ -272,41 +280,45 @@ void ConstrainedScheduler::CleanupCycle_(InstCount cycleNum) {
   }
 }
 
-bool ConstrainedScheduler::ChkInstLglty_(SchedInstruction* inst) {
-//Logger::Info("Checking inst %d", inst==NULL? -1: inst->GetNum());
-  if (inst == NULL) return true;
+bool ConstrainedScheduler::ChkInstLglty_(SchedInstruction *inst) {
+  // Logger::Info("Checking inst %d", inst==NULL? -1: inst->GetNum());
+  if (inst == NULL)
+    return true;
   // Do region-specific legality check
-  if(rgn_->ChkInstLglty(inst) == false) return false;
-//Logger::Info("Legal");
+  if (rgn_->ChkInstLglty(inst) == false)
+    return false;
+  // Logger::Info("Legal");
 
   if (inst && machMdl_->IsRealInst(inst->GetInstType()) &&
       crntRealSlotNum_ == issuSlotCnt_) {
     return false;
   }
-//Logger::Info("Slots ok");
+  // Logger::Info("Slots ok");
 
   // Account for instructions that block the whole cycle.
-  if (isCrntCycleBlkd_) return false;
-//Logger::Info("Cycle not blocked");
-  if (inst->BlocksCycle() && crntSlotNum_ != 0) return false;
-//Logger::Info("Does not block cycle");
-  if (includesUnpipelined_ &&
-      rsrvSlots_ &&
+  if (isCrntCycleBlkd_)
+    return false;
+  // Logger::Info("Cycle not blocked");
+  if (inst->BlocksCycle() && crntSlotNum_ != 0)
+    return false;
+  // Logger::Info("Does not block cycle");
+  if (includesUnpipelined_ && rsrvSlots_ &&
       rsrvSlots_[crntSlotNum_].strtCycle != INVALID_VALUE &&
       crntCycleNum_ <= rsrvSlots_[crntSlotNum_].endCycle) {
     return false;
   }
-//Logger::Info("Pipelining OK");
+  // Logger::Info("Pipelining OK");
 
   IssueType issuType = inst->GetIssueType();
   assert(issuType < issuTypeCnt_);
   assert(avlblSlotsInCrntCycle_[issuType] >= 0);
-//Logger::Info("avlblSlots = %d", avlblSlotsInCrntCycle_[issuType]);
+  // Logger::Info("avlblSlots = %d", avlblSlotsInCrntCycle_[issuType]);
   return (avlblSlotsInCrntCycle_[issuType] > 0);
 }
 
-void ConstrainedScheduler::UpdtSlotAvlblty_(SchedInstruction* inst) {
-  if (inst == NULL) return;
+void ConstrainedScheduler::UpdtSlotAvlblty_(SchedInstruction *inst) {
+  if (inst == NULL)
+    return;
   IssueType issuType = inst->GetIssueType();
   assert(issuType < issuTypeCnt_);
   assert(avlblSlotsInCrntCycle_[issuType] > 0);

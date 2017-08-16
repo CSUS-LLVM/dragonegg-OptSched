@@ -359,13 +359,13 @@ void ScheduleDAGOptSched::schedule() {
   }
 #endif
 
-  #ifdef IS_DEBUG_PRINT_DAG
+#ifdef IS_DEBUG_PRINT_DAG
   Logger::Info("%s", BB->getFullName());
   for (int i = 0; i < SUnits.size(); i++) {
     SUnits[i].dumpAll(this);
   }
-  #endif
-  
+#endif
+
   delete region;
 }
 
@@ -422,7 +422,8 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   prune.nodeSup = schedIni.GetBool("DYNAMIC_NODE_SUPERIORITY");
   prune.histDom = schedIni.GetBool("APPLY_HISTORY_DOMINATION");
   prune.spillCost = schedIni.GetBool("APPLY_SPILL_COST_PRUNING");
-  prune.useSuffixConcatenation = schedIni.GetBool("ENABLE_SUFFIX_CONCATENATION");
+  prune.useSuffixConcatenation =
+      schedIni.GetBool("ENABLE_SUFFIX_CONCATENATION");
 
   // setup graph transformations
   graphTransTypes.staticNodeSup = schedIni.GetBool("STATIC_NODE_SUPERIORITY");

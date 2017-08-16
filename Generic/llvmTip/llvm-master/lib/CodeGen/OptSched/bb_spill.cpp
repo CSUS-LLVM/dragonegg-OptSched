@@ -1,20 +1,20 @@
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
+#include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/basic/register.h"
+#include "llvm/CodeGen/OptSched/enum/enumerator.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/random.h"
 #include "llvm/CodeGen/OptSched/generic/stats.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
-#include "llvm/CodeGen/OptSched/basic/register.h"
-#include "llvm/CodeGen/OptSched/basic/data_dep.h"
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
-#include "llvm/CodeGen/OptSched/enum/enumerator.h"
 #include <cstdio>
 #include <iostream>
-#include <set>
-#include <numeric>
 #include <map>
-#include <utility>
+#include <numeric>
+#include <set>
 #include <sstream>
+#include <utility>
 
 extern bool OPTSCHED_gPrintSpills;
 
@@ -23,26 +23,16 @@ namespace opt_sched {
 // The denominator used when calculating cost weight.
 static const int COST_WGHT_BASE = 100;
 
-BBWithSpill::BBWithSpill(MachineModel* machMdl,
-                         DataDepGraph* dataDepGraph,
-                         long rgnNum,
-                         int16_t sigHashSize,
-                         LB_ALG lbAlg,
+BBWithSpill::BBWithSpill(MachineModel *machMdl, DataDepGraph *dataDepGraph,
+                         long rgnNum, int16_t sigHashSize, LB_ALG lbAlg,
                          SchedPriorities hurstcPrirts,
-                         SchedPriorities enumPrirts,
-                         bool vrfySched,
-                         Pruning prune,
-                         bool schedForRPOnly,
-                         bool enblStallEnum,
-                         int spillCostFactor,
-                         SPILL_COST_FUNCTION spillCostFunc,
-                         bool chkSpillCostSum,
-                         bool chkCnflcts,
-                         bool fixLivein,
-                         bool fixLiveout,
-                         int maxSpillCost):
-  SchedRegion(machMdl, dataDepGraph, rgnNum, sigHashSize,
-              lbAlg, hurstcPrirts, enumPrirts, vrfySched, prune) {
+                         SchedPriorities enumPrirts, bool vrfySched,
+                         Pruning prune, bool schedForRPOnly, bool enblStallEnum,
+                         int spillCostFactor, SPILL_COST_FUNCTION spillCostFunc,
+                         bool chkSpillCostSum, bool chkCnflcts, bool fixLivein,
+                         bool fixLiveout, int maxSpillCost)
+    : SchedRegion(machMdl, dataDepGraph, rgnNum, sigHashSize, lbAlg,
+                  hurstcPrirts, enumPrirts, vrfySched, prune) {
   int16_t i;
 
   costLwrBound_ = 0;
@@ -66,7 +56,8 @@ BBWithSpill::BBWithSpill(MachineModel* machMdl,
   maxSpillCost_ = maxSpillCost;
   trackLiveRangeLngths_ = true;
 
-  if (fixLivein_ || fixLiveout_) needTrnstvClsr_ = true;
+  if (fixLivein_ || fixLiveout_)
+    needTrnstvClsr_ = true;
 
   regTypeCnt_ = machMdl->GetRegTypeCnt();
   regFiles_ = new RegisterFile[regTypeCnt_];
@@ -103,17 +94,19 @@ BBWithSpill::~BBWithSpill() {
 
 bool BBWithSpill::EnableEnum_() {
   if (maxSpillCost_ > 0 && hurstcCost_ > maxSpillCost_) {
-    Logger::Info("Bypassing enumeration due to a large spill cost of %d", hurstcCost_);
+    Logger::Info("Bypassing enumeration due to a large spill cost of %d",
+                 hurstcCost_);
     return false;
   }
   return true;
 }
 /*****************************************************************************/
 
-ListScheduler* BBWithSpill::AllocLstSchdulr_() {
-  ListScheduler* lstSchdulr = new ListScheduler(
+ListScheduler *BBWithSpill::AllocLstSchdulr_() {
+  ListScheduler *lstSchdulr = new ListScheduler(
       dataDepGraph_, machMdl_, abslutSchedUprBound_, hurstcPrirts_);
-  if (lstSchdulr == NULL) Logger::Fatal("Out of memory.");
+  if (lstSchdulr == NULL)
+    Logger::Fatal("Out of memory.");
   return lstSchdulr;
 }
 /*****************************************************************************/
@@ -125,9 +118,9 @@ FUNC_RESULT BBWithSpill::BuildFromFile() {
   for (int i = 0; i < regTypeCnt_; i++) {
     liveRegs_[i].Construct(regFiles_[i].GetRegCnt());
   }
- 
-  //dataDepGraph_->LogGraph();
-  
+
+  // dataDepGraph_->LogGraph();
+
   return RES_SUCCESS;
 }
 /*****************************************************************************/
@@ -149,21 +142,21 @@ void BBWithSpill::CmputAbslutUprBound_() {
 /*****************************************************************************/
 
 void BBWithSpill::CmputSchedUprBound_() {
-  //The maximum increase in sched length that might result in a smaller cost
-  //than the known one
+  // The maximum increase in sched length that might result in a smaller cost
+  // than the known one
   int maxLngthIncrmnt = (bestCost_ - 1) / schedCostFactor_;
 
-  if(machMdl_->IsSimple() && dataDepGraph_->GetMaxLtncy() <= 1) {
-    #if defined(IS_DEBUG_DAG) || defined(IS_DEBUG_SIMPLE_DAGS)
+  if (machMdl_->IsSimple() && dataDepGraph_->GetMaxLtncy() <= 1) {
+#if defined(IS_DEBUG_DAG) || defined(IS_DEBUG_SIMPLE_DAGS)
     Logger::Info("Simple DAG with max latency of one or less.");
-    #endif
+#endif
     maxLngthIncrmnt = 0;
   }
 
   assert(maxLngthIncrmnt >= 0);
 
-  //Any schedule longer than this will have a cost that is greater than or
-  //equal to that of the list schedule
+  // Any schedule longer than this will have a cost that is greater than or
+  // equal to that of the list schedule
   schedUprBound_ = schedLwrBound_ + maxLngthIncrmnt;
 
   if (abslutSchedUprBound_ < schedUprBound_) {
@@ -172,20 +165,21 @@ void BBWithSpill::CmputSchedUprBound_() {
 }
 /*****************************************************************************/
 
-static InstCount ComputeSLILStaticLowerBound(
-  int64_t regTypeCnt_, const RegisterFile *regFiles_,
-  DataDepGraph *dataDepGraph_) {
-  // (Chris): To calculate a naive lower bound of the SLIL, count all the defs and uses for each register.
+static InstCount ComputeSLILStaticLowerBound(int64_t regTypeCnt_,
+                                             const RegisterFile *regFiles_,
+                                             DataDepGraph *dataDepGraph_) {
+  // (Chris): To calculate a naive lower bound of the SLIL, count all the defs
+  // and uses for each register.
   int naiveLowerBound = 0;
   for (int i = 0; i < regTypeCnt_; ++i) {
     for (int j = 0; j < regFiles_[i].GetRegCnt(); ++j) {
-      const auto& reg = regFiles_[i].GetReg(j);
-      for (const auto& instruction : reg->GetDefList()) {
+      const auto &reg = regFiles_[i].GetReg(j);
+      for (const auto &instruction : reg->GetDefList()) {
         if (reg->AddToInterval(instruction)) {
           ++naiveLowerBound;
         }
       }
-      for (const auto& instruction : reg->GetUseList()) {
+      for (const auto &instruction : reg->GetUseList()) {
         if (reg->AddToInterval(instruction)) {
           ++naiveLowerBound;
         }
@@ -195,7 +189,7 @@ static InstCount ComputeSLILStaticLowerBound(
 
 #if defined(IS_DEBUG_SLIL_COST_LOWER_BOUND)
   Logger::Info("SLIL Naive Static Lower Bound Cost  is %llu for Dag %s",
-    naiveLowerBound, dataDepGraph_->GetDagID());
+               naiveLowerBound, dataDepGraph_->GetDagID());
 #endif
 
   // (Chris): Another improvement to the lower bound calculation takes advantage
@@ -204,18 +198,23 @@ static InstCount ComputeSLILStaticLowerBound(
   // range length of A increases by 1.
   auto closureLowerBound = naiveLowerBound;
   for (int i = 0; i < dataDepGraph_->GetInstCnt(); ++i) {
-    const auto& inst = dataDepGraph_->GetInstByIndx(i);
-    // For each register this instruction defines, compute the intersection between the recursive successor list of this instruction and the recursive predecessors of the dependent instruction.
-    Register** definedRegisters = nullptr;
+    const auto &inst = dataDepGraph_->GetInstByIndx(i);
+    // For each register this instruction defines, compute the intersection
+    // between the recursive successor list of this instruction and the
+    // recursive predecessors of the dependent instruction.
+    Register **definedRegisters = nullptr;
     auto defRegCount = inst->GetDefs(definedRegisters);
     auto recSuccBV = inst->GetRcrsvNghbrBitVector(DIR_FRWRD);
     for (int j = 0; j < defRegCount; ++j) {
-      for (const auto& dependentInst : definedRegisters[j]->GetUseList()) {
-        auto recPredBV = const_cast<SchedInstruction*>(dependentInst)->GetRcrsvNghbrBitVector(DIR_BKWRD);
-        assert(recSuccBV->GetSize() == recPredBV->GetSize() && "Successor list size doesn't match predecessor list size!");
+      for (const auto &dependentInst : definedRegisters[j]->GetUseList()) {
+        auto recPredBV = const_cast<SchedInstruction *>(dependentInst)
+                             ->GetRcrsvNghbrBitVector(DIR_BKWRD);
+        assert(recSuccBV->GetSize() == recPredBV->GetSize() &&
+               "Successor list size doesn't match predecessor list size!");
         for (int k = 0; k < recSuccBV->GetSize(); ++k) {
           if (recSuccBV->GetBit(k) & recPredBV->GetBit(k)) {
-            if (definedRegisters[j]->AddToInterval(dataDepGraph_->GetInstByIndx(k))) {
+            if (definedRegisters[j]->AddToInterval(
+                    dataDepGraph_->GetInstByIndx(k))) {
               ++closureLowerBound;
             }
           }
@@ -226,37 +225,40 @@ static InstCount ComputeSLILStaticLowerBound(
 
 #if defined(IS_DEBUG_SLIL_COST_LOWER_BOUND)
   Logger::Info("SLIL Closur Static Lower Bound Cost is %llu for Dag %s",
-    closureLowerBound, dataDepGraph_->GetDagID());
+               closureLowerBound, dataDepGraph_->GetDagID());
 #endif
 
   // (Chris): A better lower bound can be computed by adding more to the SLIL
   // based on the instructions that use more than one register (defined by
   // different instructions).
   int commonUseLowerBound = closureLowerBound;
-  std::vector<std::pair<const SchedInstruction*, Register*>> usedInsts;
+  std::vector<std::pair<const SchedInstruction *, Register *>> usedInsts;
   for (int i = 0; i < dataDepGraph_->GetInstCnt(); ++i) {
-    const auto& inst = dataDepGraph_->GetInstByIndx(i);
-    Register** usedRegisters = nullptr;
+    const auto &inst = dataDepGraph_->GetInstByIndx(i);
+    Register **usedRegisters = nullptr;
     auto usedRegCount = inst->GetUses(usedRegisters);
 
     // Get a list of instructions that define the registers, in array form.
     usedInsts.clear();
     for (int j = 0; j < usedRegCount; ++j) {
-      Register* reg = usedRegisters[j];
-      assert(reg->GetDefList().size() == 1 && "Number of defs for register is not 1!");
+      Register *reg = usedRegisters[j];
+      assert(reg->GetDefList().size() == 1 &&
+             "Number of defs for register is not 1!");
       usedInsts.push_back(std::make_pair(*(reg->GetDefList().begin()), reg));
     }
 
 #if defined(IS_DEBUG_SLIL_COMMON_USE_LB)
     Logger::Info("Common Use Lower Bound Instruction %d", inst->GetNum());
     Logger::Info("  Instruction %d uses:", inst->GetNum());
-    for (const auto& p : usedInsts) {
-      Logger::Info("    Instruction %d register %d:%d", p.first->GetNum(), p.second->GetType(), p.second->GetNum());
+    for (const auto &p : usedInsts) {
+      Logger::Info("    Instruction %d register %d:%d", p.first->GetNum(),
+                   p.second->GetType(), p.second->GetNum());
     }
 
-    for (const auto& p : usedInsts) {
-      Logger::Info("  Live interval of Register %d:%d (defined by Inst %d):", p.second->GetType(), p.second->GetNum(), p.first->GetNum());
-      for (const auto& s : p.second->GetLiveInterval()) {
+    for (const auto &p : usedInsts) {
+      Logger::Info("  Live interval of Register %d:%d (defined by Inst %d):",
+                   p.second->GetType(), p.second->GetNum(), p.first->GetNum());
+      for (const auto &s : p.second->GetLiveInterval()) {
         Logger::Info("    %d", s->GetNum());
       }
     }
@@ -264,8 +266,8 @@ static InstCount ComputeSLILStaticLowerBound(
 
     for (int j = 0; j < usedInsts.size(); ++j) {
       for (int k = j + 1; k < usedInsts.size(); ++k) {
-        const auto& jReg = usedInsts[j].second;
-        const auto& kReg = usedInsts[k].second;
+        const auto &jReg = usedInsts[j].second;
+        const auto &kReg = usedInsts[k].second;
 
         // If k is not in the live interval of j AND ALSO j is not in the live
         // interval of k, add k to the live interval of j, and increment the
@@ -281,7 +283,9 @@ static InstCount ComputeSLILStaticLowerBound(
 
           commonUseLowerBound++;
 #if defined(IS_DEBUG_SLIL_COMMON_USE_LB)
-          Logger::Info("  Common Use: Found two instructions %d and %d", usedInsts[j].first->GetNum(), usedInsts[k].first->GetNum());
+          Logger::Info("  Common Use: Found two instructions %d and %d",
+                       usedInsts[j].first->GetNum(),
+                       usedInsts[k].first->GetNum());
 #endif
         }
       }
@@ -290,10 +294,9 @@ static InstCount ComputeSLILStaticLowerBound(
 
 #if defined(IS_DEBUG_SLIL_COST_LOWER_BOUND)
   if (commonUseLowerBound > closureLowerBound)
-  Logger::Info("SLIL Final  Static Lower Bound Cost is %llu for Dag %s",
-    commonUseLowerBound, dataDepGraph_->GetDagID());
+    Logger::Info("SLIL Final  Static Lower Bound Cost is %llu for Dag %s",
+                 commonUseLowerBound, dataDepGraph_->GetDagID());
 #endif
-
 
   return static_cast<InstCount>(commonUseLowerBound);
 }
@@ -301,20 +304,21 @@ static InstCount ComputeSLILStaticLowerBound(
 
 InstCount BBWithSpill::CmputCostLwrBound() {
   InstCount useCnt, spillCostLwrBound = 0;
-  SchedInstruction * inst;
+  SchedInstruction *inst;
 
   if (spillCostFunc_ == SCF_SLIL) {
-    spillCostLwrBound = ComputeSLILStaticLowerBound(regTypeCnt_, regFiles_, dataDepGraph_);
+    spillCostLwrBound =
+        ComputeSLILStaticLowerBound(regTypeCnt_, regFiles_, dataDepGraph_);
     dynamicSlilLowerBound_ = spillCostLwrBound;
     staticSlilLowerBound_ = spillCostLwrBound;
   }
-
 
   // for(InstCount i=0; i< dataDepGraph_->GetInstCnt(); i++) {
   //   inst = dataDepGraph_->GetInstByIndx(i);
   // }
 
-  return schedLwrBound_ * schedCostFactor_ + spillCostLwrBound * spillCostFactor_;
+  return schedLwrBound_ * schedCostFactor_ +
+         spillCostLwrBound * spillCostFactor_;
 }
 /*****************************************************************************/
 
@@ -351,18 +355,19 @@ void BBWithSpill::InitForCostCmputtn_() {
     peakRegPressures_[i] = 0;
   }
 
-  for(i = 0; i < dataDepGraph_->GetInstCnt(); i++)
+  for (i = 0; i < dataDepGraph_->GetInstCnt(); i++)
     spillCosts_[i] = 0;
 
-  for (auto& i : sumOfLiveIntervalLengths_)
+  for (auto &i : sumOfLiveIntervalLengths_)
     i = 0;
 
   dynamicSlilLowerBound_ = staticSlilLowerBound_;
 }
 /*****************************************************************************/
 
-InstCount BBWithSpill::CmputNormCost_(InstSchedule* sched, COST_COMP_MODE compMode,
-                                        InstCount& execCost, bool trackCnflcts) {
+InstCount BBWithSpill::CmputNormCost_(InstSchedule *sched,
+                                      COST_COMP_MODE compMode,
+                                      InstCount &execCost, bool trackCnflcts) {
   InstCount cost = CmputCost_(sched, compMode, execCost, trackCnflcts);
 
   cost -= costLwrBound_;
@@ -374,12 +379,12 @@ InstCount BBWithSpill::CmputNormCost_(InstSchedule* sched, COST_COMP_MODE compMo
 }
 /*****************************************************************************/
 
-InstCount BBWithSpill::CmputCost_(InstSchedule* sched, COST_COMP_MODE compMode,
-                                  InstCount& execCost, bool trackCnflcts) {
+InstCount BBWithSpill::CmputCost_(InstSchedule *sched, COST_COMP_MODE compMode,
+                                  InstCount &execCost, bool trackCnflcts) {
   InstCount instNum;
   InstCount cycleNum;
   InstCount slotNum;
-  SchedInstruction* inst;
+  SchedInstruction *inst;
 
   if (compMode == CCM_STTC) {
     InitForCostCmputtn_();
@@ -405,37 +410,40 @@ InstCount BBWithSpill::CmputCost_(InstSchedule* sched, COST_COMP_MODE compMode,
 
 void BBWithSpill::CmputCrntSpillCost_() {
   switch (spillCostFunc_) {
-    case SCF_PEAK:
-    case SCF_PEAK_PER_TYPE:
-      crntSpillCost_ = peakSpillCost_;
-      break;
-    case SCF_SUM:
-      crntSpillCost_ = totSpillCost_;
-      break;
-    case SCF_PEAK_PLUS_AVG:
-      crntSpillCost_ = peakSpillCost_ + totSpillCost_/dataDepGraph_->GetInstCnt();
-      break;
-    case SCF_SLIL:
-      crntSpillCost_ = slilSpillCost_;
-      break;
+  case SCF_PEAK:
+  case SCF_PEAK_PER_TYPE:
+    crntSpillCost_ = peakSpillCost_;
+    break;
+  case SCF_SUM:
+    crntSpillCost_ = totSpillCost_;
+    break;
+  case SCF_PEAK_PLUS_AVG:
+    crntSpillCost_ =
+        peakSpillCost_ + totSpillCost_ / dataDepGraph_->GetInstCnt();
+    break;
+  case SCF_SLIL:
+    crntSpillCost_ = slilSpillCost_;
+    break;
   }
 }
 /*****************************************************************************/
 
-void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCnflcts) {
+void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction *inst,
+                                            bool trackCnflcts) {
   int16_t regType;
   int defCnt, useCnt, regNum, physRegNum;
-  Register** defs, **uses;
-  Register* def, *use;
+  Register **defs, **uses;
+  Register *def, *use;
   int excessRegs, liveRegs;
   InstCount newSpillCost;
 
   defCnt = inst->GetDefs(defs);
   useCnt = inst->GetUses(uses);
 
-  #ifdef IS_DEBUG_REG_PRESSURE
-  Logger::Info("Updating reg pressure after scheduling Inst %d", inst->GetNum());
-  #endif
+#ifdef IS_DEBUG_REG_PRESSURE
+  Logger::Info("Updating reg pressure after scheduling Inst %d",
+               inst->GetNum());
+#endif
 
   // Update Live regs after uses
   for (int i = 0; i < useCnt; i++) {
@@ -444,12 +452,14 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
     regNum = use->GetNum();
     physRegNum = use->GetPhysicalNumber();
 
-   if (use->IsLive() == false)
-     Logger::Fatal("Reg %d of type %d is used without being defined", regNum, regType); 
+    if (use->IsLive() == false)
+      Logger::Fatal("Reg %d of type %d is used without being defined", regNum,
+                    regType);
 
-   #ifdef IS_DEBUG_REG_PRESSURE
-   Logger::Info("Inst %d uses reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, use->GetUseCnt());
-   #endif    
+#ifdef IS_DEBUG_REG_PRESSURE
+    Logger::Info("Inst %d uses reg %d of type %d and %d uses", inst->GetNum(),
+                 regNum, regType, use->GetUseCnt());
+#endif
 
     use->AddCrntUse();
 
@@ -466,9 +476,10 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
 
       liveRegs_[regType].SetBit(regNum, false, use->GetWght());
 
-      #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
-      #endif
+#ifdef IS_DEBUG_REG_PRESSURE
+      Logger::Info("Reg type %d now has %d live regs", regType,
+                   liveRegs_[regType].GetOneCnt());
+#endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
         livePhysRegs_[regType].SetBit(physRegNum, false, use->GetWght());
@@ -480,47 +491,49 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
     def = defs[i];
     regType = def->GetType();
     regNum = def->GetNum();
-    physRegNum = def->GetPhysicalNumber(); 
+    physRegNum = def->GetPhysicalNumber();
 
-    #ifdef IS_DEBUG_REG_PRESSURE
-    Logger::Info("Inst %d defines reg %d of type %d and %d uses", inst->GetNum(), regNum, regType, def->GetUseCnt()); 
-    #endif
-   
-    //if (def->GetUseCnt() > 0) {
+#ifdef IS_DEBUG_REG_PRESSURE
+    Logger::Info("Inst %d defines reg %d of type %d and %d uses",
+                 inst->GetNum(), regNum, regType, def->GetUseCnt());
+#endif
 
-      if (trackCnflcts && liveRegs_[regType].GetOneCnt() > 0)
-        regFiles_[regType].AddConflictsWithLiveRegs(regNum, liveRegs_[regType].GetOneCnt()); 
+    // if (def->GetUseCnt() > 0) {
 
-      liveRegs_[regType].SetBit(regNum, true, def->GetWght());
+    if (trackCnflcts && liveRegs_[regType].GetOneCnt() > 0)
+      regFiles_[regType].AddConflictsWithLiveRegs(
+          regNum, liveRegs_[regType].GetOneCnt());
 
-      #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
-      #endif
+    liveRegs_[regType].SetBit(regNum, true, def->GetWght());
 
-      if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
-         livePhysRegs_[regType].SetBit(physRegNum, true, def->GetWght());
-      def->ResetCrntUseCnt();
-   //}
+#ifdef IS_DEBUG_REG_PRESSURE
+    Logger::Info("Reg type %d now has %d live regs", regType,
+                 liveRegs_[regType].GetOneCnt());
+#endif
+
+    if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
+      livePhysRegs_[regType].SetBit(physRegNum, true, def->GetWght());
+    def->ResetCrntUseCnt();
+    //}
   }
 
   newSpillCost = 0;
 
-  #ifdef IS_DEBUG_SLIL_CORRECT
-  if (OPTSCHED_gPrintSpills)
-  {
-    Logger::Info("Printing live range lengths for instruction BEFORE calculation.");
+#ifdef IS_DEBUG_SLIL_CORRECT
+  if (OPTSCHED_gPrintSpills) {
+    Logger::Info(
+        "Printing live range lengths for instruction BEFORE calculation.");
     for (int j = 0; j < sumOfLiveIntervalLengths_.size(); j++) {
-      Logger::Info("SLIL for regType %d %s is currently %d", 
-        j,
-        sumOfLiveIntervalLengths_[j]);
+      Logger::Info("SLIL for regType %d %s is currently %d", j,
+                   sumOfLiveIntervalLengths_[j]);
     }
     Logger::Info("Now computing spill cost for instruction.");
   }
-  #endif
+#endif
 
   for (int16_t i = 0; i < regTypeCnt_; i++) {
     liveRegs = liveRegs_[i].GetWghtedCnt();
-    if(liveRegs > peakRegPressures_[i])
+    if (liveRegs > peakRegPressures_[i])
       peakRegPressures_[i] = liveRegs;
 
     // (Chris): Compute sum of live range lengths at this point
@@ -528,81 +541,78 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction* inst, bool trackCn
       sumOfLiveIntervalLengths_[i] += liveRegs_[i].GetOneCnt();
       for (int j = 0; j < liveRegs_[i].GetSize(); ++j) {
         if (liveRegs_[i].GetBit(j)) {
-          const Register* reg = regFiles_[i].GetReg(j);
+          const Register *reg = regFiles_[i].GetReg(j);
           if (!reg->IsInInterval(inst) && !reg->IsInPossibleInterval(inst)) {
             ++dynamicSlilLowerBound_;
           }
         }
       }
-
     }
 
 #ifdef IS_DEBUG_REG_PRESSURE
     Logger::Info("Reg type %d has %d live regs", i, liveRegs);
-    #endif
+#endif
 
     if (spillCostFunc_ == SCF_PEAK_PER_TYPE)
       excessRegs = peakRegPressures_[i] - machMdl_->GetPhysRegCnt(i);
-    else 
-      excessRegs = liveRegs - machMdl_->GetPhysRegCnt(i); 
+    else
+      excessRegs = liveRegs - machMdl_->GetPhysRegCnt(i);
 
     if (excessRegs > 0) {
       newSpillCost += excessRegs;
     }
     if (spillCostFunc_ == SCF_SLIL) {
       slilSpillCost_ = std::accumulate(sumOfLiveIntervalLengths_.begin(),
-        sumOfLiveIntervalLengths_.end(), 0);
+                                       sumOfLiveIntervalLengths_.end(), 0);
     }
 
     // if (trackLiveRangeLngths_) {
-      
+
     // }
   }
 
-  #ifdef IS_DEBUG_SLIL_CORRECT
-  if (OPTSCHED_gPrintSpills)
-  {
-    Logger::Info("Printing live range lengths for instruction AFTER calculation.");
+#ifdef IS_DEBUG_SLIL_CORRECT
+  if (OPTSCHED_gPrintSpills) {
+    Logger::Info(
+        "Printing live range lengths for instruction AFTER calculation.");
     for (int j = 0; j < sumOfLiveIntervalLengths_.size(); j++) {
-      Logger::Info("SLIL for regType %d is currently %d", 
-        j,
-        sumOfLiveIntervalLengths_[j]);
+      Logger::Info("SLIL for regType %d is currently %d", j,
+                   sumOfLiveIntervalLengths_[j]);
     }
   }
-  #endif
-
+#endif
 
   crntStepNum_++;
   spillCosts_[crntStepNum_] = newSpillCost;
 
-  #ifdef IS_DEBUG_REG_PRESSURE
+#ifdef IS_DEBUG_REG_PRESSURE
   Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
-  #endif
+#endif
 
   totSpillCost_ += newSpillCost;
   if (newSpillCost > peakSpillCost_)
-   peakSpillCost_ = newSpillCost;
+    peakSpillCost_ = newSpillCost;
   CmputCrntSpillCost_();
 
   schduldInstCnt_++;
-  if(inst->MustBeInBBEntry())
+  if (inst->MustBeInBBEntry())
     schduldEntryInstCnt_++;
-  if(inst->MustBeInBBExit())
+  if (inst->MustBeInBBExit())
     schduldExitInstCnt_++;
-
 }
 /*****************************************************************************/
 
-void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
+void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction *inst) {
   int16_t regType;
   int i, defCnt, useCnt, regNum, physRegNum;
-  Register** defs, **uses;
-  Register* def, *use;
+  Register **defs, **uses;
+  Register *def, *use;
   bool isLive;
 
-  #ifdef IS_DEBUG_REG_PRESSURE
-  Logger::Info("Updating reg pressure after unscheduling Inst %d", inst->GetNum());
-  #endif
+#ifdef IS_DEBUG_REG_PRESSURE
+  Logger::Info("Updating reg pressure after unscheduling Inst %d",
+               inst->GetNum());
+#endif
 
   defCnt = inst->GetDefs(defs);
   useCnt = inst->GetUses(uses);
@@ -612,14 +622,15 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     for (int i = 0; i < regTypeCnt_; ++i) {
       for (int j = 0; j < liveRegs_[i].GetSize(); ++j) {
         if (liveRegs_[i].GetBit(j)) {
-          const Register* reg = regFiles_[i].GetReg(j);
+          const Register *reg = regFiles_[i].GetReg(j);
           sumOfLiveIntervalLengths_[i]--;
           if (!reg->IsInInterval(inst) && !reg->IsInPossibleInterval(inst)) {
             --dynamicSlilLowerBound_;
           }
         }
       }
-      assert(sumOfLiveIntervalLengths_[i] >= 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
+      assert(sumOfLiveIntervalLengths_[i] >= 0 &&
+             "UpdateSpillInfoForUnSchdul_: SLIL negative!");
     }
   }
 
@@ -630,22 +641,23 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     regNum = def->GetNum();
     physRegNum = def->GetPhysicalNumber();
 
-    #ifdef IS_DEBUG_REG_PRESSURE
-    Logger::Info("Inst %d defines reg %d of type %d and %d uses", 
-                 inst->GetNum(), regNum, regType, def->GetUseCnt());    
-    #endif 
+#ifdef IS_DEBUG_REG_PRESSURE
+    Logger::Info("Inst %d defines reg %d of type %d and %d uses",
+                 inst->GetNum(), regNum, regType, def->GetUseCnt());
+#endif
 
-    //if (def->GetUseCnt() > 0) {
-      assert(liveRegs_[regType].GetBit(regNum));
-      liveRegs_[regType].SetBit(regNum, false, def->GetWght());
+    // if (def->GetUseCnt() > 0) {
+    assert(liveRegs_[regType].GetBit(regNum));
+    liveRegs_[regType].SetBit(regNum, false, def->GetWght());
 
-      #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", regType, liveRegs_[regType].GetOneCnt());
-      #endif
+#ifdef IS_DEBUG_REG_PRESSURE
+    Logger::Info("Reg type %d now has %d live regs", regType,
+                 liveRegs_[regType].GetOneCnt());
+#endif
 
-      if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
-        livePhysRegs_[regType].SetBit(physRegNum, false, def->GetWght());
-      def->ResetCrntUseCnt();
+    if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
+      livePhysRegs_[regType].SetBit(physRegNum, false, def->GetWght());
+    def->ResetCrntUseCnt();
     //}
   }
 
@@ -655,30 +667,32 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
     regNum = use->GetNum();
     physRegNum = use->GetPhysicalNumber();
 
-    #ifdef IS_DEBUG_REG_PRESSURE
-    Logger::Info("Inst %d uses reg %d of type %d and %d uses", 
-                 inst->GetNum(), regNum, regType, use->GetUseCnt());    
-    #endif
+#ifdef IS_DEBUG_REG_PRESSURE
+    Logger::Info("Inst %d uses reg %d of type %d and %d uses", inst->GetNum(),
+                 regNum, regType, use->GetUseCnt());
+#endif
 
     isLive = use->IsLive();
     use->DelCrntUse();
     assert(use->IsLive());
 
     if (isLive == false) {
-      // (Chris): Since this was the last use, the above SLIL calculation didn't take this instruction into account.
+      // (Chris): Since this was the last use, the above SLIL calculation didn't
+      // take this instruction into account.
       if (spillCostFunc_ == SCF_SLIL) {
         sumOfLiveIntervalLengths_[regType]--;
         if (!use->IsInInterval(inst) && !use->IsInPossibleInterval(inst)) {
           --dynamicSlilLowerBound_;
         }
-        assert(sumOfLiveIntervalLengths_[regType] >= 0 && "UpdateSpillInfoForUnSchdul_: SLIL negative!");
+        assert(sumOfLiveIntervalLengths_[regType] >= 0 &&
+               "UpdateSpillInfoForUnSchdul_: SLIL negative!");
       }
       liveRegs_[regType].SetBit(regNum, true, use->GetWght());
 
-      #ifdef IS_DEBUG_REG_PRESSURE
-      Logger::Info("Reg type %d now has %d live regs", 
-                   regType, liveRegs_[regType].GetOneCnt());
-      #endif
+#ifdef IS_DEBUG_REG_PRESSURE
+      Logger::Info("Reg type %d now has %d live regs", regType,
+                   liveRegs_[regType].GetOneCnt());
+#endif
 
       if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0)
         livePhysRegs_[regType].SetBit(physRegNum, true, use->GetWght());
@@ -686,34 +700,33 @@ void BBWithSpill::UpdateSpillInfoForUnSchdul_(SchedInstruction* inst) {
   }
 
   schduldInstCnt_--;
-  if(inst->MustBeInBBEntry())
+  if (inst->MustBeInBBEntry())
     schduldEntryInstCnt_--;
-  if(inst->MustBeInBBExit())
+  if (inst->MustBeInBBExit())
     schduldExitInstCnt_--;
 
   totSpillCost_ -= spillCosts_[crntStepNum_];
   crntStepNum_--;
 
-  #ifdef IS_DEBUG_REG_PRESSURE
-  //Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
-  #endif
+#ifdef IS_DEBUG_REG_PRESSURE
+// Logger::Info("Spill cost at step  %d = %d", crntStepNum_, newSpillCost);
+#endif
 }
 /*****************************************************************************/
 
-void BBWithSpill::SchdulInst(SchedInstruction* inst,
-                             InstCount cycleNum,
-                             InstCount slotNum,
-                             bool trackCnflcts) {
+void BBWithSpill::SchdulInst(SchedInstruction *inst, InstCount cycleNum,
+                             InstCount slotNum, bool trackCnflcts) {
   crntCycleNum_ = cycleNum;
   crntSlotNum_ = slotNum;
-  if (inst == NULL) return;
+  if (inst == NULL)
+    return;
   assert(inst != NULL);
   UpdateSpillInfoForSchdul_(inst, trackCnflcts);
 }
 /*****************************************************************************/
 
-void BBWithSpill::UnschdulInst(SchedInstruction* inst, InstCount cycleNum,
-                               InstCount slotNum, EnumTreeNode* trgtNode) {
+void BBWithSpill::UnschdulInst(SchedInstruction *inst, InstCount cycleNum,
+                               InstCount slotNum, EnumTreeNode *trgtNode) {
   if (slotNum == 0) {
     crntCycleNum_ = cycleNum - 1;
     crntSlotNum_ = machMdl_->GetIssueRate() - 1;
@@ -735,7 +748,7 @@ void BBWithSpill::UnschdulInst(SchedInstruction* inst, InstCount cycleNum,
 /*****************************************************************************/
 
 void BBWithSpill::FinishHurstc_() {
-  
+
 #ifdef IS_DEBUG_BBSPILL_COST
   Stats::traceCostLowerBound.Record(costLwrBound_);
   Stats::traceHeuristicCost.Record(hurstcCost_);
@@ -752,46 +765,52 @@ void BBWithSpill::FinishOptml_() {
 }
 /*****************************************************************************/
 
-Enumerator* BBWithSpill::AllocEnumrtr_(Milliseconds timeout) {
+Enumerator *BBWithSpill::AllocEnumrtr_(Milliseconds timeout) {
   bool enblStallEnum = enblStallEnum_;
-/*  if (!dataDepGraph_->IncludesUnpipelined()) {
-    enblStallEnum = false;
-  }*/
+  /*  if (!dataDepGraph_->IncludesUnpipelined()) {
+      enblStallEnum = false;
+    }*/
 
-  enumrtr_ = new LengthCostEnumerator(dataDepGraph_, machMdl_,
-                                      schedUprBound_, sigHashSize_,
-                                      enumPrirts_, prune_, schedForRPOnly_, enblStallEnum,
-                                      timeout, spillCostFunc_, 0, NULL);
-  if (enumrtr_ == NULL) Logger::Fatal("Out of memory.");
+  enumrtr_ = new LengthCostEnumerator(
+      dataDepGraph_, machMdl_, schedUprBound_, sigHashSize_, enumPrirts_,
+      prune_, schedForRPOnly_, enblStallEnum, timeout, spillCostFunc_, 0, NULL);
+  if (enumrtr_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   return enumrtr_;
 }
 /*****************************************************************************/
 
-FUNC_RESULT BBWithSpill::Enumerate_(Milliseconds startTime, 
-                                    Milliseconds rgnTimeout, 
+FUNC_RESULT BBWithSpill::Enumerate_(Milliseconds startTime,
+                                    Milliseconds rgnTimeout,
                                     Milliseconds lngthTimeout) {
-  InstCount     trgtLngth;
-  FUNC_RESULT   rslt = RES_SUCCESS;
-  int           iterCnt = 0;
-  int           costLwrBound = 0;
-  bool          timeout = false;
+  InstCount trgtLngth;
+  FUNC_RESULT rslt = RES_SUCCESS;
+  int iterCnt = 0;
+  int costLwrBound = 0;
+  bool timeout = false;
 
   Milliseconds rgnDeadline, lngthDeadline;
-  rgnDeadline = (rgnTimeout == INVALID_VALUE) ? INVALID_VALUE : startTime + rgnTimeout;
-  lngthDeadline = (rgnTimeout == INVALID_VALUE) ? INVALID_VALUE : startTime + lngthTimeout;
+  rgnDeadline =
+      (rgnTimeout == INVALID_VALUE) ? INVALID_VALUE : startTime + rgnTimeout;
+  lngthDeadline =
+      (rgnTimeout == INVALID_VALUE) ? INVALID_VALUE : startTime + lngthTimeout;
   assert(lngthDeadline <= rgnDeadline);
 
   for (trgtLngth = schedLwrBound_; trgtLngth <= schedUprBound_; trgtLngth++) {
     InitForSchdulng();
-//#ifdef IS_DEBUG_ENUM_ITERS
-    Logger::Info("Enumerating at target length %d",trgtLngth);
-//#endif
-    rslt = enumrtr_->FindFeasibleSchedule(enumCrntSched_, trgtLngth, this, costLwrBound, lngthDeadline);
-    if (rslt == RES_TIMEOUT) timeout = true;
+    //#ifdef IS_DEBUG_ENUM_ITERS
+    Logger::Info("Enumerating at target length %d", trgtLngth);
+    //#endif
+    rslt = enumrtr_->FindFeasibleSchedule(enumCrntSched_, trgtLngth, this,
+                                          costLwrBound, lngthDeadline);
+    if (rslt == RES_TIMEOUT)
+      timeout = true;
     HandlEnumrtrRslt_(rslt, trgtLngth);
 
-    if (bestCost_ == 0 || rslt == RES_ERROR || lngthDeadline == rgnDeadline && rslt == RES_TIMEOUT) break;
+    if (bestCost_ == 0 || rslt == RES_ERROR ||
+        lngthDeadline == rgnDeadline && rslt == RES_TIMEOUT)
+      break;
 
     enumrtr_->Reset();
     enumCrntSched_->Reset();
@@ -799,7 +818,8 @@ FUNC_RESULT BBWithSpill::Enumerate_(Milliseconds startTime,
     iterCnt++;
     costLwrBound += 1;
     lngthDeadline = Utilities::GetProcessorTime() + lngthTimeout;
-    if(lngthDeadline > rgnDeadline) lngthDeadline = rgnDeadline;
+    if (lngthDeadline > rgnDeadline)
+      lngthDeadline = rgnDeadline;
   }
 
 #ifdef IS_DEBUG_ITERS
@@ -808,34 +828,36 @@ FUNC_RESULT BBWithSpill::Enumerate_(Milliseconds startTime,
   Stats::lengths.Record(iterCnt);
 #endif
 
-  //Failure to find a feasible sched. in the last iteration is still
-  //considered an overall success
+  // Failure to find a feasible sched. in the last iteration is still
+  // considered an overall success
   if (rslt == RES_SUCCESS || rslt == RES_FAIL) {
     rslt = RES_SUCCESS;
   }
-  if (timeout) rslt = RES_TIMEOUT;
+  if (timeout)
+    rslt = RES_TIMEOUT;
 
   return rslt;
 }
 /*****************************************************************************/
 
-InstCount BBWithSpill::UpdtOptmlSched(InstSchedule* crntSched,
-                                      LengthCostEnumerator*) {
+InstCount BBWithSpill::UpdtOptmlSched(InstSchedule *crntSched,
+                                      LengthCostEnumerator *) {
   InstCount crntCost;
   InstCount crntExecCost;
 
-//  crntCost = CmputNormCost_(crntSched, CCM_DYNMC, crntExecCost, false);
+  //  crntCost = CmputNormCost_(crntSched, CCM_DYNMC, crntExecCost, false);
   crntCost = CmputNormCost_(crntSched, CCM_STTC, crntExecCost, false);
 
-//#ifdef IS_DEBUG_SOLN_DETAILS_2
-  Logger::Info("Found a feasible sched. of length %d, spill cost %d and tot cost %d",
-               crntSched->GetCrntLngth(), crntSched->GetSpillCost(), crntCost);
-//  crntSched->Print(Logger::GetLogStream(), "New Feasible Schedule");
-//#endif
+  //#ifdef IS_DEBUG_SOLN_DETAILS_2
+  Logger::Info(
+      "Found a feasible sched. of length %d, spill cost %d and tot cost %d",
+      crntSched->GetCrntLngth(), crntSched->GetSpillCost(), crntCost);
+  //  crntSched->Print(Logger::GetLogStream(), "New Feasible Schedule");
+  //#endif
 
   if (crntCost < bestCost_) {
 
-    if(crntSched->GetCrntLngth() > schedLwrBound_)
+    if (crntSched->GetCrntLngth() > schedLwrBound_)
       Logger::Info("$$$ GOOD_HIT: Better spill cost for a longer schedule");
 
     bestCost_ = crntCost;
@@ -864,35 +886,34 @@ void BBWithSpill::SetupForSchdulng_() {
 }
 /*****************************************************************************/
 
-bool BBWithSpill::ChkCostFsblty(InstCount trgtLngth,
-                                EnumTreeNode* node) {
+bool BBWithSpill::ChkCostFsblty(InstCount trgtLngth, EnumTreeNode *node) {
   bool fsbl = true;
   InstCount crntCost, dynmcCostLwrBound;
   if (spillCostFunc_ == SCF_SLIL) {
-    crntCost = dynamicSlilLowerBound_ * spillCostFactor_ + trgtLngth * schedCostFactor_;
-  }
-  else {
+    crntCost = dynamicSlilLowerBound_ * spillCostFactor_ +
+               trgtLngth * schedCostFactor_;
+  } else {
     crntCost = crntSpillCost_ * spillCostFactor_ + trgtLngth * schedCostFactor_;
   }
   crntCost -= costLwrBound_;
   dynmcCostLwrBound = crntCost;
 
- // assert(cost >= 0);
+  // assert(cost >= 0);
   assert(dynmcCostLwrBound >= 0);
 
   fsbl = dynmcCostLwrBound < bestCost_;
-  
-  if(fsbl) {
-    node->SetCost (crntCost);
-    node->SetCostLwrBound (dynmcCostLwrBound);
-    node->SetPeakSpillCost (peakSpillCost_);
-    node->SetSpillCostSum (totSpillCost_);
+
+  if (fsbl) {
+    node->SetCost(crntCost);
+    node->SetCostLwrBound(dynmcCostLwrBound);
+    node->SetPeakSpillCost(peakSpillCost_);
+    node->SetSpillCostSum(totSpillCost_);
   }
   return fsbl;
 }
 /*****************************************************************************/
 
-void BBWithSpill::SetSttcLwrBounds(EnumTreeNode*) {
+void BBWithSpill::SetSttcLwrBounds(EnumTreeNode *) {
   // Nothing.
 }
 
@@ -901,7 +922,7 @@ void BBWithSpill::SetSttcLwrBounds(EnumTreeNode*) {
 bool BBWithSpill::ChkInstLglty(SchedInstruction *inst) {
   int16_t regType;
   int defCnt, physRegNum;
-  Register** defs;
+  Register **defs;
   Register *def, *liveDef;
 
 #ifdef IS_DEBUG_CHECK
@@ -909,13 +930,15 @@ bool BBWithSpill::ChkInstLglty(SchedInstruction *inst) {
 #endif
 
   if (fixLivein_) {
-    if (inst->MustBeInBBEntry()==false && schduldEntryInstCnt_ < entryInstCnt_)
+    if (inst->MustBeInBBEntry() == false &&
+        schduldEntryInstCnt_ < entryInstCnt_)
       return false;
   }
- 
+
   if (fixLiveout_) {
-    if (inst->MustBeInBBExit()==true && schduldInstCnt_ < (dataDepGraph_->GetInstCnt() - exitInstCnt_) )
-      return false; 
+    if (inst->MustBeInBBExit() == true &&
+        schduldInstCnt_ < (dataDepGraph_->GetInstCnt() - exitInstCnt_))
+      return false;
   }
 
   defCnt = inst->GetDefs(defs);
@@ -924,43 +947,52 @@ bool BBWithSpill::ChkInstLglty(SchedInstruction *inst) {
   for (int i = 0; i < defCnt; i++) {
     def = defs[i];
     regType = def->GetType();
-    physRegNum = def->GetPhysicalNumber(); 
-    
+    physRegNum = def->GetPhysicalNumber();
+
     // If this is a physical register definition and another
     // definition of the same physical register is live, then
     // scheduling this instruction is illegal unless this
     // instruction is the last use of that physical reg definition.
-    if (regFiles_[regType].GetPhysRegCnt() > 0 && 
-        physRegNum >= 0 &&
+    if (regFiles_[regType].GetPhysRegCnt() > 0 && physRegNum >= 0 &&
         livePhysRegs_[regType].GetBit(physRegNum) == true) {
 
-        liveDef = regFiles_[regType].FindLiveReg(physRegNum);
-        assert (liveDef != NULL);
+      liveDef = regFiles_[regType].FindLiveReg(physRegNum);
+      assert(liveDef != NULL);
 
-        // If this instruction is the last use of the current live def
-        if (liveDef->GetCrntUseCnt()+1 == liveDef->GetUseCnt() && inst->FindUse(liveDef)==true)
-          return true;
-        else
-          return false;
-    } // end if     
-  } // end for
+      // If this instruction is the last use of the current live def
+      if (liveDef->GetCrntUseCnt() + 1 == liveDef->GetUseCnt() &&
+          inst->FindUse(liveDef) == true)
+        return true;
+      else
+        return false;
+    } // end if
+  }   // end for
   return true;
 }
 
-bool BBWithSpill::ChkSchedule_ (InstSchedule* bestSched, InstSchedule* lstSched) {
-  if (bestSched == NULL || bestSched == lstSched) return true;
+bool BBWithSpill::ChkSchedule_(InstSchedule *bestSched,
+                               InstSchedule *lstSched) {
+  if (bestSched == NULL || bestSched == lstSched)
+    return true;
   if (chkSpillCostSum_) {
 
     InstCount i, heurLarger = 0, bestLarger = 0;
-    for (i=0; i<dataDepGraph_->GetInstCnt(); i++) {
-      if (lstSched->GetSpillCost(i) > bestSched->GetSpillCost(i)) heurLarger++;
-      if (bestSched->GetSpillCost(i) > lstSched->GetSpillCost(i)) bestLarger++;
+    for (i = 0; i < dataDepGraph_->GetInstCnt(); i++) {
+      if (lstSched->GetSpillCost(i) > bestSched->GetSpillCost(i))
+        heurLarger++;
+      if (bestSched->GetSpillCost(i) > lstSched->GetSpillCost(i))
+        bestLarger++;
     }
-    Logger::Info("Heuristic spill cost is larger at %d points, while best spill cost is larger at %d points", heurLarger, bestLarger);
+    Logger::Info("Heuristic spill cost is larger at %d points, while best "
+                 "spill cost is larger at %d points",
+                 heurLarger, bestLarger);
     if (bestSched->GetTotSpillCost() > lstSched->GetTotSpillCost()) {
-      // Enumerator's best schedule has a greater spill cost sum than the heuristic
-      // This can happen if we are using a cost function other than the spill cost sum function
-      Logger::Info("??? Heuristic sched has a smaller spill cost sum than best sched, heur : %d, best : %d. ",
+      // Enumerator's best schedule has a greater spill cost sum than the
+      // heuristic
+      // This can happen if we are using a cost function other than the spill
+      // cost sum function
+      Logger::Info("??? Heuristic sched has a smaller spill cost sum than best "
+                   "sched, heur : %d, best : %d. ",
                    lstSched->GetTotSpillCost(), bestSched->GetTotSpillCost());
       if (lstSched->GetCrntLngth() <= bestSched->GetCrntLngth()) {
         Logger::Info("Taking heuristic schedule");
@@ -970,17 +1002,19 @@ bool BBWithSpill::ChkSchedule_ (InstSchedule* bestSched, InstSchedule* lstSched)
     }
   }
   if (chkCnflcts_) {
-     CmputCnflcts_(lstSched);
-     CmputCnflcts_(bestSched);
+    CmputCnflcts_(lstSched);
+    CmputCnflcts_(bestSched);
 
 #ifdef IS_DEBUG_CONFLICTS
-     Logger::Info("Heuristic conflicts : %d, best conflicts : %d. ",
-                   lstSched->GetConflictCount(), bestSched->GetConflictCount());
+    Logger::Info("Heuristic conflicts : %d, best conflicts : %d. ",
+                 lstSched->GetConflictCount(), bestSched->GetConflictCount());
 #endif
 
-     if (bestSched->GetConflictCount() > lstSched->GetConflictCount()) {
-      // Enumerator's best schedule causes more conflicst than the heuristic schedule.
-      Logger::Info("??? Heuristic sched causes fewer conflicts than best sched, heur : %d, best : %d. ",
+    if (bestSched->GetConflictCount() > lstSched->GetConflictCount()) {
+      // Enumerator's best schedule causes more conflicst than the heuristic
+      // schedule.
+      Logger::Info("??? Heuristic sched causes fewer conflicts than best "
+                   "sched, heur : %d, best : %d. ",
                    lstSched->GetConflictCount(), bestSched->GetConflictCount());
       if (lstSched->GetCrntLngth() <= bestSched->GetCrntLngth()) {
         Logger::Info("Taking heuristic schedule");
@@ -992,8 +1026,8 @@ bool BBWithSpill::ChkSchedule_ (InstSchedule* bestSched, InstSchedule* lstSched)
   return true;
 }
 
-void BBWithSpill::CmputCnflcts_(InstSchedule* sched) {
-  int cnflctCnt =0;
+void BBWithSpill::CmputCnflcts_(InstSchedule *sched) {
+  int cnflctCnt = 0;
   InstCount execCost;
 
   CmputNormCost_(sched, CCM_STTC, execCost, true);

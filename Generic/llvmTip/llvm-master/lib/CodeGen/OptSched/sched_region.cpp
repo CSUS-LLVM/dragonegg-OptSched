@@ -1,27 +1,23 @@
 #include <algorithm>
 
-#include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/random.h"
-#include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/generic/stats.h"
+#include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
+#include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
-#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 
 extern bool OPTSCHED_gPrintSpills;
 
 namespace opt_sched {
 
-SchedRegion::SchedRegion(MachineModel* machMdl,
-                         DataDepGraph* dataDepGraph,
-                         long rgnNum,
-                         int16_t sigHashSize,
-                         LB_ALG lbAlg,
+SchedRegion::SchedRegion(MachineModel *machMdl, DataDepGraph *dataDepGraph,
+                         long rgnNum, int16_t sigHashSize, LB_ALG lbAlg,
                          SchedPriorities hurstcPrirts,
-                         SchedPriorities enumPrirts,
-                         bool vrfySched,
+                         SchedPriorities enumPrirts, bool vrfySched,
                          Pruning prune) {
   machMdl_ = machMdl;
   dataDepGraph_ = dataDepGraph;
@@ -57,9 +53,11 @@ void SchedRegion::UseFileBounds_() {
   schedLwrBound_ = fileLwrBound;
 }
 
-InstSchedule* SchedRegion::AllocNewSched_() {
-  InstSchedule* newSched = new InstSchedule(machMdl_, dataDepGraph_, vrfySched_);
-  if (newSched == NULL) Logger::Fatal("Out of memory.");
+InstSchedule *SchedRegion::AllocNewSched_() {
+  InstSchedule *newSched =
+      new InstSchedule(machMdl_, dataDepGraph_, vrfySched_);
+  if (newSched == NULL)
+    Logger::Fatal("Out of memory.");
   return newSched;
 }
 
@@ -67,17 +65,13 @@ void SchedRegion::CmputAbslutUprBound_() {
   abslutSchedUprBound_ = dataDepGraph_->GetAbslutSchedUprBound();
 }
 
-FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
-                                             Milliseconds rgnTimeout,
-                                             Milliseconds lngthTimeout,
-                                             bool& isLstOptml,
-                                             InstCount& bestCost,
-                                             InstCount& bestSchedLngth,
-                                             InstCount& hurstcCost,
-                                             InstCount& hurstcSchedLngth,
-                                             InstSchedule*& bestSched) {
-  ListScheduler* lstSchdulr;
-  InstSchedule* lstSched = NULL;
+FUNC_RESULT SchedRegion::FindOptimalSchedule(
+    bool useFileBounds, Milliseconds rgnTimeout, Milliseconds lngthTimeout,
+    bool &isLstOptml, InstCount &bestCost, InstCount &bestSchedLngth,
+    InstCount &hurstcCost, InstCount &hurstcSchedLngth,
+    InstSchedule *&bestSched) {
+  ListScheduler *lstSchdulr;
+  InstSchedule *lstSched = NULL;
   FUNC_RESULT rslt = RES_SUCCESS;
   Milliseconds hurstcTime = 0;
   Milliseconds boundTime = 0;
@@ -88,38 +82,45 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   enumBestSched_ = NULL;
   bestSched = bestSched_ = NULL;
 
-  Logger::Info("---------------------------------------------------------------------------");
+  Logger::Info("---------------------------------------------------------------"
+               "------------");
   Logger::Info("Processing DAG %s with %d insts and max latency %d.",
-                dataDepGraph_->GetDagID(), dataDepGraph_->GetInstCnt(), dataDepGraph_->GetMaxLtncy());
+               dataDepGraph_->GetDagID(), dataDepGraph_->GetInstCnt(),
+               dataDepGraph_->GetMaxLtncy());
 
   Stats::problemSize.Record(dataDepGraph_->GetInstCnt());
 
   // Setup graph transformations
   dataDepGraph_->InitGraphTrans();
-  std::unique_ptr<GraphTrans>* graphTrans = dataDepGraph_->GetGraphTrans();
+  std::unique_ptr<GraphTrans> *graphTrans = dataDepGraph_->GetGraphTrans();
 
-  // In the future if we apply graph transformations that require the transitive closure to be
-  // computed this will have to be changed. Or if there is some other reason that we may want
+  // In the future if we apply graph transformations that require the transitive
+  // closure to be
+  // computed this will have to be changed. Or if there is some other reason
+  // that we may want
   // the transitive closure to be computed when only using the list scheduler.
-  // (Chris) SLIL needs the transitive closure in order to calculate the static lower bound,
-  // even when only using the list scheduler. 
-  if (rgnTimeout > 0 || dataDepGraph_->GetGraphTransCnt() > 0 || spillCostFunc_ == SCF_SLIL) needTrnstvClsr_ = true; 
+  // (Chris) SLIL needs the transitive closure in order to calculate the static
+  // lower bound,
+  // even when only using the list scheduler.
+  if (rgnTimeout > 0 || dataDepGraph_->GetGraphTransCnt() > 0 ||
+      spillCostFunc_ == SCF_SLIL)
+    needTrnstvClsr_ = true;
   rslt = dataDepGraph_->SetupForSchdulng(needTrnstvClsr_);
-  if (rslt != RES_SUCCESS ) {
-   Logger::Info("Invalid input DAG");
-   return rslt;
+  if (rslt != RES_SUCCESS) {
+    Logger::Info("Invalid input DAG");
+    return rslt;
   }
-  
+
   // Apply graph transformations
   for (InstCount i = 0; i < dataDepGraph_->GetGraphTransCnt(); i++) {
-      rslt = graphTrans[i]->ApplyTrans();
+    rslt = graphTrans[i]->ApplyTrans();
 
-      if (rslt != RES_SUCCESS)
-        return rslt;
+    if (rslt != RES_SUCCESS)
+      return rslt;
 
     // Update graph after each transformation
     rslt = dataDepGraph_->UpdateSetupForSchdulng(needTrnstvClsr_);
-    if (rslt != RES_SUCCESS ) {
+    if (rslt != RES_SUCCESS) {
       Logger::Info("Invalid DAG after graph transformations");
       return rslt;
     }
@@ -130,7 +131,8 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   schedLwrBound_ = dataDepGraph_->GetSchedLwrBound();
   Milliseconds hurstcStart = Utilities::GetProcessorTime();
   lstSched = new InstSchedule(machMdl_, dataDepGraph_, vrfySched_);
-  if (lstSched == NULL) Logger::Fatal("Out of memory.");
+  if (lstSched == NULL)
+    Logger::Fatal("Out of memory.");
 
   lstSchdulr = AllocLstSchdulr_();
 
@@ -146,20 +148,20 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   hurstcTime = Utilities::GetProcessorTime() - hurstcStart;
   Stats::heuristicTime.Record(hurstcTime);
-  if (hurstcTime > 0) Logger::Info("Heuristic_Time %d",hurstcTime);
+  if (hurstcTime > 0)
+    Logger::Info("Heuristic_Time %d", hurstcTime);
 
-  #ifdef IS_DEBUG_SLIL_PRINTOUT
+#ifdef IS_DEBUG_SLIL_PRINTOUT
   if (OPTSCHED_gPrintSpills) {
-    const auto& slilVector = this->GetSLIL_();
+    const auto &slilVector = this->GetSLIL_();
     for (int j = 0; j < slilVector.size(); j++) {
-      Logger::Info("SLIL after Heuristic Scheduler for dag %s Type %d %s is %d.", 
-        dataDepGraph_->GetDagID(),
-        j,
-        machMdl_->GetRegTypeName(j).c_str(),
-        slilVector[j]);
+      Logger::Info(
+          "SLIL after Heuristic Scheduler for dag %s Type %d %s is %d.",
+          dataDepGraph_->GetDagID(), j, machMdl_->GetRegTypeName(j).c_str(),
+          slilVector[j]);
     }
   }
-  #endif
+#endif
 
   Milliseconds boundStart = Utilities::GetProcessorTime();
   hurstcSchedLngth_ = lstSched->GetCrntLngth();
@@ -174,9 +176,10 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
     CmputLwrBounds_(useFileBounds);
   assert(schedLwrBound_ <= lstSched->GetCrntLngth());
 
-  #if defined(IS_DEBUG_STATIC_LOWER_BOUND)
-  Logger::Info("Static Lower Bound is %d for Dag %s", costLwrBound_, dataDepGraph_->GetDagID());
-  #endif
+#if defined(IS_DEBUG_STATIC_LOWER_BOUND)
+  Logger::Info("Static Lower Bound is %d for Dag %s", costLwrBound_,
+               dataDepGraph_->GetDagID());
+#endif
 
   isLstOptml = CmputUprBounds_(lstSched, useFileBounds);
   boundTime = Utilities::GetProcessorTime() - boundStart;
@@ -184,30 +187,33 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   FinishHurstc_();
 
-//  #ifdef IS_DEBUG_SOLN_DETAILS_1
-    Logger::Info("The list schedule is of length %d and spill cost %d. Tot cost = %d",
-                 bestSchedLngth_, lstSched->GetSpillCost(), bestCost_);
+  //  #ifdef IS_DEBUG_SOLN_DETAILS_1
+  Logger::Info(
+      "The list schedule is of length %d and spill cost %d. Tot cost = %d",
+      bestSchedLngth_, lstSched->GetSpillCost(), bestCost_);
 //  #endif
 
-  #ifdef IS_DEBUG_PRINT_SCHEDS
-    lstSched->Print(Logger::GetLogStream(), "Heuristic");
-  #endif
-  #ifdef IS_DEBUG_PRINT_BOUNDS
-    dataDepGraph_->PrintLwrBounds(DIR_FRWRD, Logger::GetLogStream(),
-                                  "CP Lower Bounds");
-  #endif
+#ifdef IS_DEBUG_PRINT_SCHEDS
+  lstSched->Print(Logger::GetLogStream(), "Heuristic");
+#endif
+#ifdef IS_DEBUG_PRINT_BOUNDS
+  dataDepGraph_->PrintLwrBounds(DIR_FRWRD, Logger::GetLogStream(),
+                                "CP Lower Bounds");
+#endif
 
-  if (rgnTimeout == 0) isLstOptml = true;
+  if (rgnTimeout == 0)
+    isLstOptml = true;
 
   // (Chris): If the cost function is SLIL, then the list schedule is considered
   // optimal if PERP is 0.
   if (!isLstOptml && spillCostFunc_ == SCF_SLIL) {
-    const InstCount* regPressures = nullptr;
+    const InstCount *regPressures = nullptr;
     auto regTypeCount = lstSched->GetPeakRegPressures(regPressures);
     InstCount sumPerp = 0;
     for (int i = 0; i < regTypeCount; ++i) {
       int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
-      if (perp > 0) sumPerp += perp;
+      if (perp > 0)
+        sumPerp += perp;
     }
     if (sumPerp == 0) {
       isLstOptml = true;
@@ -219,15 +225,17 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   // (Chris): This code prints a statement when a schedule is SLIL-optimal but
   // not PERP-optimal.
   if (spillCostFunc_ == SCF_SLIL && bestCost_ == 0) {
-    const InstCount* regPressures = nullptr;
+    const InstCount *regPressures = nullptr;
     auto regTypeCount = lstSched->GetPeakRegPressures(regPressures);
     InstCount sumPerp = 0;
     for (int i = 0; i < regTypeCount; ++i) {
       int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
-      if (perp > 0) sumPerp += perp;
+      if (perp > 0)
+        sumPerp += perp;
     }
     if (sumPerp > 0) {
-      Logger::Info("Dag %s is SLIL optimal but not PERP optimal (PERP=%d).", dataDepGraph_->GetDagID(), sumPerp);
+      Logger::Info("Dag %s is SLIL optimal but not PERP optimal (PERP=%d).",
+                   dataDepGraph_->GetDagID(), sumPerp);
     }
   }
 #endif
@@ -239,9 +247,9 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   // Step #3: Find the optimal schedule if the heuristc was not optimal.
   Milliseconds enumStart = Utilities::GetProcessorTime();
 
- #ifdef IS_DEBUG_BOUNDS
-   Logger::Info("Sched LB = %d, Sched UB = %d",schedLwrBound_, schedUprBound_);
- #endif
+#ifdef IS_DEBUG_BOUNDS
+  Logger::Info("Sched LB = %d, Sched UB = %d", schedLwrBound_, schedUprBound_);
+#endif
 
   if (isLstOptml == false) {
     dataDepGraph_->SetHard(true);
@@ -256,23 +264,25 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
     if (bestCost_ < hurstcCost_) {
       assert(enumBestSched_ != NULL);
       bestSched = bestSched_ = enumBestSched_;
-      #ifdef IS_DEBUG_PRINT_SCHEDS
-        enumBestSched_->Print(Logger::GetLogStream(), "Optimal");
-      #endif
+#ifdef IS_DEBUG_PRINT_SCHEDS
+      enumBestSched_->Print(Logger::GetLogStream(), "Optimal");
+#endif
     }
-  }
-  else if (rgnTimeout == 0) {
-      Logger::Info("Bypassing optimal scheduling due to zero time limit with cost %d", bestCost_);
-  }
-  else {
-      Logger::Info("The list schedule of length %d and cost %d is optimal.",
-                      bestSchedLngth_, bestCost_);
+  } else if (rgnTimeout == 0) {
+    Logger::Info(
+        "Bypassing optimal scheduling due to zero time limit with cost %d",
+        bestCost_);
+  } else {
+    Logger::Info("The list schedule of length %d and cost %d is optimal.",
+                 bestSchedLngth_, bestCost_);
   }
 
   if (rgnTimeout != 0) {
     bool optimalSchedule = isLstOptml || (rslt == RES_SUCCESS);
-    Logger::Info("Best schedule for DAG %s has cost %d and length %d. The schedule is %s",
-                 dataDepGraph_->GetDagID(), bestCost_, bestSchedLngth_, optimalSchedule ? "optimal" : "not optimal");
+    Logger::Info("Best schedule for DAG %s has cost %d and length %d. The "
+                 "schedule is %s",
+                 dataDepGraph_->GetDagID(), bestCost_, bestSchedLngth_,
+                 optimalSchedule ? "optimal" : "not optimal");
   }
 
   enumTime = Utilities::GetProcessorTime() - enumStart;
@@ -293,7 +303,8 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 
   InstCount finalLwrBound = costLwrBound_;
   InstCount finalUprBound = costLwrBound_ + bestCost_;
-  if (rslt == RES_SUCCESS) finalLwrBound = finalUprBound;
+  if (rslt == RES_SUCCESS)
+    finalLwrBound = finalUprBound;
 
   dataDepGraph_->SetFinalBounds(finalLwrBound, finalUprBound);
 
@@ -306,9 +317,12 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   }
 
   delete lstSchdulr;
-  if (bestSched != lstSched) delete lstSched;
-  if (enumBestSched_ != NULL && bestSched != enumBestSched_) delete enumBestSched_;
-  if (enumCrntSched_ != NULL) delete enumCrntSched_;
+  if (bestSched != lstSched)
+    delete lstSched;
+  if (enumBestSched_ != NULL && bestSched != enumBestSched_)
+    delete enumBestSched_;
+  if (enumCrntSched_ != NULL)
+    delete enumCrntSched_;
 
   bestCost = bestCost_;
   bestSchedLngth = bestSchedLngth_;
@@ -316,7 +330,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
   hurstcSchedLngth = hurstcSchedLngth_;
 #if defined(IS_DEBUG_COMPARE_SLIL_BB)
   if (!isLstOptml) {
-    const auto& status = [&]() {
+    const auto &status = [&]() {
       switch (rslt) {
       case RES_SUCCESS:
         return "optimal";
@@ -326,12 +340,15 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
         return "failed";
       }
     }();
-    Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_, enumTime);
+    Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(),
+                 status, bestCost_, enumTime);
   }
 #endif
 #if defined(IS_DEBUG_FINAL_SPILL_COST)
-  // (Chris): Unconditionally Print out the spill cost of the final schedule. This makes it easy to compare results.
-  Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(), dataDepGraph_->GetDagID());
+  // (Chris): Unconditionally Print out the spill cost of the final schedule.
+  // This makes it easy to compare results.
+  Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(),
+               dataDepGraph_->GetDagID());
 #endif
 
   return rslt;
@@ -340,7 +357,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(bool useFileBounds,
 FUNC_RESULT SchedRegion::Optimize_(Milliseconds startTime,
                                    Milliseconds rgnTimeout,
                                    Milliseconds lngthTimeout) {
-  Enumerator* enumrtr;
+  Enumerator *enumrtr;
   FUNC_RESULT rslt = RES_SUCCESS;
 
   enumCrntSched_ = AllocNewSched_();
@@ -352,9 +369,9 @@ FUNC_RESULT SchedRegion::Optimize_(Milliseconds startTime,
 
   Milliseconds solnTime = Utilities::GetProcessorTime() - startTime;
 
-  #ifdef IS_DEBUG_NODES
-    Logger::Info("Examined %lld nodes.", enumrtr->GetNodeCnt());
-  #endif
+#ifdef IS_DEBUG_NODES
+  Logger::Info("Examined %lld nodes.", enumrtr->GetNodeCnt());
+#endif
   Stats::nodeCount.Record(enumrtr->GetNodeCnt());
   Stats::solutionTime.Record(solnTime);
 
@@ -362,22 +379,16 @@ FUNC_RESULT SchedRegion::Optimize_(Milliseconds startTime,
   if (rslt == RES_SUCCESS) {
     Logger::Info("DAG solved optimally in %lld ms with "
                  "length=%d, spill cost = %d, tot cost = %d, cost imp=%d.",
-                 solnTime,
-                 bestSchedLngth_,
-                 bestSched_->GetSpillCost(),
-                 bestCost_,
-                 imprvmnt);
+                 solnTime, bestSchedLngth_, bestSched_->GetSpillCost(),
+                 bestCost_, imprvmnt);
     Stats::solvedProblemSize.Record(dataDepGraph_->GetInstCnt());
     Stats::solutionTimeForSolvedProblems.Record(solnTime);
   } else {
-    if(rslt == RES_TIMEOUT) {
+    if (rslt == RES_TIMEOUT) {
       Logger::Info("DAG timed out with "
                    "length=%d, spill cost = %d, tot cost = %d, cost imp=%d.",
-                   bestSchedLngth_,
-                   bestSched_->GetSpillCost(),
-                   bestCost_,
+                   bestSchedLngth_, bestSched_->GetSpillCost(), bestCost_,
                    imprvmnt);
-
     }
     Stats::unsolvedProblemSize.Record(dataDepGraph_->GetInstCnt());
   }
@@ -386,23 +397,23 @@ FUNC_RESULT SchedRegion::Optimize_(Milliseconds startTime,
 }
 
 void SchedRegion::CmputLwrBounds_(bool useFileBounds) {
-  RelaxedScheduler* rlxdSchdulr = NULL;
-  RelaxedScheduler* rvrsRlxdSchdulr = NULL;
+  RelaxedScheduler *rlxdSchdulr = NULL;
+  RelaxedScheduler *rvrsRlxdSchdulr = NULL;
   InstCount rlxdUprBound = dataDepGraph_->GetAbslutSchedUprBound();
 
   switch (lbAlg_) {
-    case LBA_LC:
-      rlxdSchdulr = new LC_RelaxedScheduler(
-          dataDepGraph_, machMdl_, rlxdUprBound, DIR_FRWRD);
-      rvrsRlxdSchdulr = new LC_RelaxedScheduler(
-          dataDepGraph_, machMdl_, rlxdUprBound, DIR_BKWRD);
-      break;
-    case LBA_RJ:
-      rlxdSchdulr = new RJ_RelaxedScheduler(
-          dataDepGraph_, machMdl_, rlxdUprBound, DIR_FRWRD, RST_STTC);
-      rvrsRlxdSchdulr = new RJ_RelaxedScheduler(
-          dataDepGraph_, machMdl_, rlxdUprBound, DIR_BKWRD, RST_STTC);
-      break;
+  case LBA_LC:
+    rlxdSchdulr = new LC_RelaxedScheduler(dataDepGraph_, machMdl_, rlxdUprBound,
+                                          DIR_FRWRD);
+    rvrsRlxdSchdulr = new LC_RelaxedScheduler(dataDepGraph_, machMdl_,
+                                              rlxdUprBound, DIR_BKWRD);
+    break;
+  case LBA_RJ:
+    rlxdSchdulr = new RJ_RelaxedScheduler(dataDepGraph_, machMdl_, rlxdUprBound,
+                                          DIR_FRWRD, RST_STTC);
+    rvrsRlxdSchdulr = new RJ_RelaxedScheduler(
+        dataDepGraph_, machMdl_, rlxdUprBound, DIR_BKWRD, RST_STTC);
+    break;
   }
 
   if (rlxdSchdulr == NULL || rvrsRlxdSchdulr == NULL) {
@@ -417,16 +428,18 @@ void SchedRegion::CmputLwrBounds_(bool useFileBounds) {
 
   assert(rlxdLwrBound >= schedLwrBound_);
 
-  if (rlxdLwrBound > schedLwrBound_) schedLwrBound_ = rlxdLwrBound;
+  if (rlxdLwrBound > schedLwrBound_)
+    schedLwrBound_ = rlxdLwrBound;
 
-  #ifdef IS_DEBUG_PRINT_BOUNDS
-    dataDepGraph_->PrintLwrBounds(DIR_FRWRD, Logger::GetLogStream(),
-                                  "Relaxed Forward Lower Bounds");
-    dataDepGraph_->PrintLwrBounds(DIR_BKWRD, Logger::GetLogStream(),
-                                  "Relaxed Backward Lower Bounds");
-  #endif
+#ifdef IS_DEBUG_PRINT_BOUNDS
+  dataDepGraph_->PrintLwrBounds(DIR_FRWRD, Logger::GetLogStream(),
+                                "Relaxed Forward Lower Bounds");
+  dataDepGraph_->PrintLwrBounds(DIR_BKWRD, Logger::GetLogStream(),
+                                "Relaxed Backward Lower Bounds");
+#endif
 
-  if (useFileBounds) UseFileBounds_();
+  if (useFileBounds)
+    UseFileBounds_();
 
   costLwrBound_ = CmputCostLwrBound();
 
@@ -434,11 +447,11 @@ void SchedRegion::CmputLwrBounds_(bool useFileBounds) {
   delete rvrsRlxdSchdulr;
 }
 
-bool SchedRegion::CmputUprBounds_(InstSchedule* lstSched, bool useFileBounds) {
+bool SchedRegion::CmputUprBounds_(InstSchedule *lstSched, bool useFileBounds) {
   InstCount hurstcExecCost;
   hurstcCost_ = CmputNormCost_(lstSched, CCM_DYNMC, hurstcExecCost, true);
-//  hurstcCost_ = CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, true);
-//  hurstcSchedLngth_ = hurstcExecCost + GetCostLwrBound();
+  //  hurstcCost_ = CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, true);
+  //  hurstcSchedLngth_ = hurstcExecCost + GetCostLwrBound();
 
   if (useFileBounds) {
     hurstcCost_ = dataDepGraph_->GetFileCostUprBound();
@@ -458,33 +471,32 @@ bool SchedRegion::CmputUprBounds_(InstSchedule* lstSched, bool useFileBounds) {
   }
 }
 
-void SchedRegion::HandlEnumrtrRslt_(FUNC_RESULT rslt,
-                                    InstCount trgtLngth) {
+void SchedRegion::HandlEnumrtrRslt_(FUNC_RESULT rslt, InstCount trgtLngth) {
   switch (rslt) {
-    case RES_FAIL:
-//    #ifdef IS_DEBUG_ENUM_ITERS
-      Logger::Info("No feasible solution of length %d was found.", trgtLngth);
-//    #endif
-      break;
-    case RES_SUCCESS:
-    #ifdef IS_DEBUG_ENUM_ITERS
-      Logger::Info("Found a feasible solution of length %d.", trgtLngth);
-    #endif
-      break;
-    case RES_TIMEOUT:
-//    #ifdef IS_DEBUG_ENUM_ITERS
-      Logger::Info("Enumeration timedout at length %d.", trgtLngth);
-//    #endif
-      break;
-    case RES_ERROR:
-      Logger::Info("The processing of DAG \"%s\" was terminated with an error.",
-                   dataDepGraph_->GetDagID(), rgnNum_);
-      break;
-    case RES_END:
-//    #ifdef IS_DEBUG_ENUM_ITERS
-      Logger::Info("Enumeration ended at length %d.", trgtLngth);
-//    #endif
-      break;
+  case RES_FAIL:
+    //    #ifdef IS_DEBUG_ENUM_ITERS
+    Logger::Info("No feasible solution of length %d was found.", trgtLngth);
+    //    #endif
+    break;
+  case RES_SUCCESS:
+#ifdef IS_DEBUG_ENUM_ITERS
+    Logger::Info("Found a feasible solution of length %d.", trgtLngth);
+#endif
+    break;
+  case RES_TIMEOUT:
+    //    #ifdef IS_DEBUG_ENUM_ITERS
+    Logger::Info("Enumeration timedout at length %d.", trgtLngth);
+    //    #endif
+    break;
+  case RES_ERROR:
+    Logger::Info("The processing of DAG \"%s\" was terminated with an error.",
+                 dataDepGraph_->GetDagID(), rgnNum_);
+    break;
+  case RES_END:
+    //    #ifdef IS_DEBUG_ENUM_ITERS
+    Logger::Info("Enumeration ended at length %d.", trgtLngth);
+    //    #endif
+    break;
   }
 }
 

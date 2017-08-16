@@ -1,21 +1,21 @@
 #include "llvm/CodeGen/OptSched/generic/buffers.h"
-#include <cstring>
+#include "llvm/CodeGen/OptSched/generic/logger.h"
 #include <cstdio>
 #include <cstdlib>
-#include <unistd.h>
+#include <cstring>
 #include <fcntl.h>
-#include "llvm/CodeGen/OptSched/generic/logger.h"
+#include <unistd.h>
 
 namespace opt_sched {
 
 #ifdef WIN32
-  #include <io.h>
+#include <io.h>
 
-  static const int INPFILE_OPENFLAGS = _O_BINARY|_O_RDONLY;
+static const int INPFILE_OPENFLAGS = _O_BINARY | _O_RDONLY;
 #else
-  #include <sys/uio.h>
+#include <sys/uio.h>
 
-  static const int INPFILE_OPENFLAGS = O_LARGEFILE | O_RDONLY;
+static const int INPFILE_OPENFLAGS = O_LARGEFILE | O_RDONLY;
 #endif
 
 static const char CR = '\r';
@@ -27,15 +27,9 @@ static const int EOL = -2;
 static const int DATA = 0;
 static const int FILEOPEN_ERROR = -1;
 
-static inline bool IsWhitespace(const char& c) {
-  return c == SPC || c == TAB;
-}
-static inline bool IsLineEnd(const char& c) {
-  return c == CR || c == LF;
-}
-static inline bool IsCommentStart(const char& c) {
-  return c == CMNT_STRT;
-}
+static inline bool IsWhitespace(const char &c) { return c == SPC || c == TAB; }
+static inline bool IsLineEnd(const char &c) { return c == CR || c == LF; }
+static inline bool IsCommentStart(const char &c) { return c == CMNT_STRT; }
 
 InputBuffer::InputBuffer() {
   fileHndl = FILEOPEN_ERROR;
@@ -50,9 +44,8 @@ InputBuffer::~InputBuffer() {
   Unload();
 }
 
-FUNC_RESULT InputBuffer::Load(char const * const fileName,
-                          char const * const path,
-                          long maxByts) {
+FUNC_RESULT InputBuffer::Load(char const *const fileName,
+                              char const *const path, long maxByts) {
   char fullPath[MAX_NAMESIZE];
   strcpy(fullPath, path);
   strcat(fullPath, "\\");
@@ -60,7 +53,7 @@ FUNC_RESULT InputBuffer::Load(char const * const fileName,
   return Load(fullPath, maxByts);
 }
 
-FUNC_RESULT InputBuffer::Load(char const * const _fullPath, long maxByts) {
+FUNC_RESULT InputBuffer::Load(char const *const _fullPath, long maxByts) {
   strcpy(fullPath, _fullPath);
 
   if ((fileHndl = open(fullPath, INPFILE_OPENFLAGS)) == FILEOPEN_ERROR) {
@@ -81,8 +74,9 @@ FUNC_RESULT InputBuffer::Load(char const * const _fullPath, long maxByts) {
   }
 
   // Allocate an extra byte for possible null termination.
-  buf = new char[totSize+1];
-  if (buf == NULL) Logger::Fatal("Out of memory.");
+  buf = new char[totSize + 1];
+  if (buf == NULL)
+    Logger::Fatal("Out of memory.");
   if ((loadedByts = read(fileHndl, buf, totSize)) == 0) {
     Logger::Fatal("Empty input file: %s.", fullPath);
   }
@@ -102,7 +96,7 @@ FUNC_RESULT InputBuffer::Load(char const * const _fullPath, long maxByts) {
   return RES_SUCCESS;
 }
 
-FUNC_RESULT InputBuffer::SetBuf(char* _buf, long size) {
+FUNC_RESULT InputBuffer::SetBuf(char *_buf, long size) {
   strcpy(fullPath, "NONE");
   fileHndl = FILEOPEN_ERROR;
   totSize = size;
@@ -156,7 +150,8 @@ int InputBuffer::Reload() {
     memmove(buf, buf + crntOfst, bytsNeeded);
   }
 
-  if ((loadedByts = read(fileHndl, buf + bytsNeeded, totSize - bytsNeeded)) == 0) {
+  if ((loadedByts = read(fileHndl, buf + bytsNeeded, totSize - bytsNeeded)) ==
+      0) {
     return EOF;
   }
 
@@ -188,7 +183,8 @@ NXTLINE_TYPE InputBuffer::skipSpaceAndCmnts() {
 
     if (lineStrt) {
       // If previous line started with blank.
-      if (blankedLine) emptyLineEncountered = true;
+      if (blankedLine)
+        emptyLineEncountered = true;
       blankedLine = false;
 
       if (IsLineEnd(crntChar)) {
@@ -215,13 +211,14 @@ NXTLINE_TYPE InputBuffer::skipSpaceAndCmnts() {
 }
 
 int InputBuffer::skipSpace() {
-  for (crntChar = buf[crntOfst];
-       IsWhitespace(crntChar);
+  for (crntChar = buf[crntOfst]; IsWhitespace(crntChar);
        crntChar = buf[crntOfst]) {
-    if (++crntOfst >= loadedByts && chckReload() == EOF) return EOF;
+    if (++crntOfst >= loadedByts && chckReload() == EOF)
+      return EOF;
   }
 
-  if (IsCommentStart(crntChar)) return CMNT_STRT;
+  if (IsCommentStart(crntChar))
+    return CMNT_STRT;
 
   if (IsLineEnd(crntChar)) {
     // If at end of line go to start of next line.
@@ -229,7 +226,8 @@ int InputBuffer::skipSpace() {
     // Skip [CR] and LF.
     crntOfst += step;
 
-    if (crntOfst >= loadedByts && chckReload() == EOF) return EOF;
+    if (crntOfst >= loadedByts && chckReload() == EOF)
+      return EOF;
 
     lineStrt = true;
     nxtLineRchd = true;
@@ -240,27 +238,26 @@ int InputBuffer::skipSpace() {
 }
 
 int InputBuffer::skipCmnt() {
-  for (crntChar = buf[crntOfst];
-       !IsLineEnd(crntChar);
+  for (crntChar = buf[crntOfst]; !IsLineEnd(crntChar);
        crntChar = buf[crntOfst]) {
-    if (++crntOfst >= loadedByts && chckReload() == EOF) return EOF;
+    if (++crntOfst >= loadedByts && chckReload() == EOF)
+      return EOF;
   }
 
   int step = (crntChar == CR) ? 2 : 1;
   // Skip LF.
   crntOfst += step;
 
-  if (crntOfst >= loadedByts && chckReload() == EOF) return EOF;
+  if (crntOfst >= loadedByts && chckReload() == EOF)
+    return EOF;
 
   lineStrt = true;
   nxtLineRchd = true;
   return EOL;
 }
 
-NXTLINE_TYPE InputBuffer::GetNxtVldLine_(int& pieceCnt,
-                                         char* strng[],
-                                         int lngth[],
-                                         int maxPieceCnt) {
+NXTLINE_TYPE InputBuffer::GetNxtVldLine_(int &pieceCnt, char *strng[],
+                                         int lngth[], int maxPieceCnt) {
   crntLineOfst = crntOfst;
 
   // If the next line might not fit entirely into the buffer.
@@ -274,8 +271,7 @@ NXTLINE_TYPE InputBuffer::GetNxtVldLine_(int& pieceCnt,
     lngth[pieceCnt] = 0;
     strng[pieceCnt] = buf + crntOfst;
 
-    for (crntChar = buf[crntOfst];
-         !IsWhiteSpaceOrLineEnd(crntChar);
+    for (crntChar = buf[crntOfst]; !IsWhiteSpaceOrLineEnd(crntChar);
          crntChar = buf[crntOfst]) {
       // Assume comments are always preceded by space.
       lngth[pieceCnt]++;
@@ -286,20 +282,23 @@ NXTLINE_TYPE InputBuffer::GetNxtVldLine_(int& pieceCnt,
       }
     }
 
-    if (lngth[pieceCnt] > 0) pieceCnt++;
+    if (lngth[pieceCnt] > 0)
+      pieceCnt++;
 
     // If crntChar is CR or LF this will just go to the next line.
     switch (skipSpace()) {
-      case DATA:
-        if (pieceCnt == maxPieceCnt) return NXT_ERR;
-        break;
-      case EOL:
-        break;
-      case CMNT_STRT:
-        if (skipCmnt() == EOF) return NXT_EOF;
-        break;
-      case EOF:
+    case DATA:
+      if (pieceCnt == maxPieceCnt)
+        return NXT_ERR;
+      break;
+    case EOL:
+      break;
+    case CMNT_STRT:
+      if (skipCmnt() == EOF)
         return NXT_EOF;
+      break;
+    case EOF:
+      return NXT_EOF;
     }
   }
 
@@ -322,9 +321,8 @@ void InputBuffer::Unload() {
   }
 }
 
-NXTLINE_TYPE InputBuffer::GetNxtVldLine(int& pieceCnt,
-    char* strngs[],
-    int lngths[]) {
+NXTLINE_TYPE InputBuffer::GetNxtVldLine(int &pieceCnt, char *strngs[],
+                                        int lngths[]) {
   NXTLINE_TYPE retVal = GetNxtVldLine_(pieceCnt, strngs, lngths);
 
   for (int i = 0; i < pieceCnt; i++) {
@@ -348,19 +346,19 @@ bool InputBuffer::IsWhiteSpaceOrLineEnd(char ch) {
   }
 }
 
-void InputBuffer::ReportError(char* msg, char* lineStrt, int frstLngth) {
-  Logger::Error("%s on line %d of input file: %.*s. Line starts with: %s",
-                msg, crntLineNum, fullPath, frstLngth, lineStrt);
+void InputBuffer::ReportError(char *msg, char *lineStrt, int frstLngth) {
+  Logger::Error("%s on line %d of input file: %.*s. Line starts with: %s", msg,
+                crntLineNum, fullPath, frstLngth, lineStrt);
 }
 
-void InputBuffer::ReportFatalError(char* msg, char* lineStrt, int frstLngth) {
-  Logger::Fatal("%s on line %d of input file: %.*s. Line starts with: %s",
-                msg, crntLineNum, fullPath, frstLngth, lineStrt);
+void InputBuffer::ReportFatalError(char *msg, char *lineStrt, int frstLngth) {
+  Logger::Fatal("%s on line %d of input file: %.*s. Line starts with: %s", msg,
+                crntLineNum, fullPath, frstLngth, lineStrt);
 }
 
-void SpecsBuffer::ReadSpec(char const * const title, char* value) {
+void SpecsBuffer::ReadSpec(char const *const title, char *value) {
   int lngth[INBUF_MAX_PIECES_PERLINE];
-  char* strPtr[INBUF_MAX_PIECES_PERLINE];
+  char *strPtr[INBUF_MAX_PIECES_PERLINE];
   int pieceCnt;
   bool isMltplPieces = false;
   bool isMsng = false;
@@ -402,12 +400,8 @@ void SpecsBuffer::ReadSpec(char const * const title, char* value) {
   }
 }
 
-void SpecsBuffer::CombinePieces_(int lngths[],
-                                 char* strngs[],
-                                 int startPiece,
-                                 int endPiece,
-                                 char* target,
-                                 int& totLngth) {
+void SpecsBuffer::CombinePieces_(int lngths[], char *strngs[], int startPiece,
+                                 int endPiece, char *target, int &totLngth) {
   int ofst = 0;
 
   for (int i = startPiece; i <= endPiece; i++) {
@@ -421,9 +415,9 @@ void SpecsBuffer::CombinePieces_(int lngths[],
   totLngth = ofst;
 }
 
-void SpecsBuffer::readLstElmnt(char* value) {
+void SpecsBuffer::readLstElmnt(char *value) {
   int lngth[INBUF_MAX_PIECES_PERLINE];
-  char* strPtr[INBUF_MAX_PIECES_PERLINE];
+  char *strPtr[INBUF_MAX_PIECES_PERLINE];
   int pieceCnt;
 
   if (nxtLineType == NXT_EOF) {
@@ -446,9 +440,9 @@ int SpecsBuffer::readIntLstElmnt() {
   return atoi(strVal);
 }
 
-void SpecsBuffer::readLine(char* value, int maxPieceCnt) {
+void SpecsBuffer::readLine(char *value, int maxPieceCnt) {
   int i, lngth[INBUF_MAX_PIECES_PERLINE];
-  char* strPtr[INBUF_MAX_PIECES_PERLINE];
+  char *strPtr[INBUF_MAX_PIECES_PERLINE];
   int pieceCnt, ofst;
 
   assert(maxPieceCnt <= INBUF_MAX_PIECES_PERLINE);
@@ -470,12 +464,12 @@ void SpecsBuffer::readLine(char* value, int maxPieceCnt) {
   value[ofst] = 0;
 
   if (nxtLineType == NXT_ERR) {
-    Logger::Fatal("Too many pieces on line: %s of input file: %s",
-                  value, GetFullPath());
+    Logger::Fatal("Too many pieces on line: %s of input file: %s", value,
+                  GetFullPath());
   }
 }
 
-bool SpecsBuffer::ReadFlagSpec(char const * const title, bool dfltValue) {
+bool SpecsBuffer::ReadFlagSpec(char const *const title, bool dfltValue) {
   char tmpStrng[MAX_NAMESIZE];
 
   ReadSpec(title, tmpStrng);
@@ -491,20 +485,20 @@ bool SpecsBuffer::ReadFlagSpec(char const * const title, bool dfltValue) {
   return dfltValue;
 }
 
-unsigned long SpecsBuffer::ReadUlongSpec(char const * const title) {
+unsigned long SpecsBuffer::ReadUlongSpec(char const *const title) {
   char tmpStrng[MAX_NAMESIZE];
   ReadSpec(title, tmpStrng);
   return strtoul(tmpStrng, NULL, 10);
 }
 
-float SpecsBuffer::ReadFloatSpec(char const * const title) {
+float SpecsBuffer::ReadFloatSpec(char const *const title) {
   char tmpStrng[MAX_NAMESIZE];
 
   ReadSpec(title, tmpStrng);
   return (float)atof(tmpStrng);
 }
 
-uint64_t SpecsBuffer::readUInt64Spec(char const * const title) {
+uint64_t SpecsBuffer::readUInt64Spec(char const *const title) {
   char tmpStrng[MAX_NAMESIZE];
   // Most sig piece and least sig piece.
   unsigned long MSUlong, LSUlong;
@@ -529,7 +523,7 @@ uint64_t SpecsBuffer::readUInt64Spec(char const * const title) {
 
   if (MSUlongSize > 0) {
     // We have already read the LS part.
-    tmpStrng[ofst+MSUlongSize] = 0;
+    tmpStrng[ofst + MSUlongSize] = 0;
     MSUlong = strtoul(tmpStrng + ofst, NULL, 16);
   }
 
@@ -541,25 +535,25 @@ uint64_t SpecsBuffer::readUInt64Spec(char const * const title) {
   return fullNum;
 }
 
-int16_t SpecsBuffer::ReadShortSpec(char const * const title) {
+int16_t SpecsBuffer::ReadShortSpec(char const *const title) {
   char tmpStrng[MAX_NAMESIZE];
   ReadSpec(title, tmpStrng);
   return atoi(tmpStrng);
 }
 
-int SpecsBuffer::ReadIntSpec(char const * const title) {
+int SpecsBuffer::ReadIntSpec(char const *const title) {
   char tmpStrng[MAX_NAMESIZE];
   ReadSpec(title, tmpStrng);
   return (int16_t)atoi(tmpStrng);
 }
 
-void SpecsBuffer::ErrorHandle(char* value) {
+void SpecsBuffer::ErrorHandle(char *value) {
   Logger::Fatal("Invalid parameter or spec (%s) in specs file.", value);
 }
 
-FUNC_RESULT SpecsBuffer::checkTitle(char const * const title) {
+FUNC_RESULT SpecsBuffer::checkTitle(char const *const title) {
   int lngth[INBUF_MAX_PIECES_PERLINE];
-  char* strPtr[INBUF_MAX_PIECES_PERLINE];
+  char *strPtr[INBUF_MAX_PIECES_PERLINE];
   int pieceCnt;
 
   if (nxtLineType == NXT_EOF) {
@@ -587,8 +581,6 @@ FUNC_RESULT SpecsBuffer::checkTitle(char const * const title) {
   return RES_SUCCESS;
 }
 
-SpecsBuffer::SpecsBuffer() {
-  nxtLineType = NXT_DATA;
-}
+SpecsBuffer::SpecsBuffer() { nxtLineType = NXT_DATA; }
 
 } // end namespace opt_sched

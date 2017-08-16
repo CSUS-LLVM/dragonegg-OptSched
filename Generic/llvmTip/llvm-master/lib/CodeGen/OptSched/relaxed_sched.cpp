@@ -1,14 +1,13 @@
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
-#include <algorithm>
-#include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
+#include "llvm/CodeGen/OptSched/generic/utilities.h"
+#include <algorithm>
 
 namespace opt_sched {
 
-RelaxedScheduler::RelaxedScheduler(DataDepStruct* dataDepGraph,
-                                   MachineModel* machMdl,
-                                   InstCount schedUprBound,
-                                   DIRECTION mainDir,
+RelaxedScheduler::RelaxedScheduler(DataDepStruct *dataDepGraph,
+                                   MachineModel *machMdl,
+                                   InstCount schedUprBound, DIRECTION mainDir,
                                    RLXD_SCHED_TYPE schedType,
                                    InstCount maxInstCnt)
     : InstScheduler(dataDepGraph, machMdl, schedUprBound) {
@@ -24,37 +23,41 @@ RelaxedScheduler::RelaxedScheduler(DataDepStruct* dataDepGraph,
     maxInstCnt_ = maxInstCnt;
   }
 
-  //Write the bounds back only if it is a full graph
+  // Write the bounds back only if it is a full graph
   writeBack_ = dataDepGraph_->GetType() == DGT_FULL;
 
   instCntBits_ = Utilities::clcltBitsNeededToHoldNum(maxInstCnt_);
 
   // If scheduling in the reverse direction.
   if (mainDir_ == DIR_BKWRD) {
-    //Swap the root and leaf insts.
-    SchedInstruction* tmpInst;
+    // Swap the root and leaf insts.
+    SchedInstruction *tmpInst;
     tmpInst = rootInst_;
     rootInst_ = leafInst_;
     leafInst_ = tmpInst;
   }
 
   instLst_ = new PriorityList<SchedInstruction>(maxInstCnt_);
-//  instLst_ = new PriorityList<SchedInstruction>;
-  if (instLst_ == NULL) Logger::Fatal("Out of memory.");
+  //  instLst_ = new PriorityList<SchedInstruction>;
+  if (instLst_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   for (InstCount i = 0; i < issuTypeCnt_; i++) {
     avlblSlots_[i] = new int16_t[schedUprBound_];
-    if (avlblSlots_[i] == NULL) Logger::Fatal("Out of memory.");
+    if (avlblSlots_[i] == NULL)
+      Logger::Fatal("Out of memory.");
 
     nxtAvlblCycles_[i] = new InstCount[schedUprBound_];
-    if (nxtAvlblCycles_[i] == NULL) Logger::Fatal("Out of memory.");
+    if (nxtAvlblCycles_[i] == NULL)
+      Logger::Fatal("Out of memory.");
   }
 
   isFxd_ = NULL;
 
   if (useFxng_) {
     isFxd_ = new bool[maxInstCnt_];
-    if (isFxd_ == NULL) Logger::Fatal("Out of memory.");
+    if (isFxd_ == NULL)
+      Logger::Fatal("Out of memory.");
 
     for (InstCount i = 0; i < maxInstCnt_; i++) {
       isFxd_[i] = false;
@@ -64,7 +67,8 @@ RelaxedScheduler::RelaxedScheduler(DataDepStruct* dataDepGraph,
   if (schedType_ == RST_DYNMC) {
     for (InstCount i = 0; i < issuTypeCnt_; i++) {
       prevAvlblSlots_[i] = new int16_t[schedUprBound_];
-      if (prevAvlblSlots_[i] == NULL) Logger::Fatal("Out of memory.");
+      if (prevAvlblSlots_[i] == NULL)
+        Logger::Fatal("Out of memory.");
     }
   }
 
@@ -75,8 +79,9 @@ RelaxedScheduler::RelaxedScheduler(DataDepStruct* dataDepGraph,
   dataDepGraph_->GetLwrBounds(frwrdLwrBounds_, bkwrdLwrBounds_);
 
 #ifdef IS_DEBUG
-  wasLwrBoundCmputd_ = new bool [maxInstCnt_];
-  if (wasLwrBoundCmputd_ == NULL) Logger::Fatal("Out of memory.");
+  wasLwrBoundCmputd_ = new bool[maxInstCnt_];
+  if (wasLwrBoundCmputd_ == NULL)
+    Logger::Fatal("Out of memory.");
 #endif
 }
 /*****************************************************************************/
@@ -98,9 +103,9 @@ RelaxedScheduler::~RelaxedScheduler() {
     }
   }
 
-  #ifdef IS_DEBUG
-    delete[] wasLwrBoundCmputd_;
-  #endif
+#ifdef IS_DEBUG
+  delete[] wasLwrBoundCmputd_;
+#endif
 }
 /*****************************************************************************/
 
@@ -119,9 +124,8 @@ void RelaxedScheduler::Reset_(InstCount startIndx) {
 }
 /*****************************************************************************/
 
-InstCount RelaxedScheduler::SchdulInst_(SchedInstruction* inst,
-                                          InstCount minCycle,
-                                          InstCount) {
+InstCount RelaxedScheduler::SchdulInst_(SchedInstruction *inst,
+                                        InstCount minCycle, InstCount) {
   assert(inst != NULL);
   InstCount releaseTime = CmputReleaseTime_(inst);
   assert(releaseTime == GetCrntLwrBound_(inst, schedDir_));
@@ -147,15 +151,15 @@ InstCount RelaxedScheduler::SchdulInst_(SchedInstruction* inst,
 }
 /*****************************************************************************/
 
-InstCount RelaxedScheduler::CmputReleaseTime_(SchedInstruction* inst) {
+InstCount RelaxedScheduler::CmputReleaseTime_(SchedInstruction *inst) {
   return GetCrntLwrBound_(inst, schedDir_);
 }
 /*****************************************************************************/
 
-InstCount RelaxedScheduler::GetCrntLwrBound_(SchedInstruction* inst,
-    DIRECTION dir) {
+InstCount RelaxedScheduler::GetCrntLwrBound_(SchedInstruction *inst,
+                                             DIRECTION dir) {
   assert(inst != NULL);
-//  InstCount indx=inst->GetCrntIndx();
+  //  InstCount indx=inst->GetCrntIndx();
   InstCount indx = dataDepGraph_->GetInstIndx(inst);
   assert(indx < totInstCnt_);
   assert(dataDepGraph_->GetType() == DGT_SUB || indx == inst->GetNum());
@@ -170,17 +174,16 @@ InstCount RelaxedScheduler::GetCrntLwrBound_(SchedInstruction* inst,
 }
 /*****************************************************************************/
 
-void RelaxedScheduler::SetCrntLwrBound_(SchedInstruction* inst,
-                                        DIRECTION dir,
+void RelaxedScheduler::SetCrntLwrBound_(SchedInstruction *inst, DIRECTION dir,
                                         InstCount newBound) {
   assert(inst != NULL);
-//  InstCount indx=inst->GetCrntIndx();
+  //  InstCount indx=inst->GetCrntIndx();
   InstCount indx = dataDepGraph_->GetInstIndx(inst);
 
   assert(indx < totInstCnt_);
   assert(dataDepGraph_->GetType() == DGT_SUB || indx == inst->GetNum());
 #ifdef IS_DEBUG
-//  wasLwrBoundCmputd_[inst->GetCrntIndx()]=true;
+  //  wasLwrBoundCmputd_[inst->GetCrntIndx()]=true;
   wasLwrBoundCmputd_[dataDepGraph_->GetInstIndx(inst)] = true;
 #endif
 
@@ -196,18 +199,17 @@ void RelaxedScheduler::SetCrntLwrBound_(SchedInstruction* inst,
 }
 /*****************************************************************************/
 
-InstCount RelaxedScheduler::PropagateLwrBound_(SchedInstruction* inst,
-    DIRECTION dir) {
+InstCount RelaxedScheduler::PropagateLwrBound_(SchedInstruction *inst,
+                                               DIRECTION dir) {
   InstCount crntBound = GetCrntLwrBound_(inst, dir);
 
   UDT_GLABEL ltncy;
   DependenceType depType;
-  SchedInstruction* pred;
-  SchedInstruction* scsr;
+  SchedInstruction *pred;
+  SchedInstruction *scsr;
 
   if (dir == DIR_FRWRD) {
-    for (pred = inst->GetFrstPrdcsr(NULL, &ltncy, &depType);
-         pred != NULL;
+    for (pred = inst->GetFrstPrdcsr(NULL, &ltncy, &depType); pred != NULL;
          pred = inst->GetNxtPrdcsr(NULL, &ltncy, &depType)) {
       if (dataDepGraph_->IsInGraph(pred)) {
         InstCount predBound = GetCrntLwrBound_(pred, dir);
@@ -218,8 +220,7 @@ InstCount RelaxedScheduler::PropagateLwrBound_(SchedInstruction* inst,
       }
     }
   } else {
-    for (scsr = inst->GetFrstScsr(NULL, &ltncy, &depType);
-         scsr != NULL;
+    for (scsr = inst->GetFrstScsr(NULL, &ltncy, &depType); scsr != NULL;
          scsr = inst->GetNxtScsr(NULL, &ltncy, &depType)) {
       if (dataDepGraph_->IsInGraph(scsr)) {
         InstCount scsrBound = GetCrntLwrBound_(scsr, dir);
@@ -237,13 +238,13 @@ InstCount RelaxedScheduler::PropagateLwrBound_(SchedInstruction* inst,
 
 void RelaxedScheduler::WriteBoundsBack_() {
   InstCount i;
-  SchedInstruction* inst;
+  SchedInstruction *inst;
 
   for (i = 0; i < totInstCnt_; i++) {
     inst = dataDepGraph_->GetInstByIndx(i);
     assert(inst != NULL);
 #ifdef IS_DEBUG
-//    wasLwrBoundCmputd_[inst->GetCrntIndx()]=true;
+    //    wasLwrBoundCmputd_[inst->GetCrntIndx()]=true;
     wasLwrBoundCmputd_[dataDepGraph_->GetInstIndx(inst)] = true;
 #endif
     InstCount newBound = GetCrntLwrBound_(inst, mainDir_);
@@ -260,23 +261,16 @@ void RelaxedScheduler::ClearFxng() {
 }
 /*****************************************************************************/
 
-
-
-RJ_RelaxedScheduler::RJ_RelaxedScheduler(DataDepStruct* dataDepGraph,
-    MachineModel* machMdl,
-    InstCount schedUprBound,
-    DIRECTION mainDir,
-    RLXD_SCHED_TYPE type,
-    InstCount maxInstCnt)
-  : RelaxedScheduler(dataDepGraph, machMdl,
-                     schedUprBound, mainDir, type, maxInstCnt) {
+RJ_RelaxedScheduler::RJ_RelaxedScheduler(
+    DataDepStruct *dataDepGraph, MachineModel *machMdl, InstCount schedUprBound,
+    DIRECTION mainDir, RLXD_SCHED_TYPE type, InstCount maxInstCnt)
+    : RelaxedScheduler(dataDepGraph, machMdl, schedUprBound, mainDir, type,
+                       maxInstCnt) {
   assert(instLst_->GetElmntCnt() == 0);
 }
 /*****************************************************************************/
 
-RJ_RelaxedScheduler::~RJ_RelaxedScheduler() {
-
-}
+RJ_RelaxedScheduler::~RJ_RelaxedScheduler() {}
 /*****************************************************************************/
 
 void RJ_RelaxedScheduler::Initialize_(bool setPrirtyLst) {
@@ -285,10 +279,10 @@ void RJ_RelaxedScheduler::Initialize_(bool setPrirtyLst) {
   leafInst_ = dataDepGraph_->GetLeafInst();
 
   if (mainDir_ == DIR_BKWRD)
-    //If scheduling in the reverse direction
+  // If scheduling in the reverse direction
   {
-    //Swap the root and leaf insts.
-    SchedInstruction* tmpInst;
+    // Swap the root and leaf insts.
+    SchedInstruction *tmpInst;
     tmpInst = rootInst_;
     rootInst_ = leafInst_;
     leafInst_ = tmpInst;
@@ -319,7 +313,7 @@ void RJ_RelaxedScheduler::SetupPrirtyLst() {
   instLst_->Reset();
 
   for (i = 0; i < totInstCnt_; i++) {
-    SchedInstruction* inst;
+    SchedInstruction *inst;
 
     if (schedDir_ == DIR_FRWRD) {
       inst = dataDepGraph_->GetInstByTplgclOrdr(i);
@@ -327,8 +321,8 @@ void RJ_RelaxedScheduler::SetupPrirtyLst() {
       inst = dataDepGraph_->GetInstByRvrsTplgclOrdr(i);
     }
 
-    //The right topological order will speed up the linear insertion
-    //into the sorted list
+    // The right topological order will speed up the linear insertion
+    // into the sorted list
     if (dataDepGraph_->IsInGraph(inst)) {
       instLst_->InsrtElmnt(inst, GetCrntLwrBound_(inst, opstDir), true);
     }
@@ -337,12 +331,12 @@ void RJ_RelaxedScheduler::SetupPrirtyLst() {
 /*****************************************************************************/
 
 InstCount RJ_RelaxedScheduler::FindSchedule() {
-  SchedInstruction* inst;
-  InstCount       delay;
-  InstCount       maxDelay = 0;
-  InstCount       schedCycle;
-  InstCount       trgtLastCycle;
-  DIRECTION         opstDir = DirAcycGraph::ReverseDirection(schedDir_);
+  SchedInstruction *inst;
+  InstCount delay;
+  InstCount maxDelay = 0;
+  InstCount schedCycle;
+  InstCount trgtLastCycle;
+  DIRECTION opstDir = DirAcycGraph::ReverseDirection(schedDir_);
 
   Initialize_(true);
 
@@ -358,8 +352,8 @@ InstCount RJ_RelaxedScheduler::FindSchedule() {
     assert(inst != NULL);
     schedCycle = SchdulInst_(inst, 0, trgtLastCycle);
     schduldInstCnt_++;
-    delay = CmputDelay_(schedCycle, trgtLastCycle,
-                        GetCrntLwrBound_(inst, opstDir));
+    delay =
+        CmputDelay_(schedCycle, trgtLastCycle, GetCrntLwrBound_(inst, opstDir));
 
     if (delay > maxDelay) {
       maxDelay = delay;
@@ -367,18 +361,18 @@ InstCount RJ_RelaxedScheduler::FindSchedule() {
   }
 
   return (trgtLastCycle + maxDelay + 1);
-  //Return the relaxed schedule length, which is equal to
-  //The target last cycle + the maximum delay + 1
+  // Return the relaxed schedule length, which is equal to
+  // The target last cycle + the maximum delay + 1
 }
 /*****************************************************************************/
 
 bool RJ_RelaxedScheduler::SchdulAndChkFsblty(InstCount crntCycle,
-    InstCount lastCycle) {
-  SchedInstruction* inst;
-  InstCount       delay;
-  bool              fsbl = true;
-  InstCount       schedCycle;
-  DIRECTION         opstDir = DirAcycGraph::ReverseDirection(schedDir_);
+                                             InstCount lastCycle) {
+  SchedInstruction *inst;
+  InstCount delay;
+  bool fsbl = true;
+  InstCount schedCycle;
+  DIRECTION opstDir = DirAcycGraph::ReverseDirection(schedDir_);
 
   assert(schedType_ == RST_DYNMC && useFxng_);
   InitChkng_(crntCycle);
@@ -410,11 +404,8 @@ bool RJ_RelaxedScheduler::SchdulAndChkFsblty(InstCount crntCycle,
 #ifdef IS_DEBUG_RJ
     Logger::Info("Relax scheduled inst. #%d with bounds [%d, %d] in cycle %d "
                  "and delay %d",
-                 inst->GetNum(),
-                 inst->GetCrntReleaseTime(),
-                 inst->GetCrntDeadline(),
-                 schedCycle,
-                 delay);
+                 inst->GetNum(), inst->GetCrntReleaseTime(),
+                 inst->GetCrntDeadline(), schedCycle, delay);
 #endif
 
     if (delay > 0) {
@@ -435,28 +426,28 @@ bool RJ_RelaxedScheduler::SchdulAndChkFsblty(InstCount crntCycle,
 /*****************************************************************************/
 
 bool RJ_RelaxedScheduler::CmputDynmcLwrBound(InstCount trgtLastCycle,
-    InstCount trgtLwrBound,
-    InstCount& schedLwrBound) {
+                                             InstCount trgtLwrBound,
+                                             InstCount &schedLwrBound) {
   DIRECTION opstDir = DirAcycGraph::ReverseDirection(schedDir_);
 
   Reset_(0);
 
   assert(GetCrntLwrBound_(rootInst_, schedDir_) == 0);
-  //InstCount minLastCycle = GetCrntLwrBound_(leafInst_, schedDir_);
+  // InstCount minLastCycle = GetCrntLwrBound_(leafInst_, schedDir_);
   assert(trgtLastCycle < schedUprBound_);
   assert(GetCrntLwrBound_(leafInst_, schedDir_) <= (trgtLwrBound - 1));
-//  InstCount trgtMaxDelay=trgtLwrBound-1-minLastCycle;
-//  InstCount maxDelay=0;
+  //  InstCount trgtMaxDelay=trgtLwrBound-1-minLastCycle;
+  //  InstCount maxDelay=0;
   InstCount lastCycle = 0;
   schedLwrBound = INVALID_VALUE;
 
-//  assert(instLst_->GetElmntCnt()==totInstCnt_);
+  //  assert(instLst_->GetElmntCnt()==totInstCnt_);
   InstCount instCnt = instLst_->GetElmntCnt();
   schduldInstCnt_ = 0;
 
-//  while(!IsSchedComplete_())
+  //  while(!IsSchedComplete_())
   while (schduldInstCnt_ < instCnt) {
-    SchedInstruction* inst = instLst_->GetNxtPriorityElmnt();
+    SchedInstruction *inst = instLst_->GetNxtPriorityElmnt();
     assert(inst != NULL);
 
     assert(dataDepGraph_->IsInGraph(inst));
@@ -466,13 +457,14 @@ bool RJ_RelaxedScheduler::CmputDynmcLwrBound(InstCount trgtLastCycle,
           continue;
         }*/
 
-    assert(GetCrntLwrBound_(inst, schedDir_) + GetCrntLwrBound_(inst, opstDir)
-           <= trgtLastCycle);
+    assert(GetCrntLwrBound_(inst, schedDir_) +
+               GetCrntLwrBound_(inst, opstDir) <=
+           trgtLastCycle);
     InstCount schedCycle = SchdulInst_(inst, 0, trgtLastCycle);
 
     schduldInstCnt_++;
-    InstCount delay = CmputDelay_(schedCycle, trgtLastCycle,
-                                    GetCrntLwrBound_(inst, opstDir));
+    InstCount delay =
+        CmputDelay_(schedCycle, trgtLastCycle, GetCrntLwrBound_(inst, opstDir));
 
     /*
     Logger::Info("Inst %d: FLB=%d, BLB=%d, DLF=%d, schedCycle=%d",
@@ -503,22 +495,23 @@ bool RJ_RelaxedScheduler::CmputDynmcLwrBound(InstCount trgtLastCycle,
   }
 
   assert(lastCycle <= trgtLastCycle);
-//  schedLwrBound=minLastCycle+maxDelay+1;
+  //  schedLwrBound=minLastCycle+maxDelay+1;
   schedLwrBound = lastCycle + 1;
   return true;
 }
 /*****************************************************************************/
 
-bool RJ_RelaxedScheduler::FixInsts_(LinkedList<SchedInstruction>* fxdLst) {
-  SchedInstruction* inst;
+bool RJ_RelaxedScheduler::FixInsts_(LinkedList<SchedInstruction> *fxdLst) {
+  SchedInstruction *inst;
   assert(useFxng_);
 
   /*  for(InstCount i=0;i<totInstCnt_;i++)
       SetFix_(i,false);*/
 
-  for (inst = fxdLst->GetFrstElmnt(); inst != NULL; inst = fxdLst->GetNxtElmnt()) {
+  for (inst = fxdLst->GetFrstElmnt(); inst != NULL;
+       inst = fxdLst->GetNxtElmnt()) {
     InstCount fxdCycle = GetCrntLwrBound_(inst, mainDir_);
-//    assert(inst->IsSchduld()==false || fxdCycle==inst->GetSchedCycle());
+    //    assert(inst->IsSchduld()==false || fxdCycle==inst->GetSchedCycle());
     assert(GetFix_(inst));
     bool isFsbl = FixInst(inst, fxdCycle);
 
@@ -567,7 +560,7 @@ void RJ_RelaxedScheduler::EndChkng_(InstCount crntCycle) {
 }
 /*****************************************************************************/
 
-bool RJ_RelaxedScheduler::FixInst(SchedInstruction* inst, InstCount cycle) {
+bool RJ_RelaxedScheduler::FixInst(SchedInstruction *inst, InstCount cycle) {
   assert(inst != NULL);
   assert(useFxng_);
   assert(GetCrntLwrBound_(inst, schedDir_) == cycle && cycle < schedUprBound_);
@@ -587,7 +580,7 @@ bool RJ_RelaxedScheduler::FixInst(SchedInstruction* inst, InstCount cycle) {
 }
 /*****************************************************************************/
 
-void RJ_RelaxedScheduler::UnFixInst(SchedInstruction* inst, InstCount cycle) {
+void RJ_RelaxedScheduler::UnFixInst(SchedInstruction *inst, InstCount cycle) {
   assert(inst != NULL);
   assert(schedType_ == RST_DYNMC);
 
@@ -606,21 +599,19 @@ void RJ_RelaxedScheduler::UnFixInst(SchedInstruction* inst, InstCount cycle) {
 }
 /*****************************************************************************/
 
-
-
-LC_RelaxedScheduler::LC_RelaxedScheduler(DataDepStruct* dataDepGraph,
-    MachineModel* machMdl,
-    InstCount schedUprBound,
-    DIRECTION mainDir)
-  : RelaxedScheduler(dataDepGraph, machMdl,
-                     schedUprBound, mainDir,
-                     RST_STTC, INVALID_VALUE) {
-//TEMP: Support for dynamic scheduling has not been implemented yet
+LC_RelaxedScheduler::LC_RelaxedScheduler(DataDepStruct *dataDepGraph,
+                                         MachineModel *machMdl,
+                                         InstCount schedUprBound,
+                                         DIRECTION mainDir)
+    : RelaxedScheduler(dataDepGraph, machMdl, schedUprBound, mainDir, RST_STTC,
+                       INVALID_VALUE) {
+  // TEMP: Support for dynamic scheduling has not been implemented yet
   assert(schedType_ == RST_STTC);
 
-//  subGraphInstLst_ = new PriorityList<SchedInstruction>(totInstCnt_);
+  //  subGraphInstLst_ = new PriorityList<SchedInstruction>(totInstCnt_);
   subGraphInstLst_ = new PriorityList<SchedInstruction>;
-  if (subGraphInstLst_ == NULL) Logger::Fatal("Out of memory.");
+  if (subGraphInstLst_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   schedDir_ = mainDir_;
 }
@@ -633,7 +624,7 @@ LC_RelaxedScheduler::~LC_RelaxedScheduler() {
 /*****************************************************************************/
 
 void LC_RelaxedScheduler::Initialize_() {
-//  dataDepGraph_->SetInstIndexes();
+  //  dataDepGraph_->SetInstIndexes();
   dataDepGraph_->GetLwrBounds(frwrdLwrBounds_, bkwrdLwrBounds_);
 #ifdef IS_DEBUG
 
@@ -652,7 +643,7 @@ void LC_RelaxedScheduler::InitSubGraph_() {
 /*****************************************************************************/
 
 InstCount LC_RelaxedScheduler::FindSchedule() {
-  SchedInstruction* inst = NULL;
+  SchedInstruction *inst = NULL;
   InstCount rcrsvLwrBound = 0;
 
   Initialize_();
@@ -667,13 +658,13 @@ InstCount LC_RelaxedScheduler::FindSchedule() {
     assert(inst != NULL);
     assert(inst == rootInst_ || i > 0);
     rcrsvLwrBound = SchdulSubGraph_(inst, schedDir_);
-/*
-    #ifdef IS_DEBUG
-      if(schedDir_==DIR_FRWRD) {
-        Logger::Info("LB of inst %d is %d", inst->GetNum(), rcrsvLwrBound);
-      }
-    #endif
-*/
+    /*
+        #ifdef IS_DEBUG
+          if(schedDir_==DIR_FRWRD) {
+            Logger::Info("LB of inst %d is %d", inst->GetNum(), rcrsvLwrBound);
+          }
+        #endif
+    */
     SetCrntLwrBound_(inst, schedDir_, rcrsvLwrBound);
   }
 
@@ -684,53 +675,52 @@ InstCount LC_RelaxedScheduler::FindSchedule() {
   }
 
   return rcrsvLwrBound + 1;
-  //The recursive lower bound on the leaf node's scheduling cycle plus
-  //one is a lower bound on the total schedule length
+  // The recursive lower bound on the leaf node's scheduling cycle plus
+  // one is a lower bound on the total schedule length
 }
 /*****************************************************************************/
 
-InstCount LC_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* leaf,
-    DIRECTION schedDir) {
-  SchedInstruction*   inst = NULL;
-  InstCount         delay;
-  InstCount         maxDelay = 0;
-  InstCount         schedCycle;
-  InstCount         trgtLastCycle;
-  DIRECTION           trvrslDir = DirAcycGraph::ReverseDirection(schedDir);
-  LinkedList<GraphNode>* rcrsvPrdcsrLst = leaf->GetRcrsvNghbrLst(trvrslDir);
-  GraphNode*          node;
-  InstCount         rltvCP;
-  DEP_GRAPH_TYPE      graphType = dataDepGraph_->GetType();
+InstCount LC_RelaxedScheduler::SchdulSubGraph_(SchedInstruction *leaf,
+                                               DIRECTION schedDir) {
+  SchedInstruction *inst = NULL;
+  InstCount delay;
+  InstCount maxDelay = 0;
+  InstCount schedCycle;
+  InstCount trgtLastCycle;
+  DIRECTION trvrslDir = DirAcycGraph::ReverseDirection(schedDir);
+  LinkedList<GraphNode> *rcrsvPrdcsrLst = leaf->GetRcrsvNghbrLst(trvrslDir);
+  GraphNode *node;
+  InstCount rltvCP;
+  DEP_GRAPH_TYPE graphType = dataDepGraph_->GetType();
 
   if (leaf == rootInst_) {
     return 0;
   }
 
   InitSubGraph_();
-//  trgtLastCycle=GetCrntLwrBound_(leaf,schedDir);
+  //  trgtLastCycle=GetCrntLwrBound_(leaf,schedDir);
   trgtLastCycle = CmputReleaseTime_(leaf);
-/*
-    #ifdef IS_DEBUG
-      if(schedDir_==DIR_FRWRD && leaf->GetNum()==6) {
-        Logger::Info("trgtLastCycle=%d", trgtLastCycle);
-      }
-    #endif
-*/
+  /*
+      #ifdef IS_DEBUG
+        if(schedDir_==DIR_FRWRD && leaf->GetNum()==6) {
+          Logger::Info("trgtLastCycle=%d", trgtLastCycle);
+        }
+      #endif
+  */
 
-  //Visit the nodes in topological order
+  // Visit the nodes in topological order
   assert(graphType == DGT_SUB || rcrsvPrdcsrLst->GetFrstElmnt() == rootInst_);
 
-  for (node = rcrsvPrdcsrLst->GetFrstElmnt();
-       node != NULL;
+  for (node = rcrsvPrdcsrLst->GetFrstElmnt(); node != NULL;
        node = rcrsvPrdcsrLst->GetNxtElmnt()) {
-    inst = (SchedInstruction*)node;
+    inst = (SchedInstruction *)node;
     assert(graphType == DGT_FULL || inst != rootInst_);
 
     if (dataDepGraph_->IsInGraph(inst) == false) {
       continue;
     }
 
-//    assert(wasLwrBoundCmputd_[inst->GetCrntIndx()]==true);
+    //    assert(wasLwrBoundCmputd_[inst->GetCrntIndx()]==true);
     assert(wasLwrBoundCmputd_[dataDepGraph_->GetInstIndx(inst)]);
     rltvCP = dataDepGraph_->GetRltvCrtclPath(leaf, inst, trvrslDir);
     subGraphInstLst_->InsrtElmnt(inst, rltvCP, true);
@@ -744,73 +734,77 @@ InstCount LC_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* leaf,
   assert(subGraphInstLst_->GetElmntCnt() <= totInstCnt_);
   assert(leaf != leafInst_ || subGraphInstLst_->GetElmntCnt() == totInstCnt_);
 
-  for (inst = subGraphInstLst_->GetFrstElmnt();
-       inst != NULL;
+  for (inst = subGraphInstLst_->GetFrstElmnt(); inst != NULL;
        inst = subGraphInstLst_->GetNxtElmnt()) {
-//    assert(inst==leaf || wasLwrBoundCmputd_[inst->GetCrntIndx()]==true);
-    assert(inst == leaf || wasLwrBoundCmputd_[dataDepGraph_->GetInstIndx(inst)]);
+    //    assert(inst==leaf || wasLwrBoundCmputd_[inst->GetCrntIndx()]==true);
+    assert(inst == leaf ||
+           wasLwrBoundCmputd_[dataDepGraph_->GetInstIndx(inst)]);
     schedCycle = SchdulInst_(inst, 0, trgtLastCycle);
     rltvCP = dataDepGraph_->GetRltvCrtclPath(leaf, inst, trvrslDir);
     delay = CmputDelay_(schedCycle, trgtLastCycle, rltvCP);
-/*
-    #ifdef IS_DEBUG
-      if(schedDir_==DIR_FRWRD &&leaf->GetNum()==6) {
-        Logger::Info("inst %d: schedCycle=%d, rltvCP=%d, delay=%d",
-                     inst->GetNum(), schedCycle, rltvCP, delay);
-      }
-    #endif
-*/
+    /*
+        #ifdef IS_DEBUG
+          if(schedDir_==DIR_FRWRD &&leaf->GetNum()==6) {
+            Logger::Info("inst %d: schedCycle=%d, rltvCP=%d, delay=%d",
+                         inst->GetNum(), schedCycle, rltvCP, delay);
+          }
+        #endif
+    */
     if (delay > maxDelay) {
       maxDelay = delay;
     }
   }
 
   return (trgtLastCycle + maxDelay);
-  //Return the tightened lower bound on the subgraph's leaf
+  // Return the tightened lower bound on the subgraph's leaf
 }
 /*****************************************************************************/
 
-InstCount LC_RelaxedScheduler::CmputReleaseTime_(SchedInstruction* inst) {
+InstCount LC_RelaxedScheduler::CmputReleaseTime_(SchedInstruction *inst) {
   InstCount newBound = PropagateLwrBound_(inst, schedDir_);
   SetCrntLwrBound_(inst, schedDir_, newBound);
   return newBound;
 }
 /*****************************************************************************/
 
+LPP_RelaxedScheduler::LPP_RelaxedScheduler(DataDepStruct *dataDepGraph,
+                                           MachineModel *machMdl,
+                                           InstCount schedUprBound,
+                                           DIRECTION mainDir)
+    : RelaxedScheduler(dataDepGraph, machMdl, schedUprBound, mainDir, RST_STTC,
+                       INVALID_VALUE) {
 
-
-LPP_RelaxedScheduler::LPP_RelaxedScheduler(DataDepStruct* dataDepGraph,
-    MachineModel* machMdl,
-    InstCount schedUprBound,
-    DIRECTION mainDir)
-  : RelaxedScheduler(dataDepGraph, machMdl, schedUprBound,
-                     mainDir, RST_STTC, INVALID_VALUE) {
-
-//TEMP: The new implementation for LPP has not been completed yet
+  // TEMP: The new implementation for LPP has not been completed yet
   assert(false);
 
-//TEMP: Support for dynamic scheduling has not been implemented yet
+  // TEMP: Support for dynamic scheduling has not been implemented yet
   assert(schedType_ == RST_STTC);
 
   schedDir_ = DirAcycGraph::ReverseDirection(mainDir_);
 
   subGraphInstLst_ = new PriorityList<SchedInstruction>;
-  if (subGraphInstLst_ == NULL) Logger::Fatal("Out of memory.");
+  if (subGraphInstLst_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   crntFrwrdLwrBounds_ = new InstCount[totInstCnt_];
-  if (crntFrwrdLwrBounds_ == NULL) Logger::Fatal("Out of memory.");
+  if (crntFrwrdLwrBounds_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   crntBkwrdLwrBounds_ = new InstCount[totInstCnt_];
-  if (crntBkwrdLwrBounds_ == NULL) Logger::Fatal("Out of memory.");
+  if (crntBkwrdLwrBounds_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   tightndFrwrdLwrBounds_ = new LinkedList<SchedInstruction>(totInstCnt_);
-  if (tightndFrwrdLwrBounds_ == NULL) Logger::Fatal("Out of memory.");
+  if (tightndFrwrdLwrBounds_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   tightndBkwrdLwrBounds_ = new LinkedList<SchedInstruction>(totInstCnt_);
-  if (tightndBkwrdLwrBounds_ == NULL) Logger::Fatal("Out of memory.");
+  if (tightndBkwrdLwrBounds_ == NULL)
+    Logger::Fatal("Out of memory.");
 
-  lstEntries_ = new KeyedEntry<SchedInstruction>* [totInstCnt_];
-  if (lstEntries_ == NULL) Logger::Fatal("Out of memory.");
+  lstEntries_ = new KeyedEntry<SchedInstruction> *[totInstCnt_];
+  if (lstEntries_ == NULL)
+    Logger::Fatal("Out of memory.");
 }
 /*****************************************************************************/
 
@@ -826,13 +820,13 @@ LPP_RelaxedScheduler::~LPP_RelaxedScheduler() {
 
 void LPP_RelaxedScheduler::Initialize_(bool opstFsbl) {
   InstCount i;
-  DIRECTION   bkwrdDir = DirAcycGraph::ReverseDirection(schedDir_);
+  DIRECTION bkwrdDir = DirAcycGraph::ReverseDirection(schedDir_);
 
-//  dataDepGraph_->SetInstIndexes();
+  //  dataDepGraph_->SetInstIndexes();
   instLst_->Reset();
 
   for (i = 0; i < totInstCnt_; i++) {
-    SchedInstruction* inst = dataDepGraph_->GetInstByIndx(i);
+    SchedInstruction *inst = dataDepGraph_->GetInstByIndx(i);
 
     if (!opstFsbl) {
       inst->RestoreAbsoluteBounds();
@@ -883,8 +877,8 @@ bool LPP_RelaxedScheduler::InitLength_(InstCount lngth) {
 }
 /*****************************************************************************/
 
-bool LPP_RelaxedScheduler::InitSubGraph_(SchedInstruction* newInst,
-    InstCount lastCycle) {
+bool LPP_RelaxedScheduler::InitSubGraph_(SchedInstruction *newInst,
+                                         InstCount lastCycle) {
   InstCount releaseTime = GetCrntLwrBound_(newInst, schedDir_);
 
   if (CheckSlots_(releaseTime, lastCycle) == false) {
@@ -898,7 +892,7 @@ bool LPP_RelaxedScheduler::InitSubGraph_(SchedInstruction* newInst,
 }
 /*****************************************************************************/
 
-void LPP_RelaxedScheduler::InitCycleProbe_(SchedInstruction* newInst) {
+void LPP_RelaxedScheduler::InitCycleProbe_(SchedInstruction *newInst) {
   InstCount releaseTime = newInst->GetLwrBound(schedDir_);
   Reset_(releaseTime);
   RestoreLwrBounds_(schedDir_);
@@ -924,7 +918,7 @@ bool LPP_RelaxedScheduler::CheckSlots_(InstCount firstCycle,
 /*****************************************************************************/
 
 InstCount LPP_RelaxedScheduler::FindSchedule() {
-  DIRECTION   opstDir = DirAcycGraph::ReverseDirection(mainDir_);
+  DIRECTION opstDir = DirAcycGraph::ReverseDirection(mainDir_);
   InstCount schedLngth;
   InstCount schedUprBound = schedUprBound_;
   InstCount flb = leafInst_->GetLwrBound(mainDir_);
@@ -934,7 +928,8 @@ InstCount LPP_RelaxedScheduler::FindSchedule() {
 
   Initialize_(false);
 
-  for (schedLngth = initSchedLwrBound; schedLngth < schedUprBound; schedLngth++) {
+  for (schedLngth = initSchedLwrBound; schedLngth < schedUprBound;
+       schedLngth++) {
     if (ProbeLength_(schedLngth)) {
       break;
     } else {
@@ -953,14 +948,15 @@ bool LPP_RelaxedScheduler::FindSchedule(InstCount trgtLngth, bool opstFsbl) {
 /*****************************************************************************/
 
 bool LPP_RelaxedScheduler::ProbeLength_(InstCount trgtLngth) {
-  SchedInstruction* inst = 0;
-  InstCount       i;
-  InstCount       newLwrBound = 0;
-  InstCount       lastCycle = trgtLngth - 1;
-  InstCount       instNum;
+  SchedInstruction *inst = 0;
+  InstCount i;
+  InstCount newLwrBound = 0;
+  InstCount lastCycle = trgtLngth - 1;
+  InstCount instNum;
 
   bool fsbl = InitLength_(trgtLngth);
-  if (!fsbl) return false;
+  if (!fsbl)
+    return false;
 
   for (i = 0; i < totInstCnt_; i++) {
     inst = instLst_->GetNxtPriorityElmnt();
@@ -969,12 +965,13 @@ bool LPP_RelaxedScheduler::ProbeLength_(InstCount trgtLngth) {
     assert(inst == rootInst_ || i > 0);
     newLwrBound = SchdulSubGraph_(inst, lastCycle);
 
-    if (newLwrBound == INVALID_VALUE) return false;
+    if (newLwrBound == INVALID_VALUE)
+      return false;
 
     assert(newLwrBound >= inst->GetLwrBound(mainDir_));
-    #ifdef IS_DEBUG
-      wasLwrBoundCmputd_[instNum] = true;
-    #endif
+#ifdef IS_DEBUG
+    wasLwrBoundCmputd_[instNum] = true;
+#endif
     if (newLwrBound > GetCrntLwrBound_(inst, mainDir_)) {
       assert(lstEntries_[instNum] != NULL);
       subGraphInstLst_->BoostEntry(lstEntries_[instNum], newLwrBound);
@@ -986,7 +983,7 @@ bool LPP_RelaxedScheduler::ProbeLength_(InstCount trgtLngth) {
   assert(inst == leafInst_);
   assert(newLwrBound + 1 <= trgtLngth);
 
-  //If the length is feasible, set the permanent LBs to the current LBs
+  // If the length is feasible, set the permanent LBs to the current LBs
   for (i = 0; i < totInstCnt_; i++) {
     inst = dataDepGraph_->GetInstByIndx(i);
     inst->SetLwrBound(mainDir_, crntBkwrdLwrBounds_[i], false);
@@ -996,8 +993,8 @@ bool LPP_RelaxedScheduler::ProbeLength_(InstCount trgtLngth) {
 }
 /*****************************************************************************/
 
-InstCount LPP_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* newInst,
-    InstCount trgtLastCycle) {
+InstCount LPP_RelaxedScheduler::SchdulSubGraph_(SchedInstruction *newInst,
+                                                InstCount trgtLastCycle) {
   InstCount trgtCycle;
 
   if (InitSubGraph_(newInst, trgtLastCycle) == false) {
@@ -1005,11 +1002,12 @@ InstCount LPP_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* newInst,
   }
 
   InstCount FLB = GetCrntLwrBound_(newInst, schedDir_);
-  InstCount BLB = GetCrntLwrBound_(newInst, DirAcycGraph::ReverseDirection(schedDir_));
+  InstCount BLB =
+      GetCrntLwrBound_(newInst, DirAcycGraph::ReverseDirection(schedDir_));
   InstCount releaseTime = FLB;
   InstCount deadline = trgtLastCycle - BLB;
 
-  KeyedEntry<SchedInstruction>* entry;
+  KeyedEntry<SchedInstruction> *entry;
   entry = subGraphInstLst_->InsrtElmnt(newInst, BLB, true);
   neededSlots_[newInst->GetIssueType()]++;
   lstEntries_[newInst->GetNum()] = entry;
@@ -1031,34 +1029,36 @@ InstCount LPP_RelaxedScheduler::SchdulSubGraph_(SchedInstruction* newInst,
 }
 /*****************************************************************************/
 
-bool LPP_RelaxedScheduler::ProbeCycle_(SchedInstruction* newInst,
+bool LPP_RelaxedScheduler::ProbeCycle_(SchedInstruction *newInst,
                                        InstCount trgtLastCycle,
                                        InstCount trgtCycle) {
-  SchedInstruction* inst;
-  DIRECTION   bkwrdDir = DirAcycGraph::ReverseDirection(schedDir_);
+  SchedInstruction *inst;
+  DIRECTION bkwrdDir = DirAcycGraph::ReverseDirection(schedDir_);
 
   assert(trgtCycle >= newInst->GetLwrBound(schedDir_));
-  assert(trgtCycle <= trgtLastCycle - newInst->GetLwrBound(DirAcycGraph::ReverseDirection(schedDir_)));
+  assert(trgtCycle <=
+         trgtLastCycle -
+             newInst->GetLwrBound(DirAcycGraph::ReverseDirection(schedDir_)));
 
   InitCycleProbe_(newInst);
   SetCrntLwrBound_(newInst, schedDir_, trgtCycle);
 
-  for (inst = subGraphInstLst_->GetFrstElmnt();
-       inst != NULL;
+  for (inst = subGraphInstLst_->GetFrstElmnt(); inst != NULL;
        inst = subGraphInstLst_->GetNxtElmnt()) {
     assert(inst == newInst || wasLwrBoundCmputd_[inst->GetNum()]);
     InstCount schedCycle = SchdulInst_(inst, 0, trgtLastCycle);
     InstCount BLB = GetCrntLwrBound_(inst, bkwrdDir);
     InstCount delay = CmputDelay_(schedCycle, trgtLastCycle, BLB);
 
-    if (delay > 0) return false;
+    if (delay > 0)
+      return false;
   }
 
   return true;
 }
 /*****************************************************************************/
 
-InstCount LPP_RelaxedScheduler::CmputReleaseTime_(SchedInstruction* inst) {
+InstCount LPP_RelaxedScheduler::CmputReleaseTime_(SchedInstruction *inst) {
   InstCount tightLwrBound = PropagateLwrBound_(inst, schedDir_);
   InstCount instNum = inst->GetNum();
 
@@ -1070,8 +1070,8 @@ InstCount LPP_RelaxedScheduler::CmputReleaseTime_(SchedInstruction* inst) {
 }
 /*****************************************************************************/
 
-InstCount LPP_RelaxedScheduler::GetCrntLwrBound_(SchedInstruction* inst,
-    DIRECTION dir) {
+InstCount LPP_RelaxedScheduler::GetCrntLwrBound_(SchedInstruction *inst,
+                                                 DIRECTION dir) {
   InstCount instNum = inst->GetNum();
 
   assert(inst != NULL);
@@ -1084,9 +1084,8 @@ InstCount LPP_RelaxedScheduler::GetCrntLwrBound_(SchedInstruction* inst,
 }
 /*****************************************************************************/
 
-void LPP_RelaxedScheduler::SetCrntLwrBound_(SchedInstruction* inst,
-    DIRECTION dir,
-    InstCount newBound) {
+void LPP_RelaxedScheduler::SetCrntLwrBound_(SchedInstruction *inst,
+                                            DIRECTION dir, InstCount newBound) {
   assert(inst != NULL);
   InstCount instNum = inst->GetNum();
 
@@ -1120,11 +1119,10 @@ void LPP_RelaxedScheduler::SetCrntLwrBound_(SchedInstruction* inst,
 
 void LPP_RelaxedScheduler::RestoreLwrBounds_(DIRECTION dir) {
   InstCount instNum;
-  SchedInstruction* inst;
+  SchedInstruction *inst;
 
   if (dir == schedDir_) {
-    for (inst = tightndFrwrdLwrBounds_->GetFrstElmnt();
-         inst != NULL;
+    for (inst = tightndFrwrdLwrBounds_->GetFrstElmnt(); inst != NULL;
          inst = tightndFrwrdLwrBounds_->GetNxtElmnt()) {
       instNum = inst->GetNum();
       assert(crntFrwrdLwrBounds_[instNum] > inst->GetLwrBound(dir));
@@ -1133,8 +1131,7 @@ void LPP_RelaxedScheduler::RestoreLwrBounds_(DIRECTION dir) {
 
     tightndFrwrdLwrBounds_->Reset();
   } else {
-    for (inst = tightndBkwrdLwrBounds_->GetFrstElmnt();
-         inst != NULL;
+    for (inst = tightndBkwrdLwrBounds_->GetFrstElmnt(); inst != NULL;
          inst = tightndBkwrdLwrBounds_->GetNxtElmnt()) {
       instNum = inst->GetNum();
       assert(crntBkwrdLwrBounds_[instNum] > inst->GetLwrBound(dir));

@@ -1,9 +1,9 @@
 #include "llvm/CodeGen/OptSched/generic/graph.h"
-#include <cstdio>
-#include "llvm/CodeGen/OptSched/generic/defines.h"
-#include "llvm/CodeGen/OptSched/generic/logger.h"
-#include "llvm/CodeGen/OptSched/generic/lnkd_lst.h"
 #include "llvm/CodeGen/OptSched/generic/bit_vector.h"
+#include "llvm/CodeGen/OptSched/generic/defines.h"
+#include "llvm/CodeGen/OptSched/generic/lnkd_lst.h"
+#include "llvm/CodeGen/OptSched/generic/logger.h"
+#include <cstdio>
 
 namespace opt_sched {
 
@@ -30,15 +30,18 @@ GraphNode::~GraphNode() {
   DelScsrLst();
   delete scsrLst_;
   delete prdcsrLst_;
-  if (rcrsvScsrLst_ != NULL) delete rcrsvScsrLst_;
-  if (rcrsvPrdcsrLst_ != NULL) delete rcrsvPrdcsrLst_;
-  if (isRcrsvScsr_ != NULL) delete isRcrsvScsr_;
-  if (isRcrsvPrdcsr_ != NULL) delete isRcrsvPrdcsr_;
+  if (rcrsvScsrLst_ != NULL)
+    delete rcrsvScsrLst_;
+  if (rcrsvPrdcsrLst_ != NULL)
+    delete rcrsvPrdcsrLst_;
+  if (isRcrsvScsr_ != NULL)
+    delete isRcrsvScsr_;
+  if (isRcrsvPrdcsr_ != NULL)
+    delete isRcrsvPrdcsr_;
 }
 
 void GraphNode::DelPrdcsrLst() {
-  for (GraphEdge* crntEdge = prdcsrLst_->GetFrstElmnt();
-       crntEdge != NULL;
+  for (GraphEdge *crntEdge = prdcsrLst_->GetFrstElmnt(); crntEdge != NULL;
        crntEdge = prdcsrLst_->GetNxtElmnt()) {
     delete crntEdge;
   }
@@ -47,8 +50,7 @@ void GraphNode::DelPrdcsrLst() {
 }
 
 void GraphNode::DelScsrLst() {
-  for (GraphEdge* crntEdge = scsrLst_->GetFrstElmnt();
-       crntEdge != NULL;
+  for (GraphEdge *crntEdge = scsrLst_->GetFrstElmnt(); crntEdge != NULL;
        crntEdge = scsrLst_->GetNxtElmnt()) {
     delete crntEdge;
   }
@@ -56,17 +58,16 @@ void GraphNode::DelScsrLst() {
   scsrLst_->Reset();
 }
 
-void GraphNode::DepthFirstVisit(GraphNode* tplgclOrdr[],
-                                UDT_GNODES& tplgclIndx) {
+void GraphNode::DepthFirstVisit(GraphNode *tplgclOrdr[],
+                                UDT_GNODES &tplgclIndx) {
   color_ = COL_GRAY;
 
   // Iterate through the successor list of this node and recursively visit them
   // This recursion will bottom up when the exit node is reached, which then
   // gets added to the very bottom of the topological sort list.
-  for (GraphEdge* crntEdge = scsrLst_->GetFrstElmnt();
-       crntEdge != NULL;
+  for (GraphEdge *crntEdge = scsrLst_->GetFrstElmnt(); crntEdge != NULL;
        crntEdge = scsrLst_->GetNxtElmnt()) {
-    GraphNode* scsr = crntEdge->GetOtherNode(this);
+    GraphNode *scsr = crntEdge->GetOtherNode(this);
 
     if (scsr->GetColor() == COL_WHITE) {
       scsr->DepthFirstVisit(tplgclOrdr, tplgclIndx);
@@ -83,13 +84,13 @@ void GraphNode::DepthFirstVisit(GraphNode* tplgclOrdr[],
   tplgclIndx--;
 }
 
-void GraphNode::FindRcrsvNghbrs(DIRECTION dir, DirAcycGraph* graph) {
+void GraphNode::FindRcrsvNghbrs(DIRECTION dir, DirAcycGraph *graph) {
   FindRcrsvNghbrs_(this, dir, graph);
 }
 
-void GraphNode::AddRcrsvNghbr(GraphNode* nghbr, DIRECTION dir) {
-  LinkedList<GraphNode>* rcrsvNghbrLst = GetRcrsvNghbrLst(dir);
-  BitVector* isRcrsvNghbr = GetRcrsvNghbrBitVector(dir);
+void GraphNode::AddRcrsvNghbr(GraphNode *nghbr, DIRECTION dir) {
+  LinkedList<GraphNode> *rcrsvNghbrLst = GetRcrsvNghbrLst(dir);
+  BitVector *isRcrsvNghbr = GetRcrsvNghbrBitVector(dir);
 
   rcrsvNghbrLst->InsrtElmnt(nghbr);
   isRcrsvNghbr->SetBit(nghbr->GetNum());
@@ -97,8 +98,14 @@ void GraphNode::AddRcrsvNghbr(GraphNode* nghbr, DIRECTION dir) {
 
 void GraphNode::AllocRcrsvInfo(DIRECTION dir, UDT_GNODES nodeCnt) {
   if (dir == DIR_FRWRD) {
-    if (rcrsvScsrLst_ != NULL) {delete rcrsvScsrLst_; rcrsvScsrLst_ = NULL;}
-    if (isRcrsvScsr_ != NULL) {delete isRcrsvScsr_; isRcrsvScsr_ = NULL;}
+    if (rcrsvScsrLst_ != NULL) {
+      delete rcrsvScsrLst_;
+      rcrsvScsrLst_ = NULL;
+    }
+    if (isRcrsvScsr_ != NULL) {
+      delete isRcrsvScsr_;
+      isRcrsvScsr_ = NULL;
+    }
     assert(rcrsvScsrLst_ == NULL && isRcrsvScsr_ == NULL);
     rcrsvScsrLst_ = new LinkedList<GraphNode>;
     isRcrsvScsr_ = new BitVector(nodeCnt);
@@ -107,8 +114,14 @@ void GraphNode::AllocRcrsvInfo(DIRECTION dir, UDT_GNODES nodeCnt) {
       Logger::Fatal("Out of memory.");
     }
   } else {
-    if (rcrsvPrdcsrLst_ != NULL) {delete rcrsvPrdcsrLst_; rcrsvPrdcsrLst_ = NULL;}
-    if (isRcrsvPrdcsr_ != NULL) {delete isRcrsvPrdcsr_; isRcrsvPrdcsr_ = NULL;}
+    if (rcrsvPrdcsrLst_ != NULL) {
+      delete rcrsvPrdcsrLst_;
+      rcrsvPrdcsrLst_ = NULL;
+    }
+    if (isRcrsvPrdcsr_ != NULL) {
+      delete isRcrsvPrdcsr_;
+      isRcrsvPrdcsr_ = NULL;
+    }
     assert(rcrsvPrdcsrLst_ == NULL && isRcrsvPrdcsr_ == NULL);
     rcrsvPrdcsrLst_ = new LinkedList<GraphNode>;
     isRcrsvPrdcsr_ = new BitVector(nodeCnt);
@@ -119,23 +132,24 @@ void GraphNode::AllocRcrsvInfo(DIRECTION dir, UDT_GNODES nodeCnt) {
   }
 }
 
-bool GraphNode::IsScsrDmntd(GraphNode* cnddtDmnnt) {
-  if (cnddtDmnnt == this) return true;
+bool GraphNode::IsScsrDmntd(GraphNode *cnddtDmnnt) {
+  if (cnddtDmnnt == this)
+    return true;
 
   // A node dominates itself.
 
   UDT_GNODES thisScsrCnt = GetScsrCnt();
   UDT_GNODES cnddtScsrCnt = cnddtDmnnt->GetScsrCnt();
 
-  if (thisScsrCnt > cnddtScsrCnt) return false;
+  if (thisScsrCnt > cnddtScsrCnt)
+    return false;
 
   assert(thisScsrCnt > 0);
 
   UDT_GLABEL thisLbl;
-  for (GraphNode* thisScsr = GetFrstScsr(thisLbl);
-       thisScsr != NULL;
+  for (GraphNode *thisScsr = GetFrstScsr(thisLbl); thisScsr != NULL;
        thisScsr = GetNxtScsr(thisLbl)) {
-    GraphNode* cnddtScsr = NULL;
+    GraphNode *cnddtScsr = NULL;
     if (!cnddtDmnnt->FindScsr_(cnddtScsr, thisScsr->GetNum(), thisLbl)) {
       return false;
     }
@@ -144,8 +158,7 @@ bool GraphNode::IsScsrDmntd(GraphNode* cnddtDmnnt) {
   return true;
 }
 
-bool GraphNode::FindScsr_(GraphNode*& crntScsr,
-                          UDT_GNODES trgtNum,
+bool GraphNode::FindScsr_(GraphNode *&crntScsr, UDT_GNODES trgtNum,
                           UDT_GLABEL trgtLbl) {
   UDT_GNODES crntNum = INVALID_VALUE;
   UDT_GLABEL crntLbl = 0;
@@ -176,18 +189,18 @@ bool GraphNode::FindScsr_(GraphNode*& crntScsr,
   return false;
 }
 
-void GraphNode::FindRcrsvNghbrs_(GraphNode* root, DIRECTION dir, DirAcycGraph* graph) {
-  LinkedList<GraphEdge>* nghbrLst = (dir == DIR_FRWRD) ? scsrLst_ : prdcsrLst_;
+void GraphNode::FindRcrsvNghbrs_(GraphNode *root, DIRECTION dir,
+                                 DirAcycGraph *graph) {
+  LinkedList<GraphEdge> *nghbrLst = (dir == DIR_FRWRD) ? scsrLst_ : prdcsrLst_;
 
   color_ = COL_GRAY;
 
   // Iterate through the neighbor list of this node and recursively visit them
   // This recursion will bottom up when the root or leaf node is reached, which
   // then gets added to the very top of the recursive neighbor list.
-  for (GraphEdge* crntEdge = nghbrLst->GetFrstElmnt();
-       crntEdge != NULL;
+  for (GraphEdge *crntEdge = nghbrLst->GetFrstElmnt(); crntEdge != NULL;
        crntEdge = nghbrLst->GetNxtElmnt()) {
-    GraphNode* nghbr = crntEdge->GetOtherNode(this);
+    GraphNode *nghbr = crntEdge->GetOtherNode(this);
     if (nghbr->GetColor() == COL_WHITE) {
       nghbr->FindRcrsvNghbrs_(root, dir, graph);
     }
@@ -200,11 +213,11 @@ void GraphNode::FindRcrsvNghbrs_(GraphNode* root, DIRECTION dir, DirAcycGraph* g
   if (this != root) {
 
     // Check if there is a cycle in the graph
-    BitVector* thisBitVector = this->GetRcrsvNghbrBitVector(dir);
-    if(thisBitVector && thisBitVector->GetBit(root->GetNum()) == true)
-    {
+    BitVector *thisBitVector = this->GetRcrsvNghbrBitVector(dir);
+    if (thisBitVector && thisBitVector->GetBit(root->GetNum()) == true) {
       graph->CycleDetected();
-      Logger::Info("Detected a cycle between nodes %d and %d in graph", root->GetNum(), this->GetNum());
+      Logger::Info("Detected a cycle between nodes %d and %d in graph",
+                   root->GetNum(), this->GetNum());
     }
 
     // Add this node to the recursive neighbor list of the root node of
@@ -216,79 +229,82 @@ void GraphNode::FindRcrsvNghbrs_(GraphNode* root, DIRECTION dir, DirAcycGraph* g
   }
 }
 
-bool GraphNode::IsScsrEquvlnt(GraphNode* othrNode) {
+bool GraphNode::IsScsrEquvlnt(GraphNode *othrNode) {
   UDT_GLABEL thisLbl = 0;
   UDT_GLABEL othrLbl = 0;
 
-  if (othrNode == this) return true;
+  if (othrNode == this)
+    return true;
 
-  if (GetScsrCnt() != othrNode->GetScsrCnt()) return false;
+  if (GetScsrCnt() != othrNode->GetScsrCnt())
+    return false;
 
   for (GraphNode *thisScsr = GetFrstScsr(thisLbl),
-       *othrScsr = othrNode->GetFrstScsr(othrLbl);
-       thisScsr != NULL;
-       thisScsr = GetNxtScsr(thisLbl),
-       othrScsr = othrNode->GetNxtScsr(othrLbl)) {
-    if (thisScsr != othrScsr || thisLbl != othrLbl) return false;
+                 *othrScsr = othrNode->GetFrstScsr(othrLbl);
+       thisScsr != NULL; thisScsr = GetNxtScsr(thisLbl),
+                 othrScsr = othrNode->GetNxtScsr(othrLbl)) {
+    if (thisScsr != othrScsr || thisLbl != othrLbl)
+      return false;
   }
 
   return true;
 }
 
-bool GraphNode::IsPrdcsrEquvlnt(GraphNode* othrNode) {
+bool GraphNode::IsPrdcsrEquvlnt(GraphNode *othrNode) {
   UDT_GLABEL thisLbl = 0;
   UDT_GLABEL othrLbl = 0;
 
-  if (othrNode == this) return true;
+  if (othrNode == this)
+    return true;
 
-  if (GetPrdcsrCnt() != othrNode->GetPrdcsrCnt()) return false;
+  if (GetPrdcsrCnt() != othrNode->GetPrdcsrCnt())
+    return false;
 
-  // TODO(austin) Find out why the first call to GetFrstPrdcsr returns the node itself
+  // TODO(austin) Find out why the first call to GetFrstPrdcsr returns the node
+  // itself
   GraphNode *thisPrdcsr = GetFrstPrdcsr(thisLbl);
   GraphNode *othrPrdcsr = othrNode->GetFrstPrdcsr(othrLbl);
   if (thisPrdcsr == NULL)
     return true;
-	for (thisPrdcsr = GetNxtPrdcsr(thisLbl),
-       othrPrdcsr = othrNode->GetNxtPrdcsr(othrLbl);
-       thisPrdcsr != NULL;
-       thisPrdcsr = GetNxtPrdcsr(thisLbl),
-       othrPrdcsr = othrNode->GetNxtPrdcsr(othrLbl)) {
-    if (thisPrdcsr != othrPrdcsr || thisLbl != othrLbl) return false;
+  for (thisPrdcsr = GetNxtPrdcsr(thisLbl),
+      othrPrdcsr = othrNode->GetNxtPrdcsr(othrLbl);
+       thisPrdcsr != NULL; thisPrdcsr = GetNxtPrdcsr(thisLbl),
+      othrPrdcsr = othrNode->GetNxtPrdcsr(othrLbl)) {
+    if (thisPrdcsr != othrPrdcsr || thisLbl != othrLbl)
+      return false;
   }
 
   return true;
 }
 
-GraphEdge* GraphNode::FindScsr(GraphNode* trgtNode) {
-  GraphEdge* crntEdge;
+GraphEdge *GraphNode::FindScsr(GraphNode *trgtNode) {
+  GraphEdge *crntEdge;
 
   // Linear search for the target node in the current node's adjacency list.
-  for (crntEdge = scsrLst_->GetFrstElmnt();
-       crntEdge != NULL;
+  for (crntEdge = scsrLst_->GetFrstElmnt(); crntEdge != NULL;
        crntEdge = scsrLst_->GetNxtElmnt()) {
-    if (crntEdge->GetOtherNode(this) == trgtNode) return crntEdge;
+    if (crntEdge->GetOtherNode(this) == trgtNode)
+      return crntEdge;
   }
 
   return NULL;
 }
 
-GraphEdge* GraphNode::FindPrdcsr(GraphNode* trgtNode) {
-  GraphEdge* crntEdge;
+GraphEdge *GraphNode::FindPrdcsr(GraphNode *trgtNode) {
+  GraphEdge *crntEdge;
 
-  //Linear search for the target node in the current node's adjacency list
-  for (crntEdge = prdcsrLst_->GetFrstElmnt();
-       crntEdge != NULL;
+  // Linear search for the target node in the current node's adjacency list
+  for (crntEdge = prdcsrLst_->GetFrstElmnt(); crntEdge != NULL;
        crntEdge = prdcsrLst_->GetNxtElmnt())
     if (crntEdge->GetOtherNode(this) == trgtNode) {
       return crntEdge;
     }
 
-  return NULL; //not found in the neighbor list
+  return NULL; // not found in the neighbor list
 }
 
-void GraphNode::PrntScsrLst(FILE* outFile) {
-  for (GraphEdge* crnt = scsrLst_->GetFrstElmnt();
-       crnt != NULL;
+void GraphNode::PrntScsrLst(FILE *outFile) {
+  for (GraphEdge *crnt = scsrLst_->GetFrstElmnt(); crnt != NULL;
        crnt = scsrLst_->GetNxtElmnt()) {
     UDT_GNODES othrNodeNum = crnt->GetOtherNode(this)->GetNum();
     UDT_GNODES label = crnt->label;
@@ -299,8 +315,7 @@ void GraphNode::PrntScsrLst(FILE* outFile) {
 
 void GraphNode::LogScsrLst() {
   Logger::Info("Successor List For Node #%d", num_);
-  for (GraphNode* thisScsr = GetFrstScsr();
-       thisScsr != NULL;
+  for (GraphNode *thisScsr = GetFrstScsr(); thisScsr != NULL;
        thisScsr = GetNxtScsr()) {
     Logger::Info("%d", thisScsr->GetNum());
   }
@@ -318,32 +333,35 @@ DirAcycGraph::DirAcycGraph() {
 }
 
 DirAcycGraph::~DirAcycGraph() {
-  if (tplgclOrdr_ != NULL) delete[] tplgclOrdr_;
+  if (tplgclOrdr_ != NULL)
+    delete[] tplgclOrdr_;
 }
 
-void DirAcycGraph::CreateEdge_(UDT_GNODES frmNodeNum,
-                               UDT_GNODES toNodeNum,
+void DirAcycGraph::CreateEdge_(UDT_GNODES frmNodeNum, UDT_GNODES toNodeNum,
                                UDT_GLABEL label) {
-  GraphEdge* newEdg;
+  GraphEdge *newEdg;
 
   assert(frmNodeNum < nodeCnt_);
-  GraphNode* frmNode = nodes_[frmNodeNum];
+  GraphNode *frmNode = nodes_[frmNodeNum];
   assert(frmNode != NULL);
 
   assert(toNodeNum < nodeCnt_);
-  GraphNode* toNode = nodes_[toNodeNum];
+  GraphNode *toNode = nodes_[toNodeNum];
   assert(toNode != NULL);
 
   newEdg = new GraphEdge(frmNode, toNode, label);
-  if (newEdg == NULL) Logger::Fatal("Out of memory.");
+  if (newEdg == NULL)
+    Logger::Fatal("Out of memory.");
 
   frmNode->AddScsr(newEdg);
   toNode->AddPrdcsr(newEdg);
 }
 
 FUNC_RESULT DirAcycGraph::DepthFirstSearch() {
-  if (tplgclOrdr_ == NULL) tplgclOrdr_ = new GraphNode*[nodeCnt_];
-  if (tplgclOrdr_ == NULL) Logger::Fatal("Out of memory.");
+  if (tplgclOrdr_ == NULL)
+    tplgclOrdr_ = new GraphNode *[nodeCnt_];
+  if (tplgclOrdr_ == NULL)
+    Logger::Fatal("Out of memory.");
 
   for (UDT_GNODES i = 0; i < nodeCnt_; i++) {
     nodes_[i]->SetColor(COL_WHITE);
@@ -363,7 +381,7 @@ FUNC_RESULT DirAcycGraph::DepthFirstSearch() {
 
 FUNC_RESULT DirAcycGraph::FindRcrsvNghbrs(DIRECTION dir) {
   for (UDT_GNODES i = 0; i < nodeCnt_; i++) {
-    GraphNode* node = nodes_[i];
+    GraphNode *node = nodes_[i];
 
     // Set the colors of all nodes to white (not visited yet) before starting
     // each recursive search.
@@ -379,21 +397,22 @@ FUNC_RESULT DirAcycGraph::FindRcrsvNghbrs(DIRECTION dir) {
             node->GetRcrsvNghbrLst(dir)->GetFrstElmnt() == leaf_) ||
            (dir == DIR_BKWRD &&
             node->GetRcrsvNghbrLst(dir)->GetFrstElmnt() == root_) ||
-           node == root_ ||
-           node == leaf_);
+           node == root_ || node == leaf_);
     assert(node != root_ ||
            node->GetRcrsvNghbrLst(DIR_FRWRD)->GetElmntCnt() == nodeCnt_ - 1);
     assert(node != leaf_ ||
            node->GetRcrsvNghbrLst(DIR_FRWRD)->GetElmntCnt() == 0);
   }
 
-  if(cycleDetected_) return RES_ERROR;
-  else return RES_SUCCESS;
+  if (cycleDetected_)
+    return RES_ERROR;
+  else
+    return RES_SUCCESS;
 }
 
-void DirAcycGraph::Print(FILE* outFile) {
-  fprintf(outFile, "Number of Nodes= %d    Number of Edges= %d\n",
-          nodeCnt_, edgeCnt_);
+void DirAcycGraph::Print(FILE *outFile) {
+  fprintf(outFile, "Number of Nodes= %d    Number of Edges= %d\n", nodeCnt_,
+          edgeCnt_);
 
   for (UDT_GNODES i = 0; i < nodeCnt_; i++) {
     fprintf(outFile, "%d:  ", i + 1);
@@ -402,7 +421,8 @@ void DirAcycGraph::Print(FILE* outFile) {
 }
 
 void DirAcycGraph::LogGraph() {
-  Logger::Info("Number of Nodes= %d   Number of Edges= %d\n", nodeCnt_, edgeCnt_);
+  Logger::Info("Number of Nodes= %d   Number of Edges= %d\n", nodeCnt_,
+               edgeCnt_);
   for (UDT_GNODES i = 0; i < nodeCnt_; i++) {
     nodes_[i]->LogScsrLst();
   }

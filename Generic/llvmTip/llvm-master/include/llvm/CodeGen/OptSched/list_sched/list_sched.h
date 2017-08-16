@@ -15,23 +15,21 @@ Last Update:  Sept. 2013
 namespace opt_sched {
 
 class ListScheduler : public ConstrainedScheduler {
-  public:
-    // Creates a list scheduler for the given dependence graph, machine and
-    // schedule upper bound, using the specified heuristic.
-    ListScheduler(DataDepGraph* dataDepGraph,
-                  MachineModel* machMdl,
-                  InstCount schedUprBound,
-                  SchedPriorities prirts);
-    virtual ~ListScheduler();
+public:
+  // Creates a list scheduler for the given dependence graph, machine and
+  // schedule upper bound, using the specified heuristic.
+  ListScheduler(DataDepGraph *dataDepGraph, MachineModel *machMdl,
+                InstCount schedUprBound, SchedPriorities prirts);
+  virtual ~ListScheduler();
 
-    // Calculates the schedule and returns it in the passed argument.
-    FUNC_RESULT FindSchedule(InstSchedule* sched, SchedRegion* rgn);
+  // Calculates the schedule and returns it in the passed argument.
+  FUNC_RESULT FindSchedule(InstSchedule *sched, SchedRegion *rgn);
 
-  private:
-    bool isDynmcPrirty_;
-    // Adds the instructions that have just become ready at this cycle to the
-    // ready list.
-    void UpdtRdyLst_(InstCount cycleNum, int slotNum);
+private:
+  bool isDynmcPrirty_;
+  // Adds the instructions that have just become ready at this cycle to the
+  // ready list.
+  void UpdtRdyLst_(InstCount cycleNum, int slotNum);
 };
 
 } // end namespace opt_sched

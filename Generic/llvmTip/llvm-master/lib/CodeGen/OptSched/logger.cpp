@@ -11,17 +11,17 @@
 namespace opt_sched {
 
 // An ugly macro to simplify repeated vararg-insertion.
-#define VPRINT(buf, frmt) \
-  va_list args; \
-  va_start(args, frmt); \
-  vsprintf(buf, frmt, args); \
+#define VPRINT(buf, frmt)                                                      \
+  va_list args;                                                                \
+  va_start(args, frmt);                                                        \
+  vsprintf(buf, frmt, args);                                                   \
   va_end(args);
 
 // The maximum buffer size for error messages.
 static const int MAX_MSGSIZE = 8000;
 
 // The current output stream.
-static std::ostream* logStream = &std::cerr;
+static std::ostream *logStream = &std::cerr;
 
 // The periodic logging callback.
 static void (*periodLogCallback)() = NULL;
@@ -34,22 +34,22 @@ static Milliseconds periodLogLastTime = 0;
 // The main output function. Calculates the time since process start and formats
 // the specified message with a title and timestamp. Exits the program with exit
 // code = 1 on fatal errors.
-static void Output(Logger::LOG_LEVEL level, bool timed, const char* message) {
-  const char* title = 0;
+static void Output(Logger::LOG_LEVEL level, bool timed, const char *message) {
+  const char *title = 0;
 
   switch (level) {
-    case Logger::FATAL:
-      title = "FATAL";
-      break;
-    case Logger::ERROR:
-      title = "ERROR";
-      break;
-    case Logger::INFO:
-      title = "INFO";
-      break;
-    case Logger::SUMMARY:
-      title = "SUMMARY";
-      break;
+  case Logger::FATAL:
+    title = "FATAL";
+    break;
+  case Logger::ERROR:
+    title = "ERROR";
+    break;
+  case Logger::INFO:
+    title = "INFO";
+    break;
+  case Logger::SUMMARY:
+    title = "SUMMARY";
+    break;
   }
 
   (*logStream) << title << ": " << message;
@@ -58,16 +58,13 @@ static void Output(Logger::LOG_LEVEL level, bool timed, const char* message) {
   }
   (*logStream) << std::endl;
 
-  if (level == Logger::FATAL) exit(1);
+  if (level == Logger::FATAL)
+    exit(1);
 }
 
-void Logger::SetLogStream(std::ostream& out) {
-  logStream = &out;
-}
+void Logger::SetLogStream(std::ostream &out) { logStream = &out; }
 
-std::ostream& Logger::GetLogStream() {
-  return *logStream;
-}
+std::ostream &Logger::GetLogStream() { return *logStream; }
 
 void Logger::RegisterPeriodicLogger(Milliseconds period, void (*callback)()) {
   periodLogLastTime = Utilities::GetProcessorTime();
@@ -81,39 +78,40 @@ void Logger::PeriodicLog() {
     return;
   }
 
-  Milliseconds now = Utilities::GetProcessorTime(); ;
+  Milliseconds now = Utilities::GetProcessorTime();
+  ;
   if (now - periodLogLastTime >= periodLogPeriod) {
     periodLogCallback();
     periodLogLastTime = now;
   }
 }
 
-void Logger::Log(
-    Logger::LOG_LEVEL level, bool timed, const char* format_string, ...) {
+void Logger::Log(Logger::LOG_LEVEL level, bool timed, const char *format_string,
+                 ...) {
   char message_buffer[MAX_MSGSIZE];
   VPRINT(message_buffer, format_string);
   Output(level, timed, message_buffer);
 }
 
-void Logger::Fatal(const char* format_string, ...) {
+void Logger::Fatal(const char *format_string, ...) {
   char message_buffer[MAX_MSGSIZE];
   VPRINT(message_buffer, format_string);
   Output(Logger::FATAL, true, message_buffer);
 }
 
-void Logger::Error(const char* format_string, ...) {
+void Logger::Error(const char *format_string, ...) {
   char message_buffer[MAX_MSGSIZE];
   VPRINT(message_buffer, format_string);
   Output(Logger::ERROR, true, message_buffer);
 }
 
-void Logger::Info(const char* format_string, ...) {
+void Logger::Info(const char *format_string, ...) {
   char message_buffer[MAX_MSGSIZE];
   VPRINT(message_buffer, format_string);
   Output(Logger::INFO, true, message_buffer);
 }
 
-void Logger::Summary(const char* format_string, ...) {
+void Logger::Summary(const char *format_string, ...) {
   char message_buffer[MAX_MSGSIZE];
   VPRINT(message_buffer, format_string);
   Output(Logger::SUMMARY, false, message_buffer);

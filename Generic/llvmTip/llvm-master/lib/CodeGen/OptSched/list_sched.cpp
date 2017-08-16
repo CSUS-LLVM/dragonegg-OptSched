@@ -1,49 +1,47 @@
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
+#include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/basic/ready_list.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/stats.h"
-#include "llvm/CodeGen/OptSched/basic/ready_list.h"
-#include "llvm/CodeGen/OptSched/basic/data_dep.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 
 namespace opt_sched {
 
-ListScheduler::ListScheduler(DataDepGraph* dataDepGraph,
-                             MachineModel* machMdl,
-                             InstCount schedUprBound,
-                             SchedPriorities prirts)
+ListScheduler::ListScheduler(DataDepGraph *dataDepGraph, MachineModel *machMdl,
+                             InstCount schedUprBound, SchedPriorities prirts)
     : ConstrainedScheduler(dataDepGraph, machMdl, schedUprBound) {
   crntSched_ = NULL;
-  
+
   prirts_ = prirts;
   rdyLst_ = new ReadyList(dataDepGraph_, prirts);
-  if (rdyLst_ == NULL) Logger::Fatal("Out of memory.");
+  if (rdyLst_ == NULL)
+    Logger::Fatal("Out of memory.");
 }
 
-ListScheduler::~ListScheduler() {
-  delete rdyLst_;
-}
+ListScheduler::~ListScheduler() { delete rdyLst_; }
 
-FUNC_RESULT ListScheduler::FindSchedule(InstSchedule* sched, SchedRegion* rgn) {
+FUNC_RESULT ListScheduler::FindSchedule(InstSchedule *sched, SchedRegion *rgn) {
   int stallCnt = 0;
   InstCount rdyLstSize, maxRdyLstSize = 0, avgRdyLstSize = 0, iterCnt = 0;
 
   crntSched_ = sched;
   rgn_ = rgn;
-  
+
   Initialize_();
 
   while (!IsSchedComplete_()) {
     UpdtRdyLst_(crntCycleNum_, crntSlotNum_);
     rdyLst_->ResetIterator();
-    
+
     iterCnt++;
     rdyLstSize = rdyLst_->GetInstCnt();
-    if (rdyLstSize > maxRdyLstSize) maxRdyLstSize = rdyLstSize;
+    if (rdyLstSize > maxRdyLstSize)
+      maxRdyLstSize = rdyLstSize;
     avgRdyLstSize += rdyLstSize;
-//if(dataDepGraph_->GetInstCnt() > 1000)
-//Logger::Info("ready list size = %d", rdyLstSize);
-    
-    SchedInstruction* inst = NULL;
+    // if(dataDepGraph_->GetInstCnt() > 1000)
+    // Logger::Info("ready list size = %d", rdyLstSize);
+
+    SchedInstruction *inst = NULL;
     bool legalInst = false;
     int lgltyChkCnt = 0;
     while (!legalInst) {
@@ -52,24 +50,24 @@ FUNC_RESULT ListScheduler::FindSchedule(InstSchedule* sched, SchedRegion* rgn) {
       legalInst = ChkInstLglty_(inst);
     }
 
-    #ifdef IS_DEBUG_MODEL
-      Logger::Info("Legality checks made: %d", lgltyChkCnt);
-      Stats::legalListSchedulerInstructionHits++;
-      Stats::illegalListSchedulerInstructionHits += (lgltyChkCnt - 1);
-    #endif
+#ifdef IS_DEBUG_MODEL
+    Logger::Info("Legality checks made: %d", lgltyChkCnt);
+    Stats::legalListSchedulerInstructionHits++;
+    Stats::illegalListSchedulerInstructionHits += (lgltyChkCnt - 1);
+#endif
 
     InstCount instNum;
     // If the ready list is empty.
     if (inst == NULL) {
       instNum = SCHD_STALL;
       stallCnt++;
-//      Logger::Info("Scheduling a stall");
+      //      Logger::Info("Scheduling a stall");
       if (stallCnt > dataDepGraph_->GetMaxLtncy())
         return RES_ERROR;
     } else {
       stallCnt = 0;
       instNum = inst->GetNum();
-//      Logger::Info("Scheduling inst %d", instNum);
+      //      Logger::Info("Scheduling inst %d", instNum);
       SchdulInst_(inst, crntCycleNum_);
       inst->Schedule(crntCycleNum_, crntSlotNum_);
       rgn_->SchdulInst(inst, crntCycleNum_, crntSlotNum_, false);
@@ -78,29 +76,32 @@ FUNC_RESULT ListScheduler::FindSchedule(InstSchedule* sched, SchedRegion* rgn) {
       UpdtSlotAvlblty_(inst);
     }
 
-    //if (inst && machMdl_->IsRealInst(inst->GetInstType())) {
+    // if (inst && machMdl_->IsRealInst(inst->GetInstType())) {
     crntSched_->AppendInst(instNum);
     bool cycleAdvanced = MovToNxtSlot_(inst);
-    if (cycleAdvanced) InitNewCycle_();
+    if (cycleAdvanced)
+      InitNewCycle_();
     //}
   }
 
-  #ifdef IS_DEB UG_SCHED
-    crntSched_->Print(Logger::GetLogStream(), " ");
-  #endif
+#ifdef IS_DEB UG_SCHED
+  crntSched_->Print(Logger::GetLogStream(), " ");
+#endif
 
-//  avgRdyLstSize /= iterCnt;
-//  Logger::Info("Max ready list size = %d, Avg ready list size = %d", maxRdyLstSize, avgRdyLstSize);
+  //  avgRdyLstSize /= iterCnt;
+  //  Logger::Info("Max ready list size = %d, Avg ready list size = %d",
+  //  maxRdyLstSize, avgRdyLstSize);
 
   return RES_SUCCESS;
 }
 
 void ListScheduler::UpdtRdyLst_(InstCount cycleNum, int slotNum) {
   InstCount prevCycleNum = cycleNum - 1;
-  LinkedList<SchedInstruction>* lst1 = NULL;
-  LinkedList<SchedInstruction>* lst2 = frstRdyLstPerCycle_[cycleNum];
+  LinkedList<SchedInstruction> *lst1 = NULL;
+  LinkedList<SchedInstruction> *lst2 = frstRdyLstPerCycle_[cycleNum];
 
-  if (prirts_.isDynmc) rdyLst_->UpdatePriorities();
+  if (prirts_.isDynmc)
+    rdyLst_->UpdatePriorities();
   if (slotNum == 0 && prevCycleNum >= 0) {
     // If at the begining of a new cycle other than the very first cycle,
     // then we also have to include the instructions that might have become
