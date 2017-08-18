@@ -329,8 +329,8 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
 #if defined(IS_DEBUG_COMPARE_SLIL_BB)
-  if (!isLstOptml) {
-    const auto &status = [&]() {
+  {
+    const auto& status = [&]() {
       switch (rslt) {
       case RES_SUCCESS:
         return "optimal";
@@ -340,8 +340,10 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
         return "failed";
       }
     }();
-    Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(),
-                 status, bestCost_, enumTime);
+    if (!isLstOptml) {
+      Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_, enumTime);
+      Logger::Info("Dag %s %s absolute cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_ + costLwrBound_, enumTime);
+    }
   }
 #endif
 #if defined(IS_DEBUG_FINAL_SPILL_COST)
