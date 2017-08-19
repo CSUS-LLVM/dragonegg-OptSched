@@ -169,6 +169,10 @@ def writeStats(stats, args, dagSizesPerBenchmark):
                         (timedOutImproved, (100 * timedOutImproved / enumerated) if enumerated else 0))
       blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)\n' %
                         (timedOutNotImproved, (100 * timedOutNotImproved / enumerated) if enumerated else 0))
+      blocks_file.write('  Heuristic cost: %d\n' %
+                        cost)
+      blocks_file.write('  B&B cost: %d\n' %
+                        (cost - improvement))
       blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                         (improvement, (100 * improvement / cost) if cost else 0))
 
@@ -198,6 +202,10 @@ def writeStats(stats, args, dagSizesPerBenchmark):
                       (totalTimedOutImproved, (100 * totalTimedOutImproved / totalEnumerated) if totalEnumerated else 0))
     blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)\n' %
                       (totalTimedOutNotImproved, (100 * totalTimedOutNotImproved / totalEnumerated) if totalEnumerated else 0))
+    blocks_file.write('  Heuristic cost: %d\n' %
+                      totalCost)
+    blocks_file.write('  B&B cost: %d\n' %
+                      (totalCost - totalImprovement))
     blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                       (totalImprovement, (100 * totalImprovement / totalCost) if totalCost else 0))
 
@@ -554,15 +562,26 @@ def main(args):
     if not os.path.isdir(args.readlogs):
       print("ERROR: --readlogs=%s is not a valid folder! Quitting runspec wrapper." % args.readlogs)
     else:
-      for filename in os.listdir(args.readlogs):
-        print("Parsing log file %s" % filename)
-        benchName = filename.split(".")[0]
-        logFilePath = os.path.join(args.readlogs, filename)
-        output = None
-        with open(logFilePath) as logFile:
-          output = logFile.read()
-        results[benchName] = getBenchmarkResult(output)
-        dagSizesPerBenchmark[benchName] = calculateDagSizes(output)
+      if args.nodirwalk:
+        for benchName in benchmarks:
+          logFilePath = os.path.join(args.readlogs, benchName + ".log")
+          if not os.path.isfile(logFilePath): continue
+          print("Parsing log file %s" % logFilePath)
+          output = None
+          with open(logFilePath) as logFile:
+            output = logFile.read()
+          results[benchName] = getBenchmarkResult(output)
+          dagSizesPerBenchmark[benchName] = calculateDagSizes(output)
+      else:
+        for filename in os.listdir(args.readlogs):
+          print("Parsing log file %s" % filename)
+          benchName = filename.split(".")[0]
+          logFilePath = os.path.join(args.readlogs, filename)
+          output = None
+          with open(logFilePath) as logFile:
+            output = logFile.read()
+          results[benchName] = getBenchmarkResult(output)
+          dagSizesPerBenchmark[benchName] = calculateDagSizes(output)
     
   # Run the benchmarks and collect results.
   elif args.opt is not None:
@@ -636,4 +655,5 @@ if __name__ == '__main__':
                    default=0,
                    type=int,
                    help='Minimum PERP count to write PERP and SLIL stats for.')
+  parser.add_option('--nodirwalk', action='store_true')
   main(parser.parse_args()[0])
