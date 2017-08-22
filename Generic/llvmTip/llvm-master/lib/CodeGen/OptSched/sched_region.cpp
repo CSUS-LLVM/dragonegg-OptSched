@@ -69,7 +69,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bool useFileBounds, Milliseconds rgnTimeout, Milliseconds lngthTimeout,
     bool &isLstOptml, InstCount &bestCost, InstCount &bestSchedLngth,
     InstCount &hurstcCost, InstCount &hurstcSchedLngth,
-    InstSchedule *&bestSched) {
+    InstSchedule *&bestSched, bool filterByPerp) {
   ListScheduler *lstSchdulr;
   InstSchedule *lstSched = NULL;
   FUNC_RESULT rslt = RES_SUCCESS;
@@ -206,7 +206,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
 
   // (Chris): If the cost function is SLIL, then the list schedule is considered
   // optimal if PERP is 0.
-  if (!isLstOptml && spillCostFunc_ == SCF_SLIL) {
+  if (filterByPerp && !isLstOptml && spillCostFunc_ == SCF_SLIL) {
     const InstCount *regPressures = nullptr;
     auto regTypeCount = lstSched->GetPeakRegPressures(regPressures);
     InstCount sumPerp = 0;
