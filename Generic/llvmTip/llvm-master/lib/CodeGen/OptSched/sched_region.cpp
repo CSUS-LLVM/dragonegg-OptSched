@@ -345,6 +345,46 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
       Logger::Info("Dag %s %s absolute cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_ + costLwrBound_, enumTime);
     }
   }
+  {
+    if (spillCostFunc_ == SCF_SLIL && rgnTimeout != 0) {
+      // costLwrBound_: static lower bound
+      // bestCost_: total cost of the best schedule relative to static lower
+      // bound
+
+      auto isEnumerated = [&]() { return (!isLstOptml) ? "True" : "False"; }();
+
+      auto isOptimal = [&]() {
+        return (isLstOptml || (rslt == RES_SUCCESS)) ? "True" : "False";
+      }();
+
+      auto isPerpHigherThanHeuristic = [&]() {
+        auto getSumPerp = [&](InstSchedule *sched) {
+          const InstCount *regPressures = nullptr;
+          auto regTypeCount = sched->GetPeakRegPressures(regPressures);
+          InstCount sumPerp = 0;
+          for (int i = 0; i < regTypeCount; ++i) {
+            int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
+            if (perp > 0)
+              sumPerp += perp;
+          }
+          return sumPerp;
+        };
+
+        if (lstSched == bestSched)
+          return "False";
+
+        auto heuristicPerp = getSumPerp(lstSched);
+        auto bestPerp = getSumPerp(bestSched);
+
+        return (bestPerp > heuristicPerp) ? "True" : "False";
+      }();
+
+      Logger::Info("SLIL stats: DAG %s static LB %d gap size %d enumerated %s "
+                   "optimal %s PERP higher %s",
+                   dataDepGraph_->GetDagID(), costLwrBound_, bestCost_,
+                   isEnumerated, isOptimal, isPerpHigherThanHeuristic);
+    }
+  }
 #endif
 #if defined(IS_DEBUG_FINAL_SPILL_COST)
   // (Chris): Unconditionally Print out the spill cost of the final schedule.
