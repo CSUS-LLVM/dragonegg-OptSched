@@ -313,11 +313,19 @@ void ScheduleDAGOptSched::schedule() {
                   dag.GetInstCnt(), minDagSize, maxDagSize);
   } else {
     bool filterByPerp = schedIni.GetBool("FILTER_BY_PERP");
+    auto blocksToKeep = [&]() {
+      auto setting = schedIni.GetString("BLOCKS_TO_KEEP");
+      if (setting == "ZERO_COST") return BLOCKS_TO_KEEP::ZERO_COST;
+      else if (setting == "OPTIMAL") return BLOCKS_TO_KEEP::OPTIMAL;
+      else if (setting == "IMPROVED") return BLOCKS_TO_KEEP::IMPROVED;
+      else if (setting == "IMPROVED_OR_OPTIMAL") return BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL;
+      else return BLOCKS_TO_KEEP::ALL;
+    }();
     rslt = region->FindOptimalSchedule(
         useFileBounds, regionTimeout, lengthTimeout, isEasy, normBestCost,
-        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched, filterByPerp);
+        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched, filterByPerp, blocksToKeep);
     if ((!(rslt == RES_SUCCESS || rslt == RES_TIMEOUT) || sched == NULL)) {
-      Logger::Error("OptSched run failed: rslt=%d, sched=%p. Falling back.",
+      Logger::Info("OptSched run failed: rslt=%d, sched=%p. Falling back.",
                     rslt, (void *)sched);
 
       if (!isHeuristicISO)

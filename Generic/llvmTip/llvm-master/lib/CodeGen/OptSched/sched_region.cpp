@@ -69,7 +69,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bool useFileBounds, Milliseconds rgnTimeout, Milliseconds lngthTimeout,
     bool &isLstOptml, InstCount &bestCost, InstCount &bestSchedLngth,
     InstCount &hurstcCost, InstCount &hurstcSchedLngth,
-    InstSchedule *&bestSched, bool filterByPerp) {
+    InstSchedule *&bestSched, bool filterByPerp, const BLOCKS_TO_KEEP blocksToKeep) {
   ListScheduler *lstSchdulr;
   InstSchedule *lstSched = NULL;
   FUNC_RESULT rslt = RES_SUCCESS;
@@ -328,6 +328,18 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
+  // (Chris): Experimental. Discard the schedule based on sched.ini setting.
+  if (spillCostFunc_ == SCF_SLIL) {
+    bool optimal = isLstOptml || (rslt == RES_SUCCESS);
+    if ((blocksToKeep == BLOCKS_TO_KEEP::ZERO_COST && bestCost != 0) || 
+      (blocksToKeep == BLOCKS_TO_KEEP::OPTIMAL && !optimal) ||
+      (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED && !(bestCost < hurstcCost)) ||
+      (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL && !(optimal || bestCost < hurstcCost))) {
+      delete bestSched;
+      bestSched = nullptr;
+      return rslt;
+    }
+  }
 #if defined(IS_DEBUG_COMPARE_SLIL_BB)
   {
     const auto& status = [&]() {

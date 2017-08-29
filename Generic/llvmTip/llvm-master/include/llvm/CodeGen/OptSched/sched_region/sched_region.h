@@ -28,6 +28,15 @@ enum COST_COMP_MODE {
   CCM_STTC
 };
 
+// (Chris)
+enum class BLOCKS_TO_KEEP {
+  ZERO_COST,
+  IMPROVED,
+  OPTIMAL,
+  IMPROVED_OR_OPTIMAL,
+  ALL
+};
+
 class ListScheduler;
 
 class SchedRegion {
@@ -54,7 +63,7 @@ public:
                       Milliseconds lngthTimeout, bool &isHurstcOptml,
                       InstCount &bestCost, InstCount &bestSchedLngth,
                       InstCount &hurstcCost, InstCount &hurstcSchedLngth,
-                      InstSchedule *&bestSched, bool filterByPerp);
+                      InstSchedule *&bestSched, bool filterByPerp, const BLOCKS_TO_KEEP blocksToKeep);
 
   // External abstract functions.
 
