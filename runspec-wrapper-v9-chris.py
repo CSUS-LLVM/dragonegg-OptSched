@@ -63,6 +63,7 @@ BLOCK_END_TIME_REGEX = re.compile(r'verified successfully \(Time = (\d+) ms\)')
 BLOCK_LIST_FAILED_REGEX = re.compile(r'List scheduling failed')
 BLOCK_PEAK_REG_PRESSURE_REGEX = re.compile(r'PeakRegPresAfter Dag (.*?) Index (\d+) Name (.*) Peak (\d+) Limit (\d+)')
 SLIL_HEURISTIC_REGEX = re.compile('SLIL after Heuristic Scheduler for dag (.*?) Type (\d+) (.*?) is (\d+)')
+BLOCK_FAILED_REGEX = re.compile(r'OptSched run failed')
 
 def writeStats(stats, args, dagSizesPerBenchmark):
   statsFolder = ""
@@ -437,7 +438,7 @@ def calculateBlockStats(output):
     try:
       name, size = BLOCK_NAME_AND_SIZE_REGEX.findall(block)[0]
 
-      failed = BLOCK_LIST_FAILED_REGEX.findall(block) != []
+      failed = (BLOCK_LIST_FAILED_REGEX.findall(block) != []) or (BLOCK_FAILED_REGEX.findall(block) != [])
       if failed:
         timeTaken = 0
         isEnumerated = isOptimal = False
