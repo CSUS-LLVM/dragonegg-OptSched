@@ -312,9 +312,10 @@ void ScheduleDAGOptSched::schedule() {
 									valid range is [%d, %d]",
                   dag.GetInstCnt(), minDagSize, maxDagSize);
   } else {
+    bool filterByPerp = schedIni.GetBool("FILTER_BY_PERP");
     rslt = region->FindOptimalSchedule(
         useFileBounds, regionTimeout, lengthTimeout, isEasy, normBestCost,
-        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched);
+        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched, filterByPerp);
     if ((!(rslt == RES_SUCCESS || rslt == RES_TIMEOUT) || sched == NULL)) {
       Logger::Error("OptSched run failed: rslt=%d, sched=%p. Falling back.",
                     rslt, (void *)sched);

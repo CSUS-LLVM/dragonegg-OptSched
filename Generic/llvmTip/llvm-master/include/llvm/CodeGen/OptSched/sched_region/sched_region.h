@@ -54,7 +54,7 @@ public:
                       Milliseconds lngthTimeout, bool &isHurstcOptml,
                       InstCount &bestCost, InstCount &bestSchedLngth,
                       InstCount &hurstcCost, InstCount &hurstcSchedLngth,
-                      InstSchedule *&bestSched);
+                      InstSchedule *&bestSched, bool filterByPerp);
 
   // External abstract functions.
 
