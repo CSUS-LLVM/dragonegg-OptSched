@@ -128,7 +128,7 @@ void ScheduleDAGOptSched::schedule() {
     }
 #endif
 
-    fallbackScheduler();
+    ScheduleDAGMILive::schedule();
 
 #ifdef IS_DEBUG_PEAK_PRESSURE
     // recalculate register pressure
@@ -498,7 +498,7 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   maxSpillCost = schedIni.GetInt("MAX_SPILL_COST");
   lowerBoundAlgorithm = parseLowerBoundAlgorithm();
   heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
-  isHeuristicISO = schedIni.GetString("HEURISTIC") == "ISO" || "NID";
+  isHeuristicISO = schedIni.GetString("HEURISTIC") == "ISO" || schedIni.GetString("HEURISTIC") == "NID";
   enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
   spillCostFunction = parseSpillCostFunc();
   regionTimeout = schedIni.GetInt("REGION_TIMEOUT");
