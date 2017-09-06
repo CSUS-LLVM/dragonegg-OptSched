@@ -38,17 +38,18 @@ bool GraphTrans::AreNodesIndep_(SchedInstruction *inst1,
 
 void GraphTrans::UpdatePrdcsrAndScsr_(SchedInstruction *nodeA,
                                       SchedInstruction *nodeB) {
-  //GetDataDepGraph_()->UpdateSetupForSchdulng(true);
+  LinkedList<GraphNode> *nodeBScsrLst = nodeB->GetRcrsvNghbrLst(DIR_FRWRD);
+  LinkedList<GraphNode> *nodeAPrdcsrLst = nodeA->GetRcrsvNghbrLst(DIR_BKWRD);
+
+  // Update lists for the nodes themselves.
   nodeA->AddRcrsvScsr(nodeB);
   nodeB->AddRcrsvPrdcsr(nodeA);
 
-  UDT_GLABEL lbl = 0;
+  for (GraphNode *X = nodeAPrdcsrLst->GetFrstElmnt(); X != NULL;
+       X = nodeAPrdcsrLst->GetNxtElmnt()) {
 
-  for (GraphNode *X = nodeA->GetFrstPrdcsr(&lbl); X != NULL;
-       X = nodeA->GetNxtPrdcsr(&lbl)) {
-
-    for (GraphNode *Y = nodeB->GetFrstScsr(&lbl); Y != NULL;
-         Y = nodeB->GetNxtScsr(&lbl)) {
+    for (GraphNode *Y = nodeBScsrLst->GetFrstElmnt(); Y != NULL;
+         Y = nodeBScsrLst->GetNxtElmnt()) {
       // Check if Y is reachable f
       if (!X->IsRcrsvScsr(Y)) {
         Y->AddRcrsvPrdcsr(X);
