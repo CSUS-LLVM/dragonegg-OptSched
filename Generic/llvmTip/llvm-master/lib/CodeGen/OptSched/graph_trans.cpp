@@ -73,9 +73,9 @@ bool StaticNodeSupTrans::TryAddingSuperiorEdge_(SchedInstruction *nodeA,
   } else if (NodeIsSuperior_(nodeB, nodeA)) {
     AddSuperiorEdge_(nodeB, nodeA);
     // Swap nodeIDs
-    int tmp = nodeA->GetNodeID();
-    nodeA->SetNodeID(nodeB->GetNodeID());
-    nodeB->SetNodeID(tmp);
+    //int tmp = nodeA->GetNodeID();
+    //nodeA->SetNodeID(nodeB->GetNodeID());
+    //nodeB->SetNodeID(tmp);
     edgeWasAdded = true;
   }
 
@@ -254,12 +254,13 @@ bool StaticNodeSupTrans::NodeIsSuperior_(SchedInstruction *nodeA,
         Logger::Info("Found register that has its live range lengthend by "
                      "scheduling B after A");
 #endif
-        lengthenedByB[useB->GetType()]++;
-        totalLengthenedByB++;
+        return false;
+        //lengthenedByB[useB->GetType()]++;
+        //totalLengthenedByB++;
       }
     }
   }
-
+/*
   for (int j = 0; j < useCntA && totalLengthenedByB > 0; j++) {
     Register *useA = usesA[j];
 
@@ -292,6 +293,7 @@ bool StaticNodeSupTrans::NodeIsSuperior_(SchedInstruction *nodeA,
 #endif
     return false;
   }
+*/
 
   // For each register type, the number of registers defined by A is less than
   // or equal to the number of registers defined by B.
