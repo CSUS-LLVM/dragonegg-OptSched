@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
@@ -482,6 +483,8 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
 
   // setup graph transformations
   graphTransTypes.staticNodeSup = schedIni.GetBool("STATIC_NODE_SUPERIORITY");
+  // setup graph transformation flags 
+  GraphTrans::GRAPHTRANSFLAGS.multiPassNodeSup = schedIni.GetBool("MULTI_PASS_NODE_SUPERIORITY");
 
   schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY");
   histTableHashBits =

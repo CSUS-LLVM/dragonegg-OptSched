@@ -124,31 +124,10 @@ FUNC_RESULT StaticNodeSupTrans::ApplyTrans() {
       }
     }
   }
-  // Try to add superior edges until there are no more independent nodes or no
-  // edges can be added.
-  didAddEdge = true;
-  while (didAddEdge && indepNodes.size() > 0) {
-    std::list<std::pair<SchedInstruction *, SchedInstruction *>>::iterator
-        pair = indepNodes.begin();
-    didAddEdge = false;
-
-    while (pair != indepNodes.end()) {
-      SchedInstruction *nodeA = (*pair).first;
-      SchedInstruction *nodeB = (*pair).second;
-
-      if (!AreNodesIndep_(nodeA, nodeB)) {
-        pair = indepNodes.erase(pair);
-      } else {
-        bool result = TryAddingSuperiorEdge_(nodeA, nodeB);
-        // If a superior edge was added remove the pair of nodes from the list.
-        if (result) {
-          pair = indepNodes.erase(pair);
-          didAddEdge = true;
-        } else
-          pair++;
-      }
-    }
-  }
+  
+  // Multi pass node superiority.
+  if (GRAPHTRANSFLAGS.multiPassNodeSup)
+    nodeMultiPass_(indepNodes);
 
   return RES_SUCCESS;
 }
@@ -324,5 +303,38 @@ bool StaticNodeSupTrans::NodeIsSuperior_(SchedInstruction *nodeA,
 
   return true;
 }
+
+bool StaticNodeSupTrans::nodeMultiPass_(std::list<std::pair<SchedInstruction *, SchedInstruction *>> indepNodes) {
+#ifdef IS_DEBUG_GRAPH_TRANS
+      Logger::Info("Applying multi-pass node superiority");
+#endif
+  // Try to add superior edges until there are no more independent nodes or no
+  // edges can be added.
+  bool didAddEdge = true;
+  while (didAddEdge && indepNodes.size() > 0) {
+    std::list<std::pair<SchedInstruction *, SchedInstruction *>>::iterator
+        pair = indepNodes.begin();
+    didAddEdge = false;
+
+    while (pair != indepNodes.end()) {
+      SchedInstruction *nodeA = (*pair).first;
+      SchedInstruction *nodeB = (*pair).second;
+
+      if (!AreNodesIndep_(nodeA, nodeB)) {
+        pair = indepNodes.erase(pair);
+      } else {
+        bool result = TryAddingSuperiorEdge_(nodeA, nodeB);
+        // If a superior edge was added remove the pair of nodes from the list.
+        if (result) {
+          pair = indepNodes.erase(pair);
+          didAddEdge = true;
+        } else
+          pair++;
+      }
+    }
+  }
+}
+
+GraphTransFlags GraphTrans::GRAPHTRANSFLAGS;
 
 } // end namespace opt_sched
