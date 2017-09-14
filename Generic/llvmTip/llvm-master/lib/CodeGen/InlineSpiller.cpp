@@ -60,6 +60,7 @@ static cl::opt<bool> DisableHoisting("disable-spill-hoist", cl::Hidden,
 //int NumSpilledRegs = 0;
 int gNumSpilledRanges = 0;
 int gNumSpills = 0;
+int gNumWeightedSpills = 0;
 //int gNumReloads = 0;
 //int gNumSpillsNoCleanup = 0;
 //int gNumReloadsNoCleanup = 0;
@@ -405,6 +406,9 @@ bool InlineSpiller::hoistSpillInsideBB(LiveInterval &SpillLI,
   HSpiller.addToMergeableSpills(*MII, StackSlot, Original);
   ++NumSpills;
   ++gNumSpills;
+  BlockFrequency BBF = MBFI.getBlockFreq(MBB);
+  gNumWeightedSpills += BBF.getFrequency();
+  dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
   return true;
 }
 
@@ -462,9 +466,13 @@ void InlineSpiller::eliminateRedundantSpills(LiveInterval &SLI, VNInfo *VNI) {
         MI.setDesc(TII.get(TargetOpcode::KILL));
         DeadDefs.push_back(&MI);
         ++NumSpillsRemoved;
-        if (HSpiller.rmFromMergeableSpills(MI, StackSlot))
+        if (HSpiller.rmFromMergeableSpills(MI, StackSlot)) {
           --NumSpills;
           --gNumSpills;
+          BlockFrequency BBF = MBFI.getBlockFreq(MI.getParent());
+          gNumWeightedSpills -= BBF.getFrequency();
+          dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
+        }
       }
     }
   } while (!WorkList.empty());
@@ -695,6 +703,9 @@ bool InlineSpiller::coalesceStackAccess(MachineInstr *MI, unsigned Reg) {
     ++NumSpillsRemoved;
     --NumSpills;
     --gNumSpills;
+    BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
+    gNumWeightedSpills -= BBF.getFrequency();
+    dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
   }
 
   return true;
@@ -811,9 +822,13 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
 
   int FI;
   if (TII.isStoreToStackSlot(*MI, FI) &&
-      HSpiller.rmFromMergeableSpills(*MI, FI))
+      HSpiller.rmFromMergeableSpills(*MI, FI)) {
     --NumSpills;
     --gNumSpills;
+    BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
+    gNumWeightedSpills -= BBF.getFrequency();
+    dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
+  }
   LIS.ReplaceMachineInstrInMaps(*MI, *FoldMI);
   MI->eraseFromParent();
 
@@ -842,6 +857,9 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
   else if (Ops.front().second == 0) {
     ++NumSpills;
     ++gNumSpills;
+    BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
+    gNumWeightedSpills += BBF.getFrequency();
+    dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
     HSpiller.addToMergeableSpills(*FoldMI, StackSlot, Original);
   } else
     ++NumReloads;
@@ -879,6 +897,9 @@ void InlineSpiller::insertSpill(unsigned NewVReg, bool isKill,
                                            "spill"));
   ++NumSpills;
   ++gNumSpills;
+  BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
+  gNumWeightedSpills += BBF.getFrequency();
+  dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
   HSpiller.addToMergeableSpills(*std::next(MI), StackSlot, Original);
 }
 
@@ -1452,12 +1473,18 @@ void HoistSpillHelper::hoistAllSpills() {
       LIS.InsertMachineInstrRangeInMaps(std::prev(MI), MI);
       ++NumSpills;
       ++gNumSpills;
+      BlockFrequency BBF = MBFI.getBlockFreq(BB);
+      gNumWeightedSpills += BBF.getFrequency();
+      dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
     }
 
     // Remove redundant spills or change them to dead instructions.
     NumSpills -= SpillsToRm.size();
     gNumSpills -= SpillsToRm.size();
     for (auto const RMEnt : SpillsToRm) {
+      BlockFrequency BBF = MBFI.getBlockFreq(RMEnt->getParent());
+      gNumWeightedSpills -= BBF.getFrequency();
+      dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
       RMEnt->setDesc(TII.get(TargetOpcode::KILL));
       for (unsigned i = RMEnt->getNumOperands(); i; --i) {
         MachineOperand &MO = RMEnt->getOperand(i - 1);

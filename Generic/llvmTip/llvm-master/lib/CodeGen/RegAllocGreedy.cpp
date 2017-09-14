@@ -2607,6 +2607,7 @@ unsigned RAGreedy::selectOrSplitImpl(LiveInterval &VirtReg,
 //extern int NumSpilledRegs;
 extern int gNumSpilledRanges;
 extern int gNumSpills;
+extern int gNumWeightedSpills;
 extern bool OPTSCHED_gPrintSpills;
 //extern int gNumReloads;
 //extern int gNumSpillsNoCleanup;
@@ -2682,7 +2683,8 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
 	  dbgs() << "\n*************************************\n";
     dbgs() << "Function: " << fxnName << "\n";
   	dbgs() << "GREEDY RA: Number of spilled live ranges: " << gNumSpilledRanges << "\n";
-  	//std::cout << "\nGREEDY RA: Number of spills inserted : " << gNumSpills << '\n';
+  	dbgs() << "Number of spills inserted : " << gNumSpills << '\n';
+    dbgs() << "Number of weighted spills inserted : " << gNumWeightedSpills << '\n';
     dbgs() << "*************************************\n\n";
   }
     
