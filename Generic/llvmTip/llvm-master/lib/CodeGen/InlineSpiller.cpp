@@ -57,15 +57,15 @@ static cl::opt<bool> DisableHoisting("disable-spill-hoist", cl::Hidden,
                                      cl::desc("Disable inline spill hoisting"));
 
 
-//int NumSpilledRegs = 0;
+int NumSpilledRegs = 0;
 int gNumSpilledRanges = 0;
 int gNumSpills = 0;
 int gNumWeightedSpills = 0;
-//int gNumReloads = 0;
-//int gNumSpillsNoCleanup = 0;
-//int gNumReloadsNoCleanup = 0;
-//float gWeightedSpills = 0;
-//float gWeightedReloads = 0;
+int gNumReloads = 0;
+int gNumSpillsNoCleanup = 0;
+int gNumReloadsNoCleanup = 0;
+float gWeightedSpills = 0;
+float gWeightedReloads = 0;
 
 namespace {
 class HoistSpillHelper : private LiveRangeEdit::Delegate {
@@ -404,11 +404,11 @@ bool InlineSpiller::hoistSpillInsideBB(LiveInterval &SpillLI,
   DEBUG(dbgs() << "\thoisted: " << SrcVNI->def << '\t' << *MII);
 
   HSpiller.addToMergeableSpills(*MII, StackSlot, Original);
-  ++NumSpills;
+  gWeightedSpills += LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MII));
   ++gNumSpills;
-  BlockFrequency BBF = MBFI.getBlockFreq(MBB);
-  gNumWeightedSpills += BBF.getFrequency();
-  dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
+  ++gNumSpillsNoCleanup;
+  ++NumSpilledRegs;
+  ++NumSpills;
   return true;
 }
 
@@ -465,13 +465,12 @@ void InlineSpiller::eliminateRedundantSpills(LiveInterval &SLI, VNInfo *VNI) {
         // eliminateDeadDefs won't normally remove stores, so switch opcode.
         MI.setDesc(TII.get(TargetOpcode::KILL));
         DeadDefs.push_back(&MI);
-        ++NumSpillsRemoved;
         if (HSpiller.rmFromMergeableSpills(MI, StackSlot)) {
+          ++NumSpillsRemoved;
           --NumSpills;
           --gNumSpills;
-          BlockFrequency BBF = MBFI.getBlockFreq(MI.getParent());
-          gNumWeightedSpills -= BBF.getFrequency();
-          dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
+          gWeightedSpills -= LiveIntervals::getSpillWeight(true, false, &MBFI, MI);
+          --NumSpilledRegs;
         }
       }
     }
@@ -699,13 +698,14 @@ bool InlineSpiller::coalesceStackAccess(MachineInstr *MI, unsigned Reg) {
   if (IsLoad) {
     ++NumReloadsRemoved;
     --NumReloads;
+    --gNumReloads;
+    gWeightedReloads -= LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
   } else {
     ++NumSpillsRemoved;
     --NumSpills;
     --gNumSpills;
-    BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
-    gNumWeightedSpills -= BBF.getFrequency();
-    dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
+    gWeightedSpills -= LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
+    --NumSpilledRegs;
   }
 
   return true;
@@ -825,9 +825,9 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
       HSpiller.rmFromMergeableSpills(*MI, FI)) {
     --NumSpills;
     --gNumSpills;
-    BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
-    gNumWeightedSpills -= BBF.getFrequency();
-    dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
+    gWeightedSpills -= LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
+    ++NumSpillsRemoved;
+    --NumSpilledRegs;
   }
   LIS.ReplaceMachineInstrInMaps(*MI, *FoldMI);
   MI->eraseFromParent();
@@ -857,12 +857,16 @@ foldMemoryOperand(ArrayRef<std::pair<MachineInstr*, unsigned> > Ops,
   else if (Ops.front().second == 0) {
     ++NumSpills;
     ++gNumSpills;
-    BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
-    gNumWeightedSpills += BBF.getFrequency();
-    dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
+    ++gNumSpillsNoCleanup;
+    gWeightedSpills += LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
+    ++NumSpilledRegs;
     HSpiller.addToMergeableSpills(*FoldMI, StackSlot, Original);
-  } else
+  } else {
     ++NumReloads;
+    ++gNumReloads;
+    ++gNumReloadsNoCleanup;
+    gWeightedReloads += LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
+  }
   return true;
 }
 
@@ -880,6 +884,9 @@ void InlineSpiller::insertReload(unsigned NewVReg,
   DEBUG(dumpMachineInstrRangeWithSlotIndex(MIS.begin(), MI, LIS, "reload",
                                            NewVReg));
   ++NumReloads;
+  ++gNumReloads;
+  ++gNumReloadsNoCleanup;
+  gWeightedReloads += LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
 }
 
 /// insertSpill - Insert a spill of NewVReg after MI.
@@ -897,9 +904,9 @@ void InlineSpiller::insertSpill(unsigned NewVReg, bool isKill,
                                            "spill"));
   ++NumSpills;
   ++gNumSpills;
-  BlockFrequency BBF = MBFI.getBlockFreq(MI->getParent());
-  gNumWeightedSpills += BBF.getFrequency();
-  dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
+  ++gNumSpillsNoCleanup;
+  gWeightedSpills += LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
+  ++NumSpilledRegs;
   HSpiller.addToMergeableSpills(*std::next(MI), StackSlot, Original);
 }
 
@@ -1473,18 +1480,17 @@ void HoistSpillHelper::hoistAllSpills() {
       LIS.InsertMachineInstrRangeInMaps(std::prev(MI), MI);
       ++NumSpills;
       ++gNumSpills;
-      BlockFrequency BBF = MBFI.getBlockFreq(BB);
-      gNumWeightedSpills += BBF.getFrequency();
-      dbgs() << "More weighted spills by " << BBF.getFrequency() << '\n';
+      ++NumSpilledRegs;
+      ++gNumSpillsNoCleanup;
+      gWeightedSpills += LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*MI));
     }
 
     // Remove redundant spills or change them to dead instructions.
     NumSpills -= SpillsToRm.size();
     gNumSpills -= SpillsToRm.size();
+    NumSpilledRegs -= SpillsToRm.size();
     for (auto const RMEnt : SpillsToRm) {
-      BlockFrequency BBF = MBFI.getBlockFreq(RMEnt->getParent());
-      gNumWeightedSpills -= BBF.getFrequency();
-      dbgs() << "Less weighted spills by " << BBF.getFrequency() << '\n';
+      gWeightedSpills -= LiveIntervals::getSpillWeight(true, false, &MBFI, const_cast<const MachineInstr&>(*RMEnt));
       RMEnt->setDesc(TII.get(TargetOpcode::KILL));
       for (unsigned i = RMEnt->getNumOperands(); i; --i) {
         MachineOperand &MO = RMEnt->getOperand(i - 1);

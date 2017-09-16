@@ -2604,17 +2604,17 @@ unsigned RAGreedy::selectOrSplitImpl(LiveInterval &VirtReg,
   return 0;
 }
 
-//extern int NumSpilledRegs;
+extern int NumSpilledRegs;
 extern int gNumSpilledRanges;
 extern int gNumSpills;
 extern int gNumWeightedSpills;
 extern bool OPTSCHED_gPrintSpills;
-//extern int gNumReloads;
-//extern int gNumSpillsNoCleanup;
-//extern int gNumReloadsNoCleanup;
-//extern bool gPrintSpills;
-//extern float gWeightedSpills;
-//extern float gWeightedReloads;
+extern int gNumReloads;
+extern int gNumSpillsNoCleanup;
+extern int gNumReloadsNoCleanup;
+extern bool gPrintSpills;
+extern float gWeightedSpills;
+extern float gWeightedReloads;
 
 bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   DEBUG(dbgs() << "************* GREEDY REGISTER ALLOCATION **********\n"
@@ -2680,11 +2680,16 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   releaseMemory();
   
   if (OPTSCHED_gPrintSpills) {
+    long SpillCost = gWeightedSpills + gWeightedReloads;
+    long SpillCount = gNumSpills + gNumReloads;
+    long SpillCountNoCleanup = gNumSpillsNoCleanup + gNumReloadsNoCleanup;
 	  dbgs() << "\n*************************************\n";
     dbgs() << "Function: " << fxnName << "\n";
   	dbgs() << "GREEDY RA: Number of spilled live ranges: " << gNumSpilledRanges << "\n";
-  	dbgs() << "Number of spills inserted : " << gNumSpills << '\n';
-    dbgs() << "Number of weighted spills inserted : " << gNumWeightedSpills << '\n';
+    dbgs() << "\nStores: " << gNumSpills << " Reloads: " << gNumReloads << " Spill Count: " << SpillCount;
+    dbgs() << "\nStores without cleanup: " << gNumSpillsNoCleanup << " Reloads without cleanup: " << gNumReloadsNoCleanup << " Spill Count without cleanup: " << SpillCountNoCleanup;
+    dbgs() << "\nStore Cost: " << gWeightedSpills << " Load Cost: " << gWeightedReloads << " Spill Cost: " << SpillCost << "\n";
+    dbgs() << "\n SC in Function "<< fxnName << " " << SpillCost << "\n";
     dbgs() << "*************************************\n\n";
   }
     
