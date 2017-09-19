@@ -20,6 +20,9 @@ namespace opt_sched {
 // Types of graph transformations.
 enum TRANS_TYPE { TT_NSP = 0 };
 
+// Enable/disable graph transformation flags.
+typedef struct GraphTransFlags { bool multiPassNodeSup; } GraphTransFlags;
+
 // An abstract graph transformation class.
 class GraphTrans {
 
@@ -39,6 +42,9 @@ public:
   void SetSchedRegion(SchedRegion *schedRegion);
 
   void SetNumNodesInGraph(InstCount numNodesInGraph);
+
+  // Enable disable graph transformation options.
+  static GraphTransFlags GRAPHTRANSFLAGS;
 
 protected:
   // Find independent nodes in the graph. Nodes are independent if
@@ -96,6 +102,8 @@ private:
   bool TryAddingSuperiorEdge_(SchedInstruction *nodeA, SchedInstruction *nodeB);
   // Add an edge from node A to B and update the graph.
   void AddSuperiorEdge_(SchedInstruction *nodeA, SchedInstruction *nodeB);
+  // Keep trying to find superior nodes until none can be found or there are no more independent nodes.
+  bool nodeMultiPass_(std::list<std::pair<SchedInstruction *, SchedInstruction *>>);
 };
 
 inline StaticNodeSupTrans::StaticNodeSupTrans(DataDepGraph *dataDepGraph)
