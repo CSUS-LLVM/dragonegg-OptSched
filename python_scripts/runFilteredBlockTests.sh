@@ -7,15 +7,9 @@
 # Each scenario will run the scheduler for all functions and for hot functions.
 
 SCHED_INI_DIR="/home/chris/csc199/LLVM_DRAGONEGG/Generic/OptSchedCfg/"
-SCHED_INI_HOT_ALL="sched.hot.all.ini"
-SCHED_INI_HOT_OPTIMAL="sched.hot.opt.ini"
-SCHED_INI_HOT_ZERO_COST="sched.hot.zcs.ini"
-SCHED_INI_ALL_ALL="sched.all.all.ini"
-SCHED_INI_ALL_OPTIMAL="sched.all.opt.ini"
-SCHED_INI_ALL_ZERO_COST="sched.all.zcs.ini"
 
-TEST_DIR="/home/chris/csc199/test_094/"
-TEST_DIR_SHARED="/home/chris/csc199/test_094_2017_09_06_chris/"
+TEST_DIR="/home/chris/csc199/test_098/"
+TEST_DIR_SHARED="/home/chris/csc199/test_098_2017_09_19_chris/"
 
 CPU2006_DIR="/media/ssd0/CPU2006"
 CPU2006_USER_DIR="/media/ssd0/chris/spec"
@@ -81,9 +75,12 @@ cd "$CPU2006_DIR"
 echo source shrc
 source shrc
 
-run_test "$SCHED_INI_HOT_ALL" "" "hotFuncsAllBlocks/"
-run_test "$SCHED_INI_HOT_OPTIMAL" "" "hotFuncsOptBlocks/"
-run_test "$SCHED_INI_HOT_ZERO_COST" "" "hotFuncsZcsBlocks/"
-run_test "$SCHED_INI_ALL_ALL" "" "allFuncsAllBlocks/"
-run_test "$SCHED_INI_ALL_OPTIMAL" "" "allFuncsOptBlocks"
-run_test "$SCHED_INI_ALL_ZERO_COST" "" "allFuncsZcsBlocks/"
+run_test "sched.hotfuncs.allblocks.nograph.ini" "" "hotFuncsAllBlocksNoGraph/"
+run_test "sched.hotfuncs.allblocks.graph.ini" "" "hotFuncsAllBlocksGraph/"
+run_test "sched.hotfuncs.optblocks.nograph.ini" "" "hotFuncsOptBlocksNoGraph/"
+run_test "sched.hotfuncs.optblocks.graph.ini" "" "hotFuncsOptBlocksGraph/"
+
+run_test "sched.allfuncs.allblocks.nograph.ini" "" "allFuncsAllBlocksNoGraph/"
+run_test "sched.allfuncs.allblocks.graph.ini" "" "allFuncsAllBlocksGraph/"
+run_test "sched.allfuncs.optblocks.nograph.ini" "" "allFuncsOptBlocksNoGraph/"
+run_test "sched.allfuncs.optblocks.graph.ini" "" "allFuncsOptBlocksGraph/"
