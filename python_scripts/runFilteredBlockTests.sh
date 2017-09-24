@@ -8,8 +8,8 @@
 
 SCHED_INI_DIR="/home/chris/csc199/LLVM_DRAGONEGG/Generic/OptSchedCfg/"
 
-TEST_DIR="/home/chris/csc199/test_098/"
-TEST_DIR_SHARED="/home/chris/csc199/test_098_2017_09_19_chris/"
+TEST_DIR="/home/chris/csc199/test_100/"
+TEST_DIR_SHARED="/home/chris/csc199/test_100_2017_09_23_chris/"
 
 CPU2006_DIR="/media/ssd0/CPU2006"
 CPU2006_USER_DIR="/media/ssd0/chris/spec"
@@ -76,11 +76,15 @@ echo source shrc
 source shrc
 
 run_test "sched.hotfuncs.allblocks.nograph.ini" "" "hotFuncsAllBlocksNoGraph/"
-run_test "sched.hotfuncs.allblocks.graph.ini" "" "hotFuncsAllBlocksGraph/"
+run_test "sched.hotfuncs.allblocks.basic.ini" "" "hotFuncsAllBlocksBasic/"
+run_test "sched.hotfuncs.allblocks.multi.ini" "" "hotFuncsAllBlocksMulti/"
 run_test "sched.hotfuncs.optblocks.nograph.ini" "" "hotFuncsOptBlocksNoGraph/"
-run_test "sched.hotfuncs.optblocks.graph.ini" "" "hotFuncsOptBlocksGraph/"
+run_test "sched.hotfuncs.optblocks.basic.ini" "" "hotFuncsOptBlocksBasic/"
+run_test "sched.hotfuncs.optblocks.multi.ini" "" "hotFuncsOptBlocksMulti/"
 
 run_test "sched.allfuncs.allblocks.nograph.ini" "" "allFuncsAllBlocksNoGraph/"
-run_test "sched.allfuncs.allblocks.graph.ini" "" "allFuncsAllBlocksGraph/"
+run_test "sched.allfuncs.allblocks.basic.ini" "" "allFuncsAllBlocksBasic/"
+run_test "sched.allfuncs.allblocks.multi.ini" "" "allFuncsAllBlocksMulti/"
 run_test "sched.allfuncs.optblocks.nograph.ini" "" "allFuncsOptBlocksNoGraph/"
-run_test "sched.allfuncs.optblocks.graph.ini" "" "allFuncsOptBlocksGraph/"
+run_test "sched.allfuncs.optblocks.basic.ini" "" "allFuncsOptBlocksBasic/"
+run_test "sched.allfuncs.optblocks.multi.ini" "" "allFuncsOptBlocksMulti/"
