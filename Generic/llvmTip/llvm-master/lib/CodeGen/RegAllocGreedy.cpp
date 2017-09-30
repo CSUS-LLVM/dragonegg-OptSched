@@ -2621,15 +2621,14 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
                << "************* Function: " << mf.getName() << '\n');
 
   
-//  NumSpilledRegs = 0;
-  gNumSpilledRanges = 0;
+  NumSpilledRegs = 0;
   gNumSpills = 0;
- // gNumReloads = 0;
-//  gNumSpillsNoCleanup = 0;
- // gNumReloadsNoCleanup = 0;
- // gNumberOfSpilledLiveRanges = 0;
- // gWeightedSpills = 0.0f;
- // gWeightedReloads = 0.0f;
+  gNumReloads = 0;
+  gNumSpillsNoCleanup = 0;
+  gNumReloadsNoCleanup = 0;
+  gNumberOfSpilledRanges = 0;
+  gWeightedSpills = 0.0f;
+  gWeightedReloads = 0.0f;
 
   MF = &mf;
   std::string fxnName = MF->getFunction()->getName().str();
