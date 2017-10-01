@@ -11,6 +11,7 @@ Description:  A wrapper that convert an LLVM ScheduleDAG to an OptSched
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
 #include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
+#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/RegisterPressure.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
@@ -44,7 +45,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(
   dagFileFormat_ = DFF_BB;
   isTraceFormat_ = false;
   ltncyPrcsn_ = ltncyPrcsn;
-   treatOrderDepsAsDataDeps_ = treatOrderDepsAsDataDeps;
+  treatOrderDepsAsDataDeps_ = treatOrderDepsAsDataDeps;
   maxDagSizeForPrcisLtncy_ = maxDagSizeForPrcisLtncy;
 
   // The extra 2 are for the artifical root and leaf nodes.
@@ -383,7 +384,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
     std::vector<Register *> regs = lastDef[resNo];
     for (Register *reg : regs) {
-      if (!insts_[rootIndex]->FindUse(reg)) {
+      if (!insts_[leafIndex]->FindUse(reg)) {
         insts_[leafIndex]->AddUse(reg);
         reg->AddUse(insts_[leafIndex]);
         reg->SetIsLiveOut(true);
@@ -397,6 +398,34 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
       Logger::Info("Adding live-out use for register: %lu NodeNum: %lu", resNo,
                    leafIndex);
 #endif
+    }
+  }
+
+  // Check for any registers that are not used but are also not in LLVM's
+  // live-out set.
+  // Optionally, add these registers as uses in the aritificial leaf node.
+  if (SchedulerOptions::getInstance().GetBool("ADD_DEFINED_AND_NOT_USED_REGS")) {
+    for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
+      for (int j = 0; j < regFiles[i].GetRegCnt(); j++) {
+        Register *reg = regFiles[i].GetReg(j);
+        if (reg->GetUseCnt() == 0) {
+          if (!insts_[leafIndex]->FindUse(reg)) {
+            insts_[leafIndex]->AddUse(reg);
+            reg->AddUse(insts_[leafIndex]);
+            reg->SetIsLiveOut(true);
+#ifdef IS_DEBUG_DEFS_AND_USES
+            Logger::Info("Adding live-out use for OptSched register: type: %lu "
+                         "This register is not in the live-out set from LLVM"
+                         "number: %lu NodeNum: %lu",
+                         reg->GetType(), reg->GetNum(), leafIndex);
+#endif
+          }
+#ifdef IS_DEBUG_DEFS_AND_USES
+          Logger::Info("Adding live-out use for register: %lu NodeNum: %lu",
+                       resNo, leafIndex);
+#endif
+        }
+      }
     }
   }
 
@@ -457,7 +486,6 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   }
 #endif
 }
-
 
 int LLVMDataDepGraph::GetRegisterWeight_(const unsigned resNo) const {
   PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);

@@ -40,9 +40,6 @@ public:
   // Counts the number of definitions and usages for each register and updates
   // instructions to point to the registers they define/use.
   virtual void AddDefsAndUses(RegisterFile regFiles[]);
-  // Find instructions that are equivalent and order them arbitrary to reduce
-  // complexity
-  virtual void PreOrderEquivalentInstr();
 
 protected:
   // A convenience machMdl_ pointer casted to LLVMMachineModel*.
