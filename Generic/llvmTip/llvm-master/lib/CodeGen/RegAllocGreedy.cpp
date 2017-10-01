@@ -2626,7 +2626,7 @@ bool RAGreedy::runOnMachineFunction(MachineFunction &mf) {
   gNumReloads = 0;
   gNumSpillsNoCleanup = 0;
   gNumReloadsNoCleanup = 0;
-  gNumberOfSpilledRanges = 0;
+  gNumSpilledRanges = 0;
   gWeightedSpills = 0.0f;
   gWeightedReloads = 0.0f;
 

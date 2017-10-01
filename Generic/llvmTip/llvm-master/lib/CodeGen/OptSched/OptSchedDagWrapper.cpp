@@ -44,7 +44,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(
   dagFileFormat_ = DFF_BB;
   isTraceFormat_ = false;
   ltncyPrcsn_ = ltncyPrcsn;
-  treatOrderDepsAsDataDeps_ = treatOrderDepsAsDataDeps;
+   treatOrderDepsAsDataDeps_ = treatOrderDepsAsDataDeps;
   maxDagSizeForPrcisLtncy_ = maxDagSizeForPrcisLtncy;
 
   // The extra 2 are for the artifical root and leaf nodes.

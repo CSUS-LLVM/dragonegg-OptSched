@@ -36,9 +36,6 @@ private:
   // Wrapper object for converting LLVM information about target machine
   // into the OptSched machine model
   LLVMMachineModel model;
-  // Configuration object for the OptScheduler which loads settings from
-  // the scheduler initialization file "ScheduleIniFile"
-  Config schedIni;
   // A list of functions that are indicated as candidates for the
   // OptScheduler
   Config hotFunctions;

@@ -46,6 +46,21 @@ protected:
   std::map<string, string> settings;
 };
 
+class SchedulerOptions : public Config {
+public:
+  // Since the scheduler flags should only be loaded once we are safe implementing
+  // it as a singelton.
+  static SchedulerOptions& getInstance();
+
+  // Make sure there is no way for a second config object to be accidentally created.
+  SchedulerOptions(SchedulerOptions const&) = delete;
+  void operator=(SchedulerOptions const&) = delete;
+
+private:
+  SchedulerOptions() {}
+};
+
+
 } // end namespace opt_sched
 
 #endif

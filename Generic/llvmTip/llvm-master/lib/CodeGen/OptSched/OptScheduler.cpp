@@ -232,6 +232,8 @@ void ScheduleDAGOptSched::schedule() {
   }
 
   Logger::Info("********** Opt Scheduling **********");
+  // Get config options.
+  Config& schedIni = SchedulerOptions::getInstance();
   // discoverBoundaryLiveness();
   // build LLVM DAG
   if (!isHeuristicISO) {
@@ -453,11 +455,12 @@ void ScheduleDAGOptSched::fallbackScheduler() {
 
 void ScheduleDAGOptSched::loadOptSchedConfig() {
   // print path to input files
-  DEBUG(
       llvm::dbgs() << "\nOptSched: Path to configuration files:\n"
                    << "Machine Model Config =" << MachineModelConfigFile << "\n"
                    << "Schedule Ini         =" << ScheduleIniFile << "\n"
-                   << "Hot Functions Ini    =" << HotfunctionsIniFile << "\n";);
+                   << "Hot Functions Ini    =" << HotfunctionsIniFile << "\n";
+  // Setup config object
+  Config& schedIni = SchedulerOptions::getInstance();
   // load OptSched ini file
   schedIni.Load(ScheduleIniFile);
   // load hot functions ini file
@@ -544,7 +547,7 @@ ScheduleDAGOptSched::discoverBoundaryLiveness() {
 
 bool ScheduleDAGOptSched::isOptSchedEnabled() const {
   // check scheduler ini file to see if optsched is enabled
-  std::string optSchedOption = schedIni.GetString("USE_OPT_SCHED");
+  std::string optSchedOption = SchedulerOptions::getInstance().GetString("USE_OPT_SCHED");
   if (optSchedOption == "YES") {
     return true;
   } else if (optSchedOption == "HOT_ONLY") {
@@ -562,7 +565,7 @@ bool ScheduleDAGOptSched::isOptSchedEnabled() const {
 }
 
 LATENCY_PRECISION ScheduleDAGOptSched::fetchLatencyPrecision() const {
-  std::string lpName = schedIni.GetString("LATENCY_PRECISION");
+  std::string lpName = SchedulerOptions::getInstance().GetString("LATENCY_PRECISION");
   if (lpName == "PRECISE") {
     return LTP_PRECISE;
   } else if (lpName == "ROUGH") {
@@ -576,7 +579,7 @@ LATENCY_PRECISION ScheduleDAGOptSched::fetchLatencyPrecision() const {
 }
 
 LB_ALG ScheduleDAGOptSched::parseLowerBoundAlgorithm() const {
-  std::string LBalg = schedIni.GetString("LB_ALG");
+  std::string LBalg = SchedulerOptions::getInstance().GetString("LB_ALG");
   if (LBalg == "RJ") {
     return LBA_RJ;
   } else if (LBalg == "LC") {
@@ -624,7 +627,7 @@ ScheduleDAGOptSched::parseHeuristic(const std::string &str) const {
 }
 
 SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
-  std::string name = schedIni.GetString("SPILL_COST_FUNCTION");
+  std::string name = SchedulerOptions::getInstance().GetString("SPILL_COST_FUNCTION");
   if (name == "PEAK") {
     return SCF_PEAK;
   } else if (name == "PEAK_PER_TYPE") {
@@ -642,7 +645,7 @@ SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
 }
 
 bool ScheduleDAGOptSched::shouldPrintSpills() {
-  std::string printSpills = schedIni.GetString("PRINT_SPILL_COUNTS");
+  std::string printSpills = SchedulerOptions::getInstance().GetString("PRINT_SPILL_COUNTS");
   if (printSpills == "YES") {
     return true;
   } else if (printSpills == "NO") {
