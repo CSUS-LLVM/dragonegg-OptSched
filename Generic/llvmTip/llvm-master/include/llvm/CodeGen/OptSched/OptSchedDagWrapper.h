@@ -61,6 +61,12 @@ protected:
   // The maximum DAG size to be scheduled using precise latency information
   int maxDagSizeForPrcisLtncy_;
   // LLVM object with information about the machine we are targeting
+  // The index of the last "assigned" register for each register type.
+  std::vector<int> regIndices_;
+  // Count each definition of a virtual register with the same resNo
+  // as a seperate register in our model. Each resNo is also associated
+  // with multiple pressure sets which are treated as seperate registers
+  std::map<unsigned, std::vector<Register *>> lastDef_;
   const llvm::TargetMachine &target_;
   // Check is SUnit is a root node
   bool isRootNode(const llvm::SUnit &unit);
@@ -71,6 +77,16 @@ protected:
                           const llvm::SUnit &dstNode);
   // Get the weight of the regsiter class in LLVM
   int GetRegisterWeight_(const unsigned resNo) const;
+  // Add a live-in register.
+  void AddLiveInReg_(unsigned resNo, RegisterFile regFiles[]);
+  // Add a live-out register.
+  void AddLiveOutReg_(unsigned resNo, RegisterFile regFiles[]);
+  // Add a Use.
+  void AddUse_(unsigned resNo, InstCount nodeIndex, RegisterFile regFiles[]);
+  // Add a Def.
+  void AddDef_(unsigned resNo, InstCount nodeIndex, RegisterFile regFiles[]);
+  // Add registers that are defined-and-not-used.
+  void AddDefAndNotUsed_(Register* reg, RegisterFile regFiles[]);
 
   // Converts the LLVM nodes saved in llvmNodes_ to opt_sched::DataDepGraph.
   // Should be called only once, by the constructor.
