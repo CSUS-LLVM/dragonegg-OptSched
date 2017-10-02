@@ -32,7 +32,7 @@ void LLVMMachineModel::convertMachineModel(
 
   Logger::Info("Machine model: %s", mdlName_.c_str());
   bool useZeroLimit =
-      SchedulerOptions::getInstance().GetBool("USE_REGISTER_LIMIT_ZERO");
+      SchedulerOptions::getInstance().GetBool("SET_REGISTER_LIMITS_TO_ZERO");
 
   // Clear The registerTypes list to read registers limits from the LLVM machine
   // model
