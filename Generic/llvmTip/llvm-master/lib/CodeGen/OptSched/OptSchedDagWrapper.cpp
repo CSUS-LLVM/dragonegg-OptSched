@@ -238,6 +238,11 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
 void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   std::vector<int> regDefCounts(machMdl_->GetRegTypeCnt());
+  // Track all regs that are defined.
+  std::set<unsigned> defs;
+  // Should we add uses that have no definition.
+  bool addUsedAndNotDefined =
+      SchedulerOptions::getInstance().GetBool("ADD_USED_AND_NOT_DEFINED_REGS");
 
   // count live-in as defs in root node
   for (const RegisterMaskPair &L : schedDag_->getRegPressure().LiveInRegs) {
@@ -246,6 +251,9 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
     std::vector<int> regTypes = GetRegisterType_(resNo);
     for (int regType : regTypes)
       regDefCounts[regType]++;
+
+    if (addUsedAndNotDefined)
+      defs.insert(resNo);
   }
 
   for (std::vector<SUnit>::iterator it = llvmNodes_.begin();
@@ -260,6 +268,21 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
       std::vector<int> regTypes = GetRegisterType_(resNo);
       for (int regType : regTypes)
         regDefCounts[regType]++;
+
+      if (addUsedAndNotDefined)
+        defs.insert(resNo);
+    }
+
+    // If a register is used but not defined prepare to add def as live-in.
+    if (addUsedAndNotDefined) {
+      for (const RegisterMaskPair &U : RegOpers.Uses) {
+        unsigned resNo = U.RegUnit;
+        if (!defs.count(resNo)) {
+          std::vector<int> regTypes = GetRegisterType_(resNo);
+          for (int regType : regTypes)
+            regDefCounts[regType]++;
+        }
+      }
     }
   }
 
@@ -277,9 +300,6 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
 void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   // The index of the last "assigned" register for each register type.
   regIndices_.resize(machMdl_->GetRegTypeCnt());
-  // Should we add uses that have no definition.
-  bool addUsedAndNotDefined =
-      SchedulerOptions::getInstance().GetBool("ADD_USED_AND_NOT_DEFINED_REGS");
 
   // Add live in regs as defs for artificial root
   for (const RegisterMaskPair &I : schedDag_->getRegPressure().LiveInRegs) {
@@ -387,7 +407,16 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
 
 void LLVMDataDepGraph::AddUse_(unsigned resNo, InstCount nodeIndex,
                                RegisterFile regFiles[]) {
+  bool addUsedAndNotDefined =
+      SchedulerOptions::getInstance().GetBool("ADD_USED_AND_NOT_DEFINED_REGS");
   std::vector<int> resTypes = GetRegisterType_(resNo);
+
+  if (addUsedAndNotDefined && lastDef_.find(resNo) == lastDef_.end()) {
+    AddLiveInReg_(resNo, regFiles);
+#ifdef IS_DEBUG_DEFS_AND_USES
+    Logger::Info("Adding register that is used-and-not-defined.");
+#endif
+  }
 
   std::vector<Register *> regs = lastDef_[resNo];
   for (Register *reg : regs) {
