@@ -243,6 +243,9 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
   // Should we add uses that have no definition.
   bool addUsedAndNotDefined =
       SchedulerOptions::getInstance().GetBool("ADD_USED_AND_NOT_DEFINED_REGS");
+  // Should we add live-out registers that have no definition.
+  bool addLiveOutAndNotDefined = SchedulerOptions::getInstance().GetBool(
+      "ADD_LIVE_OUT_AND_NOT_DEFINED_REGS");
 
   // count live-in as defs in root node
   for (const RegisterMaskPair &L : schedDag_->getRegPressure().LiveInRegs) {
@@ -282,6 +285,17 @@ void LLVMDataDepGraph::CountDefs(RegisterFile regFiles[]) {
           for (int regType : regTypes)
             regDefCounts[regType]++;
         }
+      }
+    }
+  }
+
+  if (addLiveOutAndNotDefined) {
+    for (const RegisterMaskPair &O : schedDag_->getRegPressure().LiveOutRegs) {
+      unsigned resNo = O.RegUnit;
+      if (!defs.count(resNo)) {
+        std::vector<int> regTypes = GetRegisterType_(resNo);
+        for (int regType : regTypes)
+          regDefCounts[regType]++;
       }
     }
   }
@@ -491,10 +505,19 @@ void LLVMDataDepGraph::AddLiveInReg_(unsigned resNo, RegisterFile regFiles[]) {
 }
 
 void LLVMDataDepGraph::AddLiveOutReg_(unsigned resNo, RegisterFile regFiles[]) {
+  // Should we add live-out registers that have no definition.
+  bool addLiveOutAndNotDefined = SchedulerOptions::getInstance().GetBool(
+      "ADD_LIVE_OUT_AND_NOT_DEFINED_REGS");
   // index of leaf node in insts_
   int leafIndex = llvmNodes_.size() + 1;
-
   std::vector<int> regTypes = GetRegisterType_(resNo);
+
+  if (addLiveOutAndNotDefined && lastDef_.find(resNo) == lastDef_.end()) {
+    AddLiveInReg_(resNo, regFiles);
+#ifdef IS_DEBUG_DEFS_AND_USES
+    Logger::Info("Adding register that is live-out-and-not-defined.");
+#endif
+  }
 
   std::vector<Register *> regs = lastDef_[resNo];
   for (Register *reg : regs) {
@@ -533,8 +556,15 @@ void LLVMDataDepGraph::AddDefAndNotUsed_(Register *reg,
 }
 
 int LLVMDataDepGraph::GetRegisterWeight_(const unsigned resNo) const {
-  PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
-  return PSetI.getWeight();
+  bool useSimpleTypes =
+      SchedulerOptions::getInstance().GetBool("USE_SIMPLE_REGISTER_TYPES");
+  // If using simple register types ignore PSet weight.
+  if (useSimpleTypes)
+    return 1;
+  else {
+    PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+    return PSetI.getWeight();
+  }
 }
 
 // A register type is an int value that corresponds to a register type in our
@@ -544,13 +574,21 @@ int LLVMDataDepGraph::GetRegisterWeight_(const unsigned resNo) const {
 // register sets associated with the class.
 std::vector<int>
 LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
+  bool useSimpleTypes =
+      SchedulerOptions::getInstance().GetBool("USE_SIMPLE_REGISTER_TYPES");
   const TargetRegisterInfo &TRI = *schedDag_->TRI;
   std::vector<int> pSetTypes;
 
-  // if (TRI.isPhysicalRegister(resNo))
-  // return pSetTypes;
-
   PSetIterator PSetI = schedDag_->MRI.getPressureSets(resNo);
+
+  // If we want to use simple register types return the first PSet.
+  if (useSimpleTypes) {
+    const char *pSetName = TRI.getRegPressureSetName(*PSetI);
+    int type = llvmMachMdl_->GetRegTypeByName(pSetName);
+    pSetTypes.push_back(type);
+    return pSetTypes;
+  }
+
   for (; PSetI.isValid(); ++PSetI) {
     const char *pSetName = TRI.getRegPressureSetName(*PSetI);
     int type = llvmMachMdl_->GetRegTypeByName(pSetName);
