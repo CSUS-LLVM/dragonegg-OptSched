@@ -10,11 +10,11 @@
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
-#include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/ScheduleDAGInstrs.h"
@@ -68,6 +68,18 @@ ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
   std::strcpy(hurstcNames[(int)LSH_ISO], "ISO");
   std::strcpy(hurstcNames[(int)LSH_SC], "SC");
   std::strcpy(hurstcNames[(int)LSH_LS], "LS");
+
+  // print path to input files
+  llvm::dbgs() << "\nOptSched: Path to configuration files:\n"
+               << "Machine Model Config =" << MachineModelConfigFile << "\n"
+               << "Schedule Ini         =" << ScheduleIniFile << "\n"
+               << "Hot Functions Ini    =" << HotfunctionsIniFile << "\n";
+  // Setup config object
+  Config &schedIni = SchedulerOptions::getInstance();
+  // load OptSched ini file
+  schedIni.Load(ScheduleIniFile);
+  // load hot functions ini file
+  hotFunctions.Load(HotfunctionsIniFile);
 
   // Convert machine model
   model.convertMachineModel(this, RegClassInfo);
@@ -232,6 +244,8 @@ void ScheduleDAGOptSched::schedule() {
   }
 
   Logger::Info("********** Opt Scheduling **********");
+  // Get config options.
+  Config &schedIni = SchedulerOptions::getInstance();
   // discoverBoundaryLiveness();
   // build LLVM DAG
   if (!isHeuristicISO) {
@@ -460,17 +474,7 @@ void ScheduleDAGOptSched::fallbackScheduler() {
 }
 
 void ScheduleDAGOptSched::loadOptSchedConfig() {
-  // print path to input files
-  DEBUG(
-      llvm::dbgs() << "\nOptSched: Path to configuration files:\n"
-                   << "Machine Model Config =" << MachineModelConfigFile << "\n"
-                   << "Schedule Ini         =" << ScheduleIniFile << "\n"
-                   << "Hot Functions Ini    =" << HotfunctionsIniFile << "\n";);
-  // load OptSched ini file
-  schedIni.Load(ScheduleIniFile);
-  // load hot functions ini file
-  hotFunctions.Load(HotfunctionsIniFile);
-
+  SchedulerOptions& schedIni = SchedulerOptions::getInstance();
   // setup OptScheduler configuration options
   optSchedEnabled = isOptSchedEnabled();
   latencyPrecision = fetchLatencyPrecision();
@@ -491,8 +495,9 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
 
   // setup graph transformations
   graphTransTypes.staticNodeSup = schedIni.GetBool("STATIC_NODE_SUPERIORITY");
-  // setup graph transformation flags 
-  GraphTrans::GRAPHTRANSFLAGS.multiPassNodeSup = schedIni.GetBool("MULTI_PASS_NODE_SUPERIORITY");
+  // setup graph transformation flags
+  GraphTrans::GRAPHTRANSFLAGS.multiPassNodeSup =
+      schedIni.GetBool("MULTI_PASS_NODE_SUPERIORITY");
 
   schedForRPOnly = schedIni.GetBool("SCHEDULE_FOR_RP_ONLY");
   histTableHashBits =
@@ -509,7 +514,8 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   maxSpillCost = schedIni.GetInt("MAX_SPILL_COST");
   lowerBoundAlgorithm = parseLowerBoundAlgorithm();
   heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
-  isHeuristicISO = schedIni.GetString("HEURISTIC") == "ISO" || schedIni.GetString("HEURISTIC") == "NID";
+  isHeuristicISO = schedIni.GetString("HEURISTIC") == "ISO" ||
+                   schedIni.GetString("HEURISTIC") == "NID";
   enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
   spillCostFunction = parseSpillCostFunc();
   regionTimeout = schedIni.GetInt("REGION_TIMEOUT");
@@ -552,7 +558,8 @@ ScheduleDAGOptSched::discoverBoundaryLiveness() {
 
 bool ScheduleDAGOptSched::isOptSchedEnabled() const {
   // check scheduler ini file to see if optsched is enabled
-  std::string optSchedOption = schedIni.GetString("USE_OPT_SCHED");
+  std::string optSchedOption =
+      SchedulerOptions::getInstance().GetString("USE_OPT_SCHED");
   if (optSchedOption == "YES") {
     return true;
   } else if (optSchedOption == "HOT_ONLY") {
@@ -570,7 +577,8 @@ bool ScheduleDAGOptSched::isOptSchedEnabled() const {
 }
 
 LATENCY_PRECISION ScheduleDAGOptSched::fetchLatencyPrecision() const {
-  std::string lpName = schedIni.GetString("LATENCY_PRECISION");
+  std::string lpName =
+      SchedulerOptions::getInstance().GetString("LATENCY_PRECISION");
   if (lpName == "PRECISE") {
     return LTP_PRECISE;
   } else if (lpName == "ROUGH") {
@@ -584,7 +592,7 @@ LATENCY_PRECISION ScheduleDAGOptSched::fetchLatencyPrecision() const {
 }
 
 LB_ALG ScheduleDAGOptSched::parseLowerBoundAlgorithm() const {
-  std::string LBalg = schedIni.GetString("LB_ALG");
+  std::string LBalg = SchedulerOptions::getInstance().GetString("LB_ALG");
   if (LBalg == "RJ") {
     return LBA_RJ;
   } else if (LBalg == "LC") {
@@ -632,7 +640,8 @@ ScheduleDAGOptSched::parseHeuristic(const std::string &str) const {
 }
 
 SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
-  std::string name = schedIni.GetString("SPILL_COST_FUNCTION");
+  std::string name =
+      SchedulerOptions::getInstance().GetString("SPILL_COST_FUNCTION");
   if (name == "PEAK") {
     return SCF_PEAK;
   } else if (name == "PEAK_PER_TYPE") {
@@ -650,7 +659,8 @@ SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
 }
 
 bool ScheduleDAGOptSched::shouldPrintSpills() {
-  std::string printSpills = schedIni.GetString("PRINT_SPILL_COUNTS");
+  std::string printSpills =
+      SchedulerOptions::getInstance().GetString("PRINT_SPILL_COUNTS");
   if (printSpills == "YES") {
     return true;
   } else if (printSpills == "NO") {

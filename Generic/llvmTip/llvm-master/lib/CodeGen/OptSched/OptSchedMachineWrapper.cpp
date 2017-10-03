@@ -6,10 +6,10 @@ Last Update:  Mar. 2017
 *******************************************************************************/
 
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
+#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -31,6 +31,8 @@ void LLVMMachineModel::convertMachineModel(
   mdlName_ = target.getTarget().getName();
 
   Logger::Info("Machine model: %s", mdlName_.c_str());
+  bool useZeroLimit =
+      SchedulerOptions::getInstance().GetBool("SET_REGISTER_LIMITS_TO_ZERO");
 
   // Clear The registerTypes list to read registers limits from the LLVM machine
   // model
@@ -42,7 +44,7 @@ void LLVMMachineModel::convertMachineModel(
     regType.name = registerInfo->getRegPressureSetName(pSet);
     int pressureLimit = regClassInfo->getRegPressureSetLimit(pSet);
     // set registers with 0 limit to 1 to support flags and special cases
-    if (pressureLimit > 0)
+    if (pressureLimit > 0 && !useZeroLimit)
       regType.count = pressureLimit;
     else
       regType.count = 1;
