@@ -119,6 +119,25 @@ void ScheduleDAGOptSched::schedule() {
   // per scheduling region within a machine function.
   ++regionNum;
 
+  // (Chris): This option in the sched.ini file will override USE_OPT_SCHED. It
+  // will only apply B&B if the region name belongs in the list of specified
+  // regions. Region names are of the form: 
+  //   funcName:regionNum
+  // No leading zeroes in regionNum, and no whitespace.
+  // Get config options.
+  Config &schedIni = SchedulerOptions::getInstance();
+  const bool scheduleSpecificRegions =
+      schedIni.GetBool("SCHEDULE_SPECIFIC_REGIONS");
+  if (scheduleSpecificRegions) {
+    const std::list<std::string> regionList =
+        schedIni.GetStringList("REGIONS_TO_SCHEDULE");
+    const std::string regionName =
+        context->MF->getFunction()->getName().data() + std::string(":") +
+        std::to_string(regionNum);
+    optSchedEnabled = std::find(std::begin(regionList), std::end(regionList),
+                                regionName) != std::end(regionList);
+  }
+
   if (!optSchedEnabled) {
     /* (Chris) We still want the register pressure
        even for the default scheduler */
@@ -244,8 +263,6 @@ void ScheduleDAGOptSched::schedule() {
   }
 
   Logger::Info("********** Opt Scheduling **********");
-  // Get config options.
-  Config &schedIni = SchedulerOptions::getInstance();
   // discoverBoundaryLiveness();
   // build LLVM DAG
   if (!isHeuristicISO) {

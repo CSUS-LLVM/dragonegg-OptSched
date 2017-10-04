@@ -176,11 +176,6 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     CmputLwrBounds_(useFileBounds);
   assert(schedLwrBound_ <= lstSched->GetCrntLngth());
 
-#if defined(IS_DEBUG_STATIC_LOWER_BOUND)
-  Logger::Info("Static Lower Bound is %d for Dag %s", costLwrBound_,
-               dataDepGraph_->GetDagID());
-#endif
-
   isLstOptml = CmputUprBounds_(lstSched, useFileBounds);
   boundTime = Utilities::GetProcessorTime() - boundStart;
   Stats::boundComputationTime.Record(boundTime);
