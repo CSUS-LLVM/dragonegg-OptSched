@@ -8,8 +8,8 @@
 
 SCHED_INI_DIR="/home/chris/csc199/LLVM_DRAGONEGG/Generic/OptSchedCfg/"
 
-TEST_DIR="/home/chris/csc199/test_100/"
-TEST_DIR_SHARED="/home/chris/csc199/test_100_2017_09_23_chris/"
+TEST_DIR="/home/chris/csc199/test_114/"
+TEST_DIR_SHARED="/home/chris/csc199/test_114_2017_10_08_chris/"
 
 CPU2006_DIR="/media/ssd0/CPU2006"
 CPU2006_USER_DIR="/media/ssd0/chris/spec"
@@ -75,22 +75,6 @@ cd "$CPU2006_DIR"
 echo source shrc
 source shrc
 
-run_test "sched.slil1.20.ini" "" "slil1_20ms/"
-run_test "sched.peak1.20.ini" "" "peak1_20ms/"
-run_test "sched.slil1.100.ini" "" "slil1_100ms/"
-run_test "sched.peak1.100.ini" "" "peak1_100ms/"
-
-run_test "sched.slil2.20.ini" "" "slil2_20ms/"
-run_test "sched.peak2.20.ini" "" "peak2_20ms/"
-run_test "sched.slil2.100.ini" "" "slil2_100ms/"
-run_test "sched.peak2.100.ini" "" "peak2_100ms/"
-
-run_test "sched.slil3.20.ini" "" "slil3_20ms/"
-run_test "sched.peak3.20.ini" "" "peak3_20ms/"
-run_test "sched.slil3.100.ini" "" "slil3_100ms/"
-run_test "sched.peak3.100.ini" "" "peak3_100ms/"
-
-run_test "sched.slil4.20.ini" "" "slil4_20ms/"
-run_test "sched.peak4.20.ini" "" "peak4_20ms/"
-run_test "sched.slil4.100.ini" "" "slil4_100ms/"
-run_test "sched.peak4.100.ini" "" "peak4_100ms/"
+run_test "sched.slil.20.1000.ini" "" "slil_1000insts/"
+run_test "sched.slil.20.500.ini" "" "slil_500insts/"
+run_test "sched.slil.20.300.ini" "" "slil_300insts/"
