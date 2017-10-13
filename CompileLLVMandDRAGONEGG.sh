@@ -5,7 +5,7 @@ BASEDIR=$(pwd)"/Generic"
 LLVMDIR="$BASEDIR/llvmTip"
 DRAGONEGGDIR="$BASEDIR/dragonegg"
 CPU2006DIR="$BASEDIR/CPU2006"
-GCCPATH="/usr/bin/gcc-4.8"
+GCCPATH="/usr/bin/gcc"
 
 echo -n 'Install Prerequisites? [y/n]: '
 read needPrereq

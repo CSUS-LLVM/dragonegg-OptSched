@@ -22,6 +22,7 @@ template <class T> struct Entry {
 
   inline Entry(T *element = NULL, Entry *next = NULL, Entry *prev = NULL)
       : element(element), next(next), prev(prev) {}
+  virtual ~Entry() {}
   virtual Entry *GetNext() const { return next; }
   virtual Entry *GetPrev() const { return prev; }
   virtual void SetNext(Entry *e) { next = e; }
