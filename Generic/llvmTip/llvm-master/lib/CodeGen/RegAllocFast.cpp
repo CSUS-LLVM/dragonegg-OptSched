@@ -1176,7 +1176,7 @@ bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
   if (OPTSCHED_gPrintSpills) {
     dbgs() << "\n*************************************\n";
     dbgs() << "Function: " << Fn.getName() << "\n";
-    dbgs() << "END FAST RA: Number of spilled registers: "
+    dbgs() << "END FAST RA: Number of spills: "
            << numLoadsFunct + numStoresFunct << "\n";
     dbgs() << "\nLoads in function: " << numLoadsFunct;
     dbgs() << "\nStores in function: " << numStoresFunct;
