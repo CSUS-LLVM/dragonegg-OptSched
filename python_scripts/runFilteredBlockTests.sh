@@ -8,8 +8,8 @@
 
 SCHED_INI_DIR="/home/chris/csc199/LLVM_DRAGONEGG/Generic/OptSchedCfg/"
 
-TEST_DIR="/home/chris/csc199/test_116/"
-TEST_DIR_SHARED="/home/chris/csc199/test_116_2017_10_10_chris/"
+TEST_DIR="/home/chris/csc199/test_118/"
+TEST_DIR_SHARED="/home/chris/csc199/test_118_2017_10_15_chris/"
 
 CPU2006_DIR="/media/ssd0/CPU2006"
 CPU2006_USER_DIR="/media/ssd0/chris/spec"
@@ -78,11 +78,7 @@ source shrc
 run_test "test_cases/sched.peak.20.300.ini" "" "peak_300insts/"
 run_test "test_cases/sched.slil.20.300.ini" "" "slil_300insts/"
 
-run_test "test_cases/sched.peak.20.500.ini" "" "peak_500insts/"
-run_test "test_cases/sched.slil.20.500.ini" "" "slil_500insts/"
-
-run_test "test_cases/sched.peak.20.1000.ini" "" "peak_1000insts/"
-run_test "test_cases/sched.slil.20.1000.ini" "" "slil_1000insts/"
-
 run_test "test_cases/sched.peak.20.nolimit.ini" "" "peak_nolimit/"
 run_test "test_cases/sched.slil.20.nolimit.ini" "" "slil_nolimit/"
+
+clean_dirs
