@@ -399,7 +399,16 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(),
                dataDepGraph_->GetDagID());
 #endif
-
+#if defined(IS_DEBUG_PRINT_PEAK_FOR_ENUMERATED)
+  if (!isLstOptml) {
+    InstCount maxSpillCost = 0;
+    for (int i = 0; i < dataDepGraph_->GetInstCnt(); ++i) {
+      if (bestSched->GetSpillCost(i) > maxSpillCost) 
+        maxSpillCost = bestSched->GetSpillCost(i);
+    }
+    Logger::Info("DAG %s PEAK %d", dataDepGraph_->GetDagID(), maxSpillCost);
+  }
+#endif
   return rslt;
 }
 
