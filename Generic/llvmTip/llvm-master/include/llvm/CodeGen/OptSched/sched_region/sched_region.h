@@ -88,6 +88,9 @@ public:
   // TODO(max): Document.
   InstSchedule *AllocNewSched_();
 
+  // TODO(max): Document.
+  bool CmputUprBounds_(InstSchedule *lstSched, bool useFileBounds);
+
 protected:
   // The dependence graph of this region.
   DataDepGraph *dataDepGraph_;
@@ -157,8 +160,6 @@ protected:
                         Milliseconds lngthTimeout);
   // TODO(max): Document.
   void CmputLwrBounds_(bool useFileBounds);
-  // TODO(max): Document.
-  bool CmputUprBounds_(InstSchedule *lstSched, bool useFileBounds);
   // Handle the enumerator's result
   void HandlEnumrtrRslt_(FUNC_RESULT rslt, InstCount trgtLngth);
 
@@ -186,7 +187,7 @@ protected:
   // TODO(max): Document.
   virtual void FinishOptml_() = 0;
   // TODO(max): Document.
-  virtual ListScheduler *AllocLstSchdulr_() = 0;
+  virtual ConstrainedScheduler *AllocHeuristicScheduler_() = 0;
 
   virtual bool EnableEnum_() = 0;
 

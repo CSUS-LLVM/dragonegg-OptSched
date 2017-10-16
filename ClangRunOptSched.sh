@@ -10,7 +10,7 @@
 # -p               : print command string so it can be copied
 # example: ./RunOptSched.sh -dopt -g++ -o test test.cpp
 
-BASEDIR=$(pwd)"/Generic"
+BASEDIR=$(dirname $0)"/Generic"
 
 # update path to input files
 #####################################
@@ -22,7 +22,7 @@ HOTFUNCTIONSINIFILE="hotfuncs.ini "
 
 DRAGONEGGPATH="$BASEDIR/dragonegg/dragonegg.so"
 GCCPATH="/usr/bin"
-CLANGPATH="Generic/llvmTip/build/bin"
+CLANGPATH="$BASEDIR/llvmTip/build/bin"
 LLVMOPT="-fplugin-arg-dragonegg-llvm-option="
 CLANGOPT="-mllvm "
 LLVMOPTSCHED="$CLANGOPT"'-optsched -O3 '

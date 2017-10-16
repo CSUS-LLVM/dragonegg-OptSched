@@ -84,7 +84,7 @@ FUNC_RESULT ListScheduler::FindSchedule(InstSchedule *sched, SchedRegion *rgn) {
     //}
   }
 
-#ifdef IS_DEB UG_SCHED
+#ifdef IS_DEBUG_SCHED
   crntSched_->Print(Logger::GetLogStream(), " ");
 #endif
 
