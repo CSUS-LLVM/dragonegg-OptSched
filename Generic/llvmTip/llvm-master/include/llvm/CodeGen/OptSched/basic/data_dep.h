@@ -290,6 +290,7 @@ public:
 
   int16_t GetMaxUseCnt() { return maxUseCnt_; }
   int16_t GetRegTypeCnt() { return machMdl_->GetRegTypeCnt(); }
+  int GetPhysRegCnt(int16_t regType) { return machMdl_->GetPhysRegCnt(regType); }
 
 protected:
   // TODO(max): Get rid of this.

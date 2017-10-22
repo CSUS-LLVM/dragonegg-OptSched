@@ -13,6 +13,7 @@ add_llvm_library(LLVMOptSched
   hist_table.cpp
   list_sched.cpp
   logger.cpp
+  reg_alloc.cpp
   utilities.cpp
   machine_model.cpp
   OptSchedDagWrapper.cpp
@@ -27,6 +28,6 @@ add_llvm_library(LLVMOptSched
 
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG -DIS_DEBUG_DAG -DIS_DEBUG_BUILD_DAG -DIS_DEBUG_PRE_ORDER -DIS_DEBUG_DEFS_AND_USES")
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG -DIS_DEBUG_CONVERT_LLVM -DIS_DEBUG_GRAPH_TRANS -DIS_DEBUG_PRINT_DAG -DIS_DEBUG_DEFS_AND_USES -DIS_DEBUG_ISO -DIS_DEBUG_PRINT_SCHEDULE")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DIS_DEBUG -DIS_DEBUG_REG_ALLOC")
 
 add_dependencies(LLVMOptSched intrinsics_gen)
