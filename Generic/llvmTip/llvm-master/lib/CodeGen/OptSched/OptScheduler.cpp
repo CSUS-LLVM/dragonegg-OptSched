@@ -120,6 +120,25 @@ void ScheduleDAGOptSched::schedule() {
   // per scheduling region within a machine function.
   ++regionNum;
 
+  // (Chris): This option in the sched.ini file will override USE_OPT_SCHED. It
+  // will only apply B&B if the region name belongs in the list of specified
+  // regions. Region names are of the form: 
+  //   funcName:regionNum
+  // No leading zeroes in regionNum, and no whitespace.
+  // Get config options.
+  Config &schedIni = SchedulerOptions::getInstance();
+  const bool scheduleSpecificRegions =
+      schedIni.GetBool("SCHEDULE_SPECIFIC_REGIONS");
+  if (scheduleSpecificRegions) {
+    const std::list<std::string> regionList =
+        schedIni.GetStringList("REGIONS_TO_SCHEDULE");
+    const std::string regionName =
+        context->MF->getFunction()->getName().data() + std::string(":") +
+        std::to_string(regionNum);
+    optSchedEnabled = std::find(std::begin(regionList), std::end(regionList),
+                                regionName) != std::end(regionList);
+  }
+
   if (!optSchedEnabled) {
     /* (Chris) We still want the register pressure
        even for the default scheduler */
@@ -245,8 +264,6 @@ void ScheduleDAGOptSched::schedule() {
   }
 
   Logger::Info("********** Opt Scheduling **********");
-  // Get config options.
-  Config &schedIni = SchedulerOptions::getInstance();
   // discoverBoundaryLiveness();
   // build LLVM DAG
   if (!isHeuristicISO) {
@@ -329,11 +346,19 @@ void ScheduleDAGOptSched::schedule() {
                   dag.GetInstCnt(), minDagSize, maxDagSize);
   } else {
     bool filterByPerp = schedIni.GetBool("FILTER_BY_PERP");
+    auto blocksToKeep = [&]() {
+      auto setting = schedIni.GetString("BLOCKS_TO_KEEP");
+      if (setting == "ZERO_COST") return BLOCKS_TO_KEEP::ZERO_COST;
+      else if (setting == "OPTIMAL") return BLOCKS_TO_KEEP::OPTIMAL;
+      else if (setting == "IMPROVED") return BLOCKS_TO_KEEP::IMPROVED;
+      else if (setting == "IMPROVED_OR_OPTIMAL") return BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL;
+      else return BLOCKS_TO_KEEP::ALL;
+    }();
     rslt = region->FindOptimalSchedule(
         useFileBounds, regionTimeout, lengthTimeout, isEasy, normBestCost,
-        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched, filterByPerp);
+        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched, filterByPerp, blocksToKeep);
     if ((!(rslt == RES_SUCCESS || rslt == RES_TIMEOUT) || sched == NULL)) {
-      Logger::Error("OptSched run failed: rslt=%d, sched=%p. Falling back.",
+      Logger::Info("OptSched run failed: rslt=%d, sched=%p. Falling back.",
                     rslt, (void *)sched);
 
       if (!isHeuristicISO)

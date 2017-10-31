@@ -24,7 +24,7 @@ if not os.path.isfile(bruteForceFile):
 if not os.path.isfile(bbFile):
   raise Error("Please specify a valid dynamic log file.")
 
-regex = re.compile(r'Static Lower Bound is (\d+) for Dag (.*?) \(')
+regex = re.compile(r'DAG (.*?) spillCostLB (\d+) scFactor \d+ lengthLB \d+ lenFactor \d+ staticLB \d+')
 
 results = {}
 
@@ -37,7 +37,7 @@ with open(bruteForceFile) as bff:
   bffm = mmap.mmap(bff.fileno(), 0, access=mmap.ACCESS_READ)
   dagResults = {}
   for match in regex.finditer(bffm):
-    dagResults[match.group(2)] = int(match.group(1))
+    dagResults[match.group(1)] = int(match.group(2))
   bffm.close()
   results['bf'] = dagResults
 
@@ -45,7 +45,7 @@ with open(bbFile) as bbf:
   bbfm = mmap.mmap(bbf.fileno(), 0, access=mmap.ACCESS_READ)
   dagResults = {}
   for match in regex.finditer(bbfm):
-    dagResults[match.group(2)] = int(match.group(1))
+    dagResults[match.group(1)] = int(match.group(2))
   bbfm.close()
   results['bb'] = dagResults
 
