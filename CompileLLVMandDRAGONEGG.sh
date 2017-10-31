@@ -29,7 +29,8 @@ if [ $isRelease == 'y' ]; then
     mkdir $LLVMDIR/release_build
   fi
   cd $LLVMDIR/release_build
-  cmake -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_BUILD_TYPE="Release" $LLVMDIR/llvm-master
+  cmake -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_BUILD_TYPE="Release" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON $LLVMDIR/llvm-master
+  cp compile_commands.json $BASEDIR
 
 else
   if [ ! -d "$LLVMDIR/build" ]; then
@@ -37,7 +38,8 @@ else
   fi
   # The default for cmake is the debug build
   cd $LLVMDIR/build
-  cmake -DLLVM_TARGETS_TO_BUILD="X86" $LLVMDIR/llvm-master
+  cmake -DLLVM_TARGETS_TO_BUILD="X86" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON $LLVMDIR/llvm-master
+  cp compile_commands.json $BASEDIR
 fi
 
 make

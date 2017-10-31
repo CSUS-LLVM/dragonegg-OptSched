@@ -47,7 +47,7 @@ void LLVMMachineModel::convertMachineModel(
     if (pressureLimit > 0 && !useZeroLimit)
       regType.count = pressureLimit;
     else
-      regType.count = 1;
+      regType.count = 3;
     registerTypes_.push_back(regType);
 #ifdef IS_DEBUG_MM
     Logger::Info("Pressure set %s has a limit of %d", regType.name.c_str(),

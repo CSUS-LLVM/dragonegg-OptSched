@@ -22,7 +22,7 @@ HOTFUNCTIONSINIFILE="hotfuncs.ini "
 
 DRAGONEGGPATH="$BASEDIR/dragonegg/dragonegg.so"
 GCCPATH="/usr/bin"
-CLANGPATH="Generic/llvmTip/build/bin"
+CLANGPATH="Generic/llvmTip/release_build/bin"
 LLVMOPT="-fplugin-arg-dragonegg-llvm-option="
 CLANGOPT="-mllvm "
 LLVMOPTSCHED="$CLANGOPT"'-optsched -O3 '

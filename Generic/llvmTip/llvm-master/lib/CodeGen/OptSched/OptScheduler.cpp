@@ -12,6 +12,7 @@
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
 #include "llvm/CodeGen/OptSched/basic/graph_trans.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
+#include "llvm/CodeGen/OptSched/basic/register.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"

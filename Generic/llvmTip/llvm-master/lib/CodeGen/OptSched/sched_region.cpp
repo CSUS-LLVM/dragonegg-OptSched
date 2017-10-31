@@ -7,8 +7,10 @@
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
+#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
+#include "llvm/CodeGen/OptSched/basic/reg_alloc.h"
 
 extern bool OPTSCHED_gPrintSpills;
 
@@ -284,6 +286,13 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
                  dataDepGraph_->GetDagID(), bestCost_, bestSchedLngth_,
                  optimalSchedule ? "optimal" : "not optimal");
   }
+
+ if (SchedulerOptions::getInstance().GetBool("SIMULATE_REGISTER_ALLOCATION")) {
+   LocalRegAlloc regAlloc(bestSched_, dataDepGraph_);
+   regAlloc.SetupForRegAlloc();
+   regAlloc.AllocRegs();
+   regAlloc.PrintSpillInfo(dataDepGraph_->GetDagID());
+ }
 
   enumTime = Utilities::GetProcessorTime() - enumStart;
   Stats::enumerationTime.Record(enumTime);

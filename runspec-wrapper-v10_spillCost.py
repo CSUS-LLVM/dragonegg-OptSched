@@ -41,25 +41,27 @@ FP_BENCHMARKS = [
   'sphinx'
 ]
 ALL_BENCHMARKS = INT_BENCHMARKS + FP_BENCHMARKS
-COMMAND = "runspec --loose -size=ref -iterations=1 -config=Intel_llvm_3.9.cfg --tune=base -r 1 -I -a build %s"
+COMMAND = "runspec --loose -size=ref -iterations=1 -config=Intel_llvm_3.9.austin.cfg --tune=base -r 1 -I -a build %s"
 
 # Regular expressions.
 SETTING_REGEX = re.compile(r'\bUSE_OPT_SCHED\b.*')
-SPILLS_REGEX = re.compile(r'Function: (.*?)\nGREEDY RA: Number of spilled live ranges: (\d+)\n')
+SPILLS_REGEX = re.compile(r'Function: (.*?)\nEND FAST RA: Number of spills: (\d+)\n')
 #SPILLS_REGEX = re.compile(r'GREEDY RA: Number of spilled live ranges: (\d+)')
 #SPILLS_REGEX = re.compile(r'Spill Cost: (\d+)')
 TIMES_REGEX = re.compile(r'(\d+) total seconds elapsed')
 BLOCK_NAME_AND_SIZE_REGEX = re.compile(r'Processing DAG (.*) with (\d+) insts')
-BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'The list schedule .* is optimal')
-#BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'Bypassing optimal scheduling due to zero time limit')
+#BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'The list schedule .* is optimal')
+BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'Bypassing optimal scheduling due to zero time limit')
 BLOCK_ENUMERATED_OPTIMAL_REGEX = re.compile(r'DAG solved optimally')
 BLOCK_COST_REGEX = re.compile(r'list schedule is of length \d+ and spill cost \d+. Tot cost = (\d+)')
 BLOCK_IMPROVEMENT_REGEX = re.compile(r'cost imp=(\d+)')
 BLOCK_START_TIME_REGEX = re.compile(r'-{20} \(Time = (\d+) ms\)')
 BLOCK_END_TIME_REGEX = re.compile(r'verified successfully \(Time = (\d+) ms\)')
 BLOCK_LIST_FAILED_REGEX = re.compile(r'List scheduling failed')
+BLOCK_RP_MISMATCH = re.compile(r'RP-mismatch falling back!')
 BLOCK_PEAK_REG_PRESSURE_REGEX = re.compile(r'PeakRegPresAfter  Index (\d+) Name (.*) Peak (\d+) Limit (\d+)')
 BLOCK_PEAK_REG_BLOCK_NAME = re.compile(r'LLVM max pressure after scheduling for BB (\S+)')
+REGION_OPTSCHED_SPILLS_REGEX = re.compile(r'OPT_SCHED LOCAL RA: DAG Name: (.*) Number of spills: (\d+)')
 
 def writeStats(stats, spills, times, blocks, regp):
   # Write times.
@@ -111,6 +113,7 @@ def writeStats(stats, spills, times, blocks, regp):
     totalTimedOutNotImproved = 0
     totalCost = 0
     totalImprovement = 0
+    totalOptSchedSpills = 0
     sizes = []
     enumeratedSizes = []
     optimalSizes = []
@@ -128,6 +131,7 @@ def writeStats(stats, spills, times, blocks, regp):
       timedOutImproved = 0
       timedOutNotImproved = 0
       cost = improvement = 0
+      optSchedSpills = 0
 
       for block in blocks:
         count += 1
@@ -135,6 +139,7 @@ def writeStats(stats, spills, times, blocks, regp):
           successful += 1
           cost += block['listCost']
           sizes.append(block['size'])
+          optSchedSpills += block['optSchedSpills']
           if block['isEnumerated']:
             enumerated += 1
             improvement += block['improvement']
@@ -176,6 +181,8 @@ def writeStats(stats, spills, times, blocks, regp):
                         (cost - improvement))
       blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                         (improvement, (100 * improvement / cost) if cost else 0))
+      blocks_file.write('  Region Spills: %d\n' %
+                        optSchedSpills)
 
       totalCount += count
       totalSuccessful += successful
@@ -186,6 +193,7 @@ def writeStats(stats, spills, times, blocks, regp):
       totalTimedOutNotImproved += timedOutNotImproved
       totalCost += cost
       totalImprovement += improvement
+      totalOptSchedSpills += optSchedSpills
 
     blocks_file.write('-' * 50 + '\n')
     blocks_file.write('Total:\n')
@@ -209,7 +217,8 @@ def writeStats(stats, spills, times, blocks, regp):
                       (totalCost - totalImprovement))
     blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                       (totalImprovement, (100 * totalImprovement / totalCost) if totalCost else 0))
-
+    blocks_file.write('  Total Region Spills: %d\n' %
+                      totalOptSchedSpills)
     blocks_file.write('  Smallest block size: %s\n' %
                       (min(sizes) if sizes else 'none'))
     blocks_file.write('  Largest block size: %s\n' %
@@ -319,7 +328,6 @@ def calculatePeakPressureStats(output):
       if not functionName in functions:
         functions[functionName] = []
       functions[functionName].append(blockStats)
-  # print(functions)
   return functions
 
 def calculateBlockStats(output):
@@ -332,7 +340,8 @@ def calculateBlockStats(output):
     try:
       name, size = BLOCK_NAME_AND_SIZE_REGEX.findall(block)[0]
 
-      failed = BLOCK_LIST_FAILED_REGEX.findall(block) != []
+      failed = BLOCK_LIST_FAILED_REGEX.findall(block) != [] or BLOCK_RP_MISMATCH.findall(block) != []
+      
       if failed:
         timeTaken = 0
         isEnumerated = isOptimal = False
@@ -341,6 +350,7 @@ def calculateBlockStats(output):
         start_time = int(BLOCK_START_TIME_REGEX.findall(block)[0])
         end_time = int(BLOCK_END_TIME_REGEX.findall(block)[0])
         timeTaken = end_time - start_time
+        optSchedSpills = int(REGION_OPTSCHED_SPILLS_REGEX.findall(block)[0][1])
 
         listCost = int(BLOCK_COST_REGEX.findall(block)[0])
         isEnumerated = BLOCK_NOT_ENUMERATED_REGEX.findall(block) == []
@@ -371,14 +381,15 @@ def calculateBlockStats(output):
         'isEnumerated': isEnumerated,
         'isOptimal': isOptimal,
         'listCost': listCost,
-        'improvement': improvement
+        'improvement': improvement,
+        'optSchedSpills': optSchedSpills
       })
     except:
       print '  WARNING: Could not parse block #%d:' % (index + 1)
       print "Unexpected error:", sys.exc_info()[0]
       for line in blocks[index].split('\n')[1:-1][:10]:
         print '   ', line
-      # raise
+        raise
 
   return stats
 
@@ -409,7 +420,7 @@ def runBenchmarks(benchmarks):
                            stdout=subprocess.PIPE)
       p.stdin.write("source shrc" + "\n"); 
       p.stdin.write(COMMAND % bench + "\n");
-      p.stdin.write("runspec --loose -size=ref -iterations=1 -config=Intel_llvm_3.3.cfg --tune=base -r 1 -I -a scrub %s" % bench);
+      p.stdin.write("runspec --loose -size=ref -iterations=1 -config=Intel_llvm_3.9.austin.cfg --tune=base -r 1 -I -a scrub %s" % bench);
       p.stdin.close()
       output = p.stdout.read();
 

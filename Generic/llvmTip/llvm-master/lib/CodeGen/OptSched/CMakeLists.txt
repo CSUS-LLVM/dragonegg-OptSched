@@ -13,6 +13,7 @@ add_llvm_library(LLVMOptSched
   hist_table.cpp
   list_sched.cpp
   logger.cpp
+  reg_alloc.cpp
   utilities.cpp
   machine_model.cpp
   OptSchedDagWrapper.cpp
