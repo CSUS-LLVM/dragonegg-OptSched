@@ -70,7 +70,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bool &isLstOptml, InstCount &bestCost, InstCount &bestSchedLngth,
     InstCount &hurstcCost, InstCount &hurstcSchedLngth,
     InstSchedule *&bestSched, bool filterByPerp) {
-  ConstrainedScheduler *lstSchdulr;
+  ListScheduler *lstSchdulr;
   InstSchedule *lstSched = NULL;
   FUNC_RESULT rslt = RES_SUCCESS;
   Milliseconds hurstcTime = 0;
@@ -134,7 +134,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   if (lstSched == NULL)
     Logger::Fatal("Out of memory.");
 
-  lstSchdulr = AllocHeuristicScheduler_();
+  lstSchdulr = AllocLstSchdulr_();
 
   // Step #1: Find the heuristic schedule.
   rslt = lstSchdulr->FindSchedule(lstSched, this);

@@ -99,9 +99,6 @@ public:
   // Deallocates memory used by the scheduler.
   virtual ~ConstrainedScheduler();
 
-  // Calculates the schedule and returns it in the passed argument.
-  virtual FUNC_RESULT FindSchedule(InstSchedule *sched, SchedRegion *rgn) = 0;
-
 protected:
   // The data dependence graph to be scheduled.
   DataDepGraph *dataDepGraph_;

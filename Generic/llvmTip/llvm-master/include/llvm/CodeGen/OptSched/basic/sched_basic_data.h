@@ -24,30 +24,30 @@ using std::string;
 // List scheduling heuristic.
 enum LISTSCHED_HEURISTIC {
   // Critical path.
-  LSH_CP,
+  LSH_CP = 0,
 
   // Last use count:
   // the number of virtual regs for which this instruction is the last user
-  LSH_LUC,
+  LSH_LUC = 1,
 
   // Use count:
   // the number of virtual regs for which this instruction is a user
-  LSH_UC,
+  LSH_UC = 2,
 
   // Node ID
-  LSH_NID,
+  LSH_NID = 3,
 
   // Critical path with resources taken into account
-  LSH_CPR,
+  LSH_CPR = 4,
 
   // Input scheduling order: scheduling order of the input instruction stream
-  LSH_ISO,
+  LSH_ISO = 5,
 
   // Successor count
-  LSH_SC,
+  LSH_SC = 6,
 
   // Latency sum
-  LSH_LS,
+  LSH_LS = 7
 };
 
 #define MAX_SCHED_PRIRTS 10

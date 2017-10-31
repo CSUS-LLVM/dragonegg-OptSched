@@ -246,7 +246,6 @@ void ScheduleDAGOptSched::schedule() {
   Logger::Info("********** Opt Scheduling **********");
   // Get config options.
   Config &schedIni = SchedulerOptions::getInstance();
-  Logger::Info("function: %s", context->MF->getFunction()->getName());
   // discoverBoundaryLiveness();
   // build LLVM DAG
   if (!isHeuristicISO) {
@@ -605,9 +604,6 @@ ScheduleDAGOptSched::parseHeuristic(const std::string &str) const {
   prirts.cnt = 0;
   prirts.isDynmc = false;
   int i, j;
-
-  if (str == "ACO")
-      return prirts;
 
   for (i = 0; i <= len; i++) {
     char ch = str.c_str()[i];

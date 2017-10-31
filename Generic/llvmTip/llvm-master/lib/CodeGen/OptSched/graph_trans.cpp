@@ -304,7 +304,7 @@ bool StaticNodeSupTrans::NodeIsSuperior_(SchedInstruction *nodeA,
   return true;
 }
 
-void StaticNodeSupTrans::nodeMultiPass_(std::list<std::pair<SchedInstruction *, SchedInstruction *>> indepNodes) {
+bool StaticNodeSupTrans::nodeMultiPass_(std::list<std::pair<SchedInstruction *, SchedInstruction *>> indepNodes) {
 #ifdef IS_DEBUG_GRAPH_TRANS
       Logger::Info("Applying multi-pass node superiority");
 #endif

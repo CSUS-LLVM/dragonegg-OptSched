@@ -185,7 +185,6 @@ void ReadyList::Print(std::ostream &out) {
        crntInst != NULL; crntInst = prirtyLst_->GetNxtElmnt()) {
     out << crntInst->GetNum() << ", ";
   }
-  prirtyLst_->ResetIterator();
 }
 
 void ReadyList::AddLatestSubList_(LinkedList<SchedInstruction> *lst) {
