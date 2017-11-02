@@ -30,18 +30,19 @@
 // hack to print spills
 bool OPTSCHED_gPrintSpills;
 
-// read path to configuration files from command line
-static llvm::cl::opt<std::string> MachineModelConfigFile(
-    "optsched-mcfg", llvm::cl::Hidden,
-    llvm::cl::desc("Path to machine model configuration file"));
+// read path to configuration directory from command line
+static llvm::cl::opt<std::string> OptSchedCfg(
+    "optsched-cfg", llvm::cl::Hidden,
+    llvm::cl::desc("Path to OptSchedCfg directory"));
 
-static llvm::cl::opt<std::string>
-    ScheduleIniFile("optsched-sini", llvm::cl::Hidden,
-                    llvm::cl::desc("Path to scheduler initialization file"));
+// Create OptSched scheduler
+static llvm::ScheduleDAGInstrs *createOptSched(llvm::MachineSchedContext *C) {
+	return new opt_sched::ScheduleDAGOptSched(C);
+}
 
-static llvm::cl::opt<std::string> HotfunctionsIniFile(
-    "optsched-hfini", llvm::cl::Hidden,
-    llvm::cl::desc("Path to hot functions initialization file"));
+// Register the scheduler.
+static llvm::MachineSchedRegistry OptSchedRegistry("optsched", "Use the OptSched scheduler.",
+                                                   createOptSched);
 
 // If this iterator is a debug value, increment until reaching the End or a
 // non-debug instruction. static method from llvm/CodeGen/MachineScheduler.cpp
@@ -58,7 +59,7 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
 namespace opt_sched {
 ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
-      context(C), model(MachineModelConfigFile) {
+      context(C), model(OptSchedCfg + "machine_model.cfg") {
 
   // valid heuristic names
   std::strcpy(hurstcNames[(int)LSH_CP], "CP");
@@ -70,17 +71,12 @@ ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
   std::strcpy(hurstcNames[(int)LSH_SC], "SC");
   std::strcpy(hurstcNames[(int)LSH_LS], "LS");
 
-  // print path to input files
-  llvm::dbgs() << "\nOptSched: Path to configuration files:\n"
-               << "Machine Model Config =" << MachineModelConfigFile << "\n"
-               << "Schedule Ini         =" << ScheduleIniFile << "\n"
-               << "Hot Functions Ini    =" << HotfunctionsIniFile << "\n";
   // Setup config object
   Config &schedIni = SchedulerOptions::getInstance();
   // load OptSched ini file
-  schedIni.Load(ScheduleIniFile);
+  schedIni.Load(OptSchedCfg + "sched.ini");
   // load hot functions ini file
-  hotFunctions.Load(HotfunctionsIniFile);
+  hotFunctions.Load(OptSchedCfg + "hotfuncs.ini");
 
   // Convert machine model
   model.convertMachineModel(this, RegClassInfo);
