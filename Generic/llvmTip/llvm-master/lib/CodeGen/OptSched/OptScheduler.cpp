@@ -83,14 +83,6 @@ ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
 
   // Load config files for the OptScheduler
   loadOptSchedConfig();
-
-  if (enableMutations) {
-    // load mutations for dag
-    addMutation(llvm::createCopyConstrainDAGMutation(TII, TRI));
-    addMutation(llvm::createLoadClusterDAGMutation(TII, TRI));
-    addMutation(llvm::createStoreClusterDAGMutation(TII, TRI));
-    addMutation(createMacroFusionDAGMutation(TII, TRI));
-  }
 }
 
 void ScheduleDAGOptSched::SetupLLVMDag() {
