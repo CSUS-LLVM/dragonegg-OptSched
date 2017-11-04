@@ -317,8 +317,17 @@ InstCount BBWithSpill::CmputCostLwrBound() {
   //   inst = dataDepGraph_->GetInstByIndx(i);
   // }
 
-  return schedLwrBound_ * schedCostFactor_ +
-         spillCostLwrBound * spillCostFactor_;
+  InstCount staticLowerBound =
+      schedLwrBound_ * schedCostFactor_ + spillCostLwrBound * spillCostFactor_;
+
+#if defined(IS_DEBUG_STATIC_LOWER_BOUND)
+  Logger::Info(
+      "DAG %s spillCostLB %d scFactor %d lengthLB %d lenFactor %d staticLB %d",
+      dataDepGraph_->GetDagID(), spillCostLwrBound, spillCostFactor_,
+      schedLwrBound_, schedCostFactor_, staticLowerBound);
+#endif
+
+  return staticLowerBound;
 }
 /*****************************************************************************/
 

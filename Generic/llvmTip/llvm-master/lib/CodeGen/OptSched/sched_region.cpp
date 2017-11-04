@@ -71,7 +71,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bool useFileBounds, Milliseconds rgnTimeout, Milliseconds lngthTimeout,
     bool &isLstOptml, InstCount &bestCost, InstCount &bestSchedLngth,
     InstCount &hurstcCost, InstCount &hurstcSchedLngth,
-    InstSchedule *&bestSched, bool filterByPerp) {
+    InstSchedule *&bestSched, bool filterByPerp, const BLOCKS_TO_KEEP blocksToKeep) {
   ListScheduler *lstSchdulr;
   InstSchedule *lstSched = NULL;
   FUNC_RESULT rslt = RES_SUCCESS;
@@ -177,11 +177,6 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   else
     CmputLwrBounds_(useFileBounds);
   assert(schedLwrBound_ <= lstSched->GetCrntLngth());
-
-#if defined(IS_DEBUG_STATIC_LOWER_BOUND)
-  Logger::Info("Static Lower Bound is %d for Dag %s", costLwrBound_,
-               dataDepGraph_->GetDagID());
-#endif
 
   isLstOptml = CmputUprBounds_(lstSched, useFileBounds);
   boundTime = Utilities::GetProcessorTime() - boundStart;
@@ -337,6 +332,18 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   bestSchedLngth = bestSchedLngth_;
   hurstcCost = hurstcCost_;
   hurstcSchedLngth = hurstcSchedLngth_;
+  // (Chris): Experimental. Discard the schedule based on sched.ini setting.
+  if (spillCostFunc_ == SCF_SLIL) {
+    bool optimal = isLstOptml || (rslt == RES_SUCCESS);
+    if ((blocksToKeep == BLOCKS_TO_KEEP::ZERO_COST && bestCost != 0) || 
+      (blocksToKeep == BLOCKS_TO_KEEP::OPTIMAL && !optimal) ||
+      (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED && !(bestCost < hurstcCost)) ||
+      (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL && !(optimal || bestCost < hurstcCost))) {
+      delete bestSched;
+      bestSched = nullptr;
+      return rslt;
+    }
+  }
 #if defined(IS_DEBUG_COMPARE_SLIL_BB)
   {
     const auto& status = [&]() {
@@ -354,6 +361,46 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
       Logger::Info("Dag %s %s absolute cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_ + costLwrBound_, enumTime);
     }
   }
+  {
+    if (spillCostFunc_ == SCF_SLIL && rgnTimeout != 0) {
+      // costLwrBound_: static lower bound
+      // bestCost_: total cost of the best schedule relative to static lower
+      // bound
+
+      auto isEnumerated = [&]() { return (!isLstOptml) ? "True" : "False"; }();
+
+      auto isOptimal = [&]() {
+        return (isLstOptml || (rslt == RES_SUCCESS)) ? "True" : "False";
+      }();
+
+      auto isPerpHigherThanHeuristic = [&]() {
+        auto getSumPerp = [&](InstSchedule *sched) {
+          const InstCount *regPressures = nullptr;
+          auto regTypeCount = sched->GetPeakRegPressures(regPressures);
+          InstCount sumPerp = 0;
+          for (int i = 0; i < regTypeCount; ++i) {
+            int perp = regPressures[i] - machMdl_->GetPhysRegCnt(i);
+            if (perp > 0)
+              sumPerp += perp;
+          }
+          return sumPerp;
+        };
+
+        if (lstSched == bestSched)
+          return "False";
+
+        auto heuristicPerp = getSumPerp(lstSched);
+        auto bestPerp = getSumPerp(bestSched);
+
+        return (bestPerp > heuristicPerp) ? "True" : "False";
+      }();
+
+      Logger::Info("SLIL stats: DAG %s static LB %d gap size %d enumerated %s "
+                   "optimal %s PERP higher %s",
+                   dataDepGraph_->GetDagID(), costLwrBound_, bestCost_,
+                   isEnumerated, isOptimal, isPerpHigherThanHeuristic);
+    }
+  }
 #endif
 #if defined(IS_DEBUG_FINAL_SPILL_COST)
   // (Chris): Unconditionally Print out the spill cost of the final schedule.
@@ -361,7 +408,16 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   Logger::Info("Final spill cost is %d for DAG %s.", bestSched_->GetSpillCost(),
                dataDepGraph_->GetDagID());
 #endif
-
+#if defined(IS_DEBUG_PRINT_PEAK_FOR_ENUMERATED)
+  if (!isLstOptml) {
+    InstCount maxSpillCost = 0;
+    for (int i = 0; i < dataDepGraph_->GetInstCnt(); ++i) {
+      if (bestSched->GetSpillCost(i) > maxSpillCost) 
+        maxSpillCost = bestSched->GetSpillCost(i);
+    }
+    Logger::Info("DAG %s PEAK %d", dataDepGraph_->GetDagID(), maxSpillCost);
+  }
+#endif
   return rslt;
 }
 
