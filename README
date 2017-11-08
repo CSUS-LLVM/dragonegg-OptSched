@@ -15,14 +15,12 @@ Steps to build modified dragonegg and llvm:
 					   becuase you may have to re-enter your password
 				           multiple times)
 
--to use the OptScheduler use RunOptSched.sh: see file for details
+-to use the OptScheduler use RunOptSched.sh/ClangRunOptSched.sh: see file for details
 
 -to compile a program with dragonegg use the command:
   /usr/bin/gcc-4.8 -fplugin="/***path to dragonegg.so*** -O3 myprogram.c
 
-
-
-
+Enable LLVM's local register allocator with the option -regalloc:fast.
 
 Steps to run CPU2006 tests:
 
