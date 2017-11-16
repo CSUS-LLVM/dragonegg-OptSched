@@ -22,6 +22,7 @@ template <class T> struct Entry {
 
   inline Entry(T *element = NULL, Entry *next = NULL, Entry *prev = NULL)
       : element(element), next(next), prev(prev) {}
+  virtual ~Entry() {}
   virtual Entry *GetNext() const { return next; }
   virtual Entry *GetPrev() const { return prev; }
   virtual void SetNext(Entry *e) { next = e; }
@@ -43,6 +44,7 @@ template <class T, class K = unsigned long> struct KeyedEntry : Entry<T> {
     Entry<T>::next = next;
     Entry<T>::prev = prev;
   }
+  virtual ~KeyedEntry() {}
 
   inline KeyedEntry(Entry<T> const *const entry, K key = 0) {
     this->key = key;

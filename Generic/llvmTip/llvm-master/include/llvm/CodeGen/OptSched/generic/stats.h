@@ -29,6 +29,7 @@ class Stat {
 public:
   // Constructs a stat with a given name.
   Stat(const string name) : name_(name) {}
+  virtual ~Stat() {}
   // Shortcut for printing the stat to a stream.
   friend std::ostream &operator<<(std::ostream &out, const Stat &stat);
 
