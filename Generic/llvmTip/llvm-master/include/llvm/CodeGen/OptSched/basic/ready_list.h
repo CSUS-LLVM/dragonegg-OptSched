@@ -43,6 +43,7 @@ public:
   // instruction, the next will return the instruction with the second rank,
   // and so on.
   SchedInstruction *GetNextPriorityInst();
+  SchedInstruction *GetNextPriorityInst(unsigned long &key);
 
   // Removes the instruction returned by the last call to
   // GetNextPriorityInst().

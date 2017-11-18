@@ -4,10 +4,12 @@
 #include "llvm/CodeGen/OptSched/enum/enumerator.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/random.h"
+#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/stats.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
+#include "llvm/CodeGen/OptSched/aco.h"
 #include <cstdio>
 #include <iostream>
 #include <map>
@@ -102,12 +104,12 @@ bool BBWithSpill::EnableEnum_() {
 }
 /*****************************************************************************/
 
-ListScheduler *BBWithSpill::AllocLstSchdulr_() {
-  ListScheduler *lstSchdulr = new ListScheduler(
-      dataDepGraph_, machMdl_, abslutSchedUprBound_, hurstcPrirts_);
-  if (lstSchdulr == NULL)
-    Logger::Fatal("Out of memory.");
-  return lstSchdulr;
+ConstrainedScheduler *BBWithSpill::AllocHeuristicScheduler_() {
+  Config &schedIni = SchedulerOptions::getInstance();
+  if (schedIni.GetBool("USE_ACO"))
+    return new ACOScheduler(dataDepGraph_, machMdl_, abslutSchedUprBound_, hurstcPrirts_);
+  else
+    return new ListScheduler(dataDepGraph_, machMdl_, abslutSchedUprBound_, hurstcPrirts_);
 }
 /*****************************************************************************/
 

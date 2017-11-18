@@ -523,6 +523,9 @@ public:
 
   // (Chris)
   inline bool IsSchedForRPOnly() const { return schedForRPOnly_; }
+
+  // Calculates the schedule and returns it in the passed argument.
+  FUNC_RESULT FindSchedule(InstSchedule *sched, SchedRegion *rgn) { return RES_ERROR; }
 };
 /*****************************************************************************/
 

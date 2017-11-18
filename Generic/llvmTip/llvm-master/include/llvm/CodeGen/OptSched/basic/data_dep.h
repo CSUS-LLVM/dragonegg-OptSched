@@ -655,6 +655,7 @@ private:
 public:
   InstSchedule(MachineModel *machMdl, DataDepGraph *dataDepGraph, bool vrfy);
   ~InstSchedule();
+  bool operator==(InstSchedule &b) const;
 
   InstCount GetCrntLngth();
   void Reset();
@@ -700,7 +701,7 @@ public:
 
   void Print(std::ostream &out, char const *const title);
   void PrintRegPressures();
-  void PrintInstList(FILE *file, DataDepGraph *dataDepGraph, char *title);
+  void PrintInstList(FILE *file, DataDepGraph *dataDepGraph, const char *title);
   bool Verify(MachineModel *machMdl, DataDepGraph *dataDepGraph);
   void PrintClassData();
 };
