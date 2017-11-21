@@ -178,6 +178,12 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     CmputLwrBounds_(useFileBounds);
   assert(schedLwrBound_ <= lstSched->GetCrntLngth());
 
+  Config &schedIni = SchedulerOptions::getInstance();
+  if (!schedIni.GetBool("USE_ACO")) {
+    InstCount hurstcExecCost;
+    CmputNormCost_(lstSched, CCM_DYNMC, hurstcExecCost, true);
+  }
+  hurstcCost_ = lstSched->GetCost();
   isLstOptml = CmputUprBounds_(lstSched, useFileBounds);
   boundTime = Utilities::GetProcessorTime() - boundStart;
   Stats::boundComputationTime.Record(boundTime);
@@ -515,11 +521,6 @@ void SchedRegion::CmputLwrBounds_(bool useFileBounds) {
 }
 
 bool SchedRegion::CmputUprBounds_(InstSchedule *lstSched, bool useFileBounds) {
-  InstCount hurstcExecCost;
-  hurstcCost_ = CmputNormCost_(lstSched, CCM_DYNMC, hurstcExecCost, true);
-  //  hurstcCost_ = CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, true);
-  //  hurstcSchedLngth_ = hurstcExecCost + GetCostLwrBound();
-
   if (useFileBounds) {
     hurstcCost_ = dataDepGraph_->GetFileCostUprBound();
     hurstcCost_ -= GetCostLwrBound();
