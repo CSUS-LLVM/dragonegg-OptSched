@@ -178,10 +178,12 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     CmputLwrBounds_(useFileBounds);
   assert(schedLwrBound_ <= lstSched->GetCrntLngth());
 
+  InstCount hurstcExecCost;
   Config &schedIni = SchedulerOptions::getInstance();
   if (!schedIni.GetBool("USE_ACO")) {
-    InstCount hurstcExecCost;
     CmputNormCost_(lstSched, CCM_DYNMC, hurstcExecCost, true);
+  } else {
+    CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, false);
   }
   hurstcCost_ = lstSched->GetCost();
   isLstOptml = CmputUprBounds_(lstSched, useFileBounds);
