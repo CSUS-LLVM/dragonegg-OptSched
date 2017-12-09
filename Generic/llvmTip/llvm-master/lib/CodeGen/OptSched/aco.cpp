@@ -18,9 +18,10 @@ double RandDouble(double min, double max) {
   return (rand * (max - min)) + min;
 }
 
-#define INITIAL_VALUE 2
-#define DECAY_FACTOR 0.05
+#define INITIAL_VALUE 0.1
+#define DECAY_FACTOR 0.5
 #define ANTS_PER_ITERATION count_
+#define HEURISTIC_IMPORTANCE 2
 
 ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph, MachineModel *machineModel, InstCount upperBound, SchedPriorities priorities) : ConstrainedScheduler(dataDepGraph, machineModel, upperBound) {
   prirts_ = priorities;
@@ -62,7 +63,7 @@ pheremone_t &ACOScheduler::Pheremone(InstCount from, InstCount to) {
 }
 
 double ACOScheduler::Score(SchedInstruction *from, Choice choice) {
-  return Pheremone(from, choice.inst) * pow(1.0/(choice.heuristic+1), 1);
+  return Pheremone(from, choice.inst) * pow(1.0/(choice.heuristic+1), HEURISTIC_IMPORTANCE);
 }
 
 SchedInstruction *ACOScheduler::SelectInstruction(std::vector<Choice> ready, SchedInstruction *lastInst) {
@@ -89,7 +90,7 @@ void ACOScheduler::UpdatePheremone(InstSchedule *schedule) {
     SchedInstruction *inst = dataDepGraph_->GetInstByIndx(instNum);
 
     pheremone_t &pheremone = Pheremone(lastInst, inst);
-    pheremone = pheremone + 1/((double) schedule->GetCost() + 0.1);
+    pheremone = pheremone + 1/((double) schedule->GetSpillCost() + 0.1);
     lastInst = inst;
 
     instNum = schedule->GetNxtInst(cycleNum, slotNum);
@@ -175,7 +176,7 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
 
   rgn_ = region;
   InstSchedule *bestSchedule = NULL;
-  /* int noChange = 0; // how many iterations with generating the exact same schedule */
+  int noChange = 0; // how many iterations with generating the exact same schedule
   for (int it = 0; it < 5 * count_; it++) {
     InstSchedule *iterationBest = NULL;
     for (int i = 0; i < ANTS_PER_ITERATION; i++) {
@@ -189,13 +190,13 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
     }
     UpdatePheremone(iterationBest);
     PrintSchedule(iterationBest);
-    /* if (lastIterationBest && *iterationBest == *lastIterationBest) { */
-    /*   noChange++; */
-    /*   if (noChange > 10) */
-    /*     break; */
-    /* } else { */
-    /*   noChange = 0; */
-    /* } */
+    if (bestSchedule && *iterationBest == *bestSchedule) {
+      noChange++;
+      if (noChange > 10)
+        break;
+    } else {
+      noChange = 0;
+    }
     // TODO DRY
     if (bestSchedule == NULL || iterationBest->GetCost() <= bestSchedule->GetCost()) {
       delete bestSchedule;
@@ -272,7 +273,7 @@ static void PrintInstruction(SchedInstruction *inst) {
 }
 
 void PrintSchedule(InstSchedule *schedule) {
-  std::cerr << schedule->GetCost() << ": ";
+  std::cerr << schedule->GetSpillCost() << ": ";
   InstCount instNum, cycleNum, slotNum;
   instNum = schedule->GetFrstInst(cycleNum, slotNum);
   while (instNum != INVALID_VALUE) {
