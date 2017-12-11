@@ -84,6 +84,33 @@ ReadyList::ReadyList(DataDepGraph *dataDepGraph, SchedPriorities prirts) {
   latestSubLst_ = new LinkedList<SchedInstruction>;
   if (latestSubLst_ == NULL)
     Logger::Fatal("Out of memory.");
+
+  int16_t keySize = 0;
+  maxPriority_ = 0;
+  for (i = 0; i < prirts_.cnt; i++) {
+    switch (prirts_.vctr[i]) {
+    case LSH_CP:
+    case LSH_CPR:
+      AddPrirtyToKey_(maxPriority_, keySize, crtclPathBits_, maxCrtclPath_, maxCrtclPath_);
+      break;
+    case LSH_LUC:
+    case LSH_UC:
+      AddPrirtyToKey_(maxPriority_, keySize, useCntBits_, maxUseCnt_, maxUseCnt_);
+      break;
+    case LSH_NID:
+      AddPrirtyToKey_(maxPriority_, keySize, nodeID_Bits_, maxNodeID_, maxNodeID_);
+      break;
+    case LSH_ISO:
+      AddPrirtyToKey_(maxPriority_, keySize, inptSchedOrderBits_, maxInptSchedOrder_, maxInptSchedOrder_);
+      break;
+    case LSH_SC:
+      AddPrirtyToKey_(maxPriority_, keySize, scsrCntBits_, maxScsrCnt_, maxScsrCnt_);
+      break;
+    case LSH_LS:
+      AddPrirtyToKey_(maxPriority_, keySize, ltncySumBits_, maxLtncySum_, maxLtncySum_);
+      break;
+    }
+  }
 }
 
 ReadyList::~ReadyList() {
@@ -121,20 +148,12 @@ unsigned long ReadyList::CmputKey_(SchedInstruction *inst, bool isUpdate,
   for (i = 0; i < prirts_.cnt; i++) {
     switch (prirts_.vctr[i]) {
     case LSH_CP:
+    case LSH_CPR:
       AddPrirtyToKey_(key, keySize, crtclPathBits_,
                       inst->GetCrtclPath(DIR_BKWRD), maxCrtclPath_);
       break;
 
     case LSH_LUC:
-      oldLastUseCnt = inst->GetLastUseCnt();
-      newLastUseCnt = inst->CmputLastUseCnt();
-      assert(!isUpdate || newLastUseCnt >= oldLastUseCnt);
-      if (newLastUseCnt != oldLastUseCnt)
-        changed = true;
-
-      AddPrirtyToKey_(key, keySize, useCntBits_, newLastUseCnt, maxUseCnt_);
-      break;
-
     case LSH_UC:
       AddPrirtyToKey_(key, keySize, useCntBits_, inst->GetUseCnt(), maxUseCnt_);
       break;
@@ -148,11 +167,6 @@ unsigned long ReadyList::CmputKey_(SchedInstruction *inst, bool isUpdate,
       AddPrirtyToKey_(key, keySize, inptSchedOrderBits_,
                       maxInptSchedOrder_ - inst->GetFileSchedOrder(),
                       maxInptSchedOrder_);
-      break;
-
-    case LSH_CPR:
-      AddPrirtyToKey_(key, keySize, crtclPathBits_,
-                      inst->GetCrntLwrBound(DIR_BKWRD), maxCrtclPath_);
       break;
 
     case LSH_SC:
@@ -300,6 +314,10 @@ void ReadyList::AddPrirtyToKey_(unsigned long &key, int16_t &keySize,
     key <<= bitCnt;
   key |= val;
   keySize += bitCnt;
+}
+
+unsigned long ReadyList::MaxPriority() {
+  return maxPriority_;
 }
 
 } // end namespace opt_sched

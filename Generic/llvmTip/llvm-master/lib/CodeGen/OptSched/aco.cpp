@@ -14,14 +14,24 @@ static void PrintInstruction(SchedInstruction *inst);
 void PrintSchedule(InstSchedule *schedule);
 
 double RandDouble(double min, double max) {
-  double rand = (double) RandomGen::GetRand32() / UINT32_MAX;
+  double rand = (double) RandomGen::GetRand32() / INT32_MAX;
   return (rand * (max - min)) + min;
 }
 
-#define INITIAL_VALUE 0.1
-#define DECAY_FACTOR 0.5
+#define INITIAL_VALUE 0.00001
+#define HEURISTIC_IMPORTANCE 1
+
+#define USE_ACS 1
+#define BIASED_CHOICES 10
+#define LOCAL_DECAY 0.1
+
+#if USE_ACS
+#define ANTS_PER_ITERATION 10
+#define DECAY_FACTOR 0.1
+#else
 #define ANTS_PER_ITERATION count_
-#define HEURISTIC_IMPORTANCE 2
+#define DECAY_FACTOR 0.5
+#endif
 
 ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph, MachineModel *machineModel, InstCount upperBound, SchedPriorities priorities) : ConstrainedScheduler(dataDepGraph, machineModel, upperBound) {
   prirts_ = priorities;
@@ -30,13 +40,6 @@ ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph, MachineModel *machineMode
 
   int pheremone_size = (count_ + 1) * count_;
   pheremone_ = new pheremone_t[pheremone_size];
-  for (int i = 0; i < pheremone_size; i++) {
-    // According to Dorigo, a good initial value for the pheremone is slightly
-    // more than the average deposited in one iteration. He gives an example
-    // for how to compute that for the TSP, I have yet to translate that to
-    // this problem.
-    pheremone_[i] = INITIAL_VALUE;
-  }
 }
 
 ACOScheduler::~ACOScheduler() {
@@ -63,10 +66,31 @@ pheremone_t &ACOScheduler::Pheremone(InstCount from, InstCount to) {
 }
 
 double ACOScheduler::Score(SchedInstruction *from, Choice choice) {
-  return Pheremone(from, choice.inst) * pow(1.0/(choice.heuristic+1), HEURISTIC_IMPORTANCE);
+  return Pheremone(from, choice.inst) * pow(choice.heuristic, HEURISTIC_IMPORTANCE);
+}
+
+std::vector<double> ACOScheduler::scores(std::vector<Choice> ready, SchedInstruction *last) {
+  std::vector<double> s;
+  for (auto choice : ready)
+    s.push_back(Score(last, choice));
+  return s;
 }
 
 SchedInstruction *ACOScheduler::SelectInstruction(std::vector<Choice> ready, SchedInstruction *lastInst) {
+#if USE_ACS
+  double choose_best_chance = fmax(0, 1 - (double) BIASED_CHOICES / count_);
+  if (RandDouble(0, 1) < choose_best_chance) {
+    pheremone_t max = -1;
+    Choice maxChoice;
+    for (auto choice : ready) {
+      if (Score(lastInst, choice) > max) {
+        max = Score(lastInst, choice);
+        maxChoice = choice;
+      }
+    }
+    return maxChoice.inst;
+  }
+#endif
   pheremone_t sum = 0;
   for (auto choice : ready)
     sum += Score(lastInst, choice);
@@ -77,33 +101,6 @@ SchedInstruction *ACOScheduler::SelectInstruction(std::vector<Choice> ready, Sch
       return choice.inst;
   }
   assert(false); // should not get here
-}
-
-void ACOScheduler::UpdatePheremone(InstSchedule *schedule) {
-  // I wish InstSchedule allowed you to just iterate over it, but it's got this
-  // cycle and slot thing which needs to be accounted for
-  InstCount instNum, cycleNum, slotNum;
-  instNum = schedule->GetFrstInst(cycleNum, slotNum);
-
-  SchedInstruction *lastInst = NULL;
-  while (instNum != INVALID_VALUE) {
-    SchedInstruction *inst = dataDepGraph_->GetInstByIndx(instNum);
-
-    pheremone_t &pheremone = Pheremone(lastInst, inst);
-    pheremone = pheremone + 1/((double) schedule->GetSpillCost() + 0.1);
-    lastInst = inst;
-
-    instNum = schedule->GetNxtInst(cycleNum, slotNum);
-  }
-  schedule->ResetInstIter();
-
-  // decay pheremone
-  for (int i = 0; i < count_; i++) {
-    for (int j = 0; j < count_; j++) {
-      Pheremone(i, j) *= (1 - DECAY_FACTOR);
-    }
-  }
-  /* PrintPheremone(); */
 }
 
 InstSchedule *ACOScheduler::FindOneSchedule() {
@@ -119,8 +116,12 @@ InstSchedule *ACOScheduler::FindOneSchedule() {
     unsigned long heuristic;
     SchedInstruction *inst = rdyLst_->GetNextPriorityInst(heuristic);
     while (inst != NULL) {
-      if (ChkInstLglty_(inst))
-        ready.push_back(Choice(inst, heuristic));
+      if (ChkInstLglty_(inst)) {
+        Choice c;
+        c.inst = inst;
+        c.heuristic = (double) heuristic / rdyLst_->MaxPriority();
+        ready.push_back(c);
+      }
       inst = rdyLst_->GetNextPriorityInst(heuristic);
     }
     rdyLst_->ResetIterator();
@@ -136,6 +137,10 @@ InstSchedule *ACOScheduler::FindOneSchedule() {
     inst = NULL;
     if (!ready.empty())
       inst = SelectInstruction(ready, lastInst);
+#ifdef USE_ACS
+    pheremone_t *pheremone = &Pheremone(lastInst, inst);
+    *pheremone = (1 - LOCAL_DECAY) * *pheremone + LOCAL_DECAY * initialValue_;
+#endif
     lastInst = inst;
 
     // boilerplate, mostly copied from ListScheduler, try not to touch it
@@ -168,19 +173,32 @@ InstSchedule *ACOScheduler::FindOneSchedule() {
 }
 
 FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *region) {
-  // print the thing to be scheduled
-  /* std::cerr << "Basic block:" << std::endl; */
-  /* for (int i = 0; i < count_; i++) { */
-  /*   PrintInstruction(dataDepGraph_->GetInstByIndx(i)); */
-  /* } */
-
   rgn_ = region;
+  
+  // initialize pheremone
+  // for this, we need the cost of the pure heuristic schedule
+  int pheremone_size = (count_ + 1) * count_;
+  for (int i = 0; i < pheremone_size; i++)
+    pheremone_[i] = 1;
+  initialValue_ = 1;
+  InstCount heuristicCost = FindOneSchedule()->GetSpillCost() + 1; // prevent divide by zero
+
+#if USE_ACS
+  initialValue_ = 2.0 / (count_ * heuristicCost);
+#else
+  initialValue_ = (double) ANTS_PER_ITERATION / heuristicCost;
+#endif
+  for (int i = 0; i < pheremone_size; i++)
+    pheremone_[i] = initialValue_;
+  /* std::cout<<initialValue_<<std::endl; */
+
   InstSchedule *bestSchedule = NULL;
-  int noChange = 0; // how many iterations with generating the exact same schedule
-  for (int it = 0; it < 5 * count_; it++) {
+  int noImprovement = 0; // how many iterations with no improvement
+  for (int it = 0; ; it++) {
     InstSchedule *iterationBest = NULL;
     for (int i = 0; i < ANTS_PER_ITERATION; i++) {
       InstSchedule *schedule = FindOneSchedule();
+      /* PrintSchedule(schedule); */
       if (iterationBest == NULL || schedule->GetCost() < iterationBest->GetCost()) {
         delete iterationBest;
         iterationBest = schedule;
@@ -188,28 +206,67 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
         delete schedule;
       }
     }
-    UpdatePheremone(iterationBest);
-    PrintSchedule(iterationBest);
-    if (bestSchedule && *iterationBest == *bestSchedule) {
-      noChange++;
-      if (noChange > 10)
-        break;
-    } else {
-      noChange = 0;
-    }
+    /* PrintSchedule(iterationBest); */
+    /* std::cout << iterationBest->GetSpillCost() << std::endl; */
     // TODO DRY
-    if (bestSchedule == NULL || iterationBest->GetCost() <= bestSchedule->GetCost()) {
+    if (bestSchedule == NULL || iterationBest->GetCost() < bestSchedule->GetCost()) {
       delete bestSchedule;
       bestSchedule = iterationBest;
+      Logger::Info("ACO found schedule with spill cost %d", bestSchedule->GetSpillCost());
+      noImprovement = 0;
     } else {
       delete iterationBest;
+      noImprovement++;
+      /* if (*iterationBest == *bestSchedule) */
+      /*   std::cout << "same" << std::endl; */
+      if (noImprovement > 50)
+        break;
     }
+#if USE_ACS
+    UpdatePheremone(bestSchedule);
+#else
+    UpdatePheremone(iterationBest);
+#endif
   }
-  /* Logger::Info("best schedule has cost %d\n", bestSchedule->GetCost()); */
   schedule_out->Copy(bestSchedule);
   delete bestSchedule;
 
   return RES_SUCCESS;
+}
+
+void ACOScheduler::UpdatePheremone(InstSchedule *schedule) {
+  // I wish InstSchedule allowed you to just iterate over it, but it's got this
+  // cycle and slot thing which needs to be accounted for
+  InstCount instNum, cycleNum, slotNum;
+  instNum = schedule->GetFrstInst(cycleNum, slotNum);
+
+  SchedInstruction *lastInst = NULL;
+  while (instNum != INVALID_VALUE) {
+    SchedInstruction *inst = dataDepGraph_->GetInstByIndx(instNum);
+
+    pheremone_t *pheremone = &Pheremone(lastInst, inst);
+#if USE_ACS
+    // ACS update rule includes decay
+    // only the arcs on the current solution are decayed
+    *pheremone = (1 - DECAY_FACTOR) * *pheremone + DECAY_FACTOR / (schedule->GetSpillCost() + 1);
+#else
+    *pheremone = *pheremone + 1/(schedule->GetSpillCost() + 1);
+#endif
+    lastInst = inst;
+
+    instNum = schedule->GetNxtInst(cycleNum, slotNum);
+  }
+  schedule->ResetInstIter();
+
+#if !USE_ACS
+  // decay pheremone
+  for (int i = 0; i < count_; i++) {
+    for (int j = 0; j < count_; j++) {
+      Pheremone(i, j) *= (1 - DECAY_FACTOR);
+    }
+  }
+#endif
+  /* PrintPheremone(); */
 }
 
 // copied from Enumerator

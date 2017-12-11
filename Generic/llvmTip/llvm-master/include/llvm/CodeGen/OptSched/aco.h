@@ -11,9 +11,7 @@ typedef double pheremone_t;
 
 struct Choice {
   SchedInstruction *inst;
-  unsigned long heuristic;
-  Choice(SchedInstruction *_inst, unsigned long _heuristic) 
-    : inst(_inst), heuristic(_heuristic) {}
+  double heuristic; // range 0 to 1
 };
 
 class ACOScheduler : public ConstrainedScheduler {
@@ -33,7 +31,9 @@ private:
   void UpdatePheremone(InstSchedule *schedule);
   InstSchedule *FindOneSchedule();
   pheremone_t *pheremone_;
+  pheremone_t initialValue_;
   int count_;
+std::vector<double> scores(std::vector<Choice> ready, SchedInstruction *last);
 };
 
 }
