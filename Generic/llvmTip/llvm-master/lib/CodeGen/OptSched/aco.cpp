@@ -206,6 +206,9 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
         delete schedule;
       }
     }
+#if !USE_ACS
+    UpdatePheremone(iterationBest);
+#endif
     /* PrintSchedule(iterationBest); */
     /* std::cout << iterationBest->GetSpillCost() << std::endl; */
     // TODO DRY
@@ -224,8 +227,6 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
     }
 #if USE_ACS
     UpdatePheremone(bestSchedule);
-#else
-    UpdatePheremone(iterationBest);
 #endif
   }
   schedule_out->Copy(bestSchedule);
