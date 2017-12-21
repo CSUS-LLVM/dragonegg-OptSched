@@ -1,7 +1,7 @@
 /*******************************************************************************
 Description:  Defines register allocation classes. By looking at the effect
-              of scheduling decisions on the number of spills added during register
-              allocation, we can evaluate the performance of an opt_sched scheduler.
+              of scheduling decisions on the number of spills added during simulated
+              register allocation, we can evaluate the performance of the scheduler.
 
 Author:       Austin Kerbow
 Created:      Oct. 2017
@@ -43,6 +43,8 @@ public:
   // Print information about the amount of spilling in the region after register
   // allocation.
   virtual void PrintSpillInfo(const char* dagName);
+  // Return the spill cost of region after register allocation.
+  virtual int GetCost();
 
 private:
   InstSchedule *instSchedule_;

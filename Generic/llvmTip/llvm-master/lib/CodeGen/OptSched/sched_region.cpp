@@ -1,16 +1,18 @@
 #include <algorithm>
+#include <memory>
+#include <utility>
 
 #include "llvm/CodeGen/OptSched/basic/graph_trans.h"
+#include "llvm/CodeGen/OptSched/basic/reg_alloc.h"
+#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/random.h"
 #include "llvm/CodeGen/OptSched/generic/stats.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/list_sched/list_sched.h"
 #include "llvm/CodeGen/OptSched/relaxed/relaxed_sched.h"
-#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
-#include "llvm/CodeGen/OptSched/basic/reg_alloc.h"
 
 extern bool OPTSCHED_gPrintSpills;
 
@@ -71,7 +73,8 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bool useFileBounds, Milliseconds rgnTimeout, Milliseconds lngthTimeout,
     bool &isLstOptml, InstCount &bestCost, InstCount &bestSchedLngth,
     InstCount &hurstcCost, InstCount &hurstcSchedLngth,
-    InstSchedule *&bestSched, bool filterByPerp, const BLOCKS_TO_KEEP blocksToKeep) {
+    InstSchedule *&bestSched, bool filterByPerp,
+    const BLOCKS_TO_KEEP blocksToKeep) {
   ListScheduler *lstSchdulr;
   InstSchedule *lstSched = NULL;
   FUNC_RESULT rslt = RES_SUCCESS;
@@ -282,12 +285,12 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
                  optimalSchedule ? "optimal" : "not optimal");
   }
 
- if (SchedulerOptions::getInstance().GetBool("SIMULATE_REGISTER_ALLOCATION")) {
-   LocalRegAlloc regAlloc(bestSched_, dataDepGraph_);
-   regAlloc.SetupForRegAlloc();
-   regAlloc.AllocRegs();
-   regAlloc.PrintSpillInfo(dataDepGraph_->GetDagID());
- }
+  if (SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") != "NO") {
+#ifdef IS_DEBUG
+    RegAlloc_(bestSched, lstSched);
+#endif
+  }
 
   enumTime = Utilities::GetProcessorTime() - enumStart;
   Stats::enumerationTime.Record(enumTime);
@@ -335,10 +338,12 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   // (Chris): Experimental. Discard the schedule based on sched.ini setting.
   if (spillCostFunc_ == SCF_SLIL) {
     bool optimal = isLstOptml || (rslt == RES_SUCCESS);
-    if ((blocksToKeep == BLOCKS_TO_KEEP::ZERO_COST && bestCost != 0) || 
-      (blocksToKeep == BLOCKS_TO_KEEP::OPTIMAL && !optimal) ||
-      (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED && !(bestCost < hurstcCost)) ||
-      (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL && !(optimal || bestCost < hurstcCost))) {
+    if ((blocksToKeep == BLOCKS_TO_KEEP::ZERO_COST && bestCost != 0) ||
+        (blocksToKeep == BLOCKS_TO_KEEP::OPTIMAL && !optimal) ||
+        (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED &&
+         !(bestCost < hurstcCost)) ||
+        (blocksToKeep == BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL &&
+         !(optimal || bestCost < hurstcCost))) {
       delete bestSched;
       bestSched = nullptr;
       return rslt;
@@ -346,7 +351,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   }
 #if defined(IS_DEBUG_COMPARE_SLIL_BB)
   {
-    const auto& status = [&]() {
+    const auto &status = [&]() {
       switch (rslt) {
       case RES_SUCCESS:
         return "optimal";
@@ -357,8 +362,11 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
       }
     }();
     if (!isLstOptml) {
-      Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_, enumTime);
-      Logger::Info("Dag %s %s absolute cost %d time %lld", dataDepGraph_->GetDagID(), status, bestCost_ + costLwrBound_, enumTime);
+      Logger::Info("Dag %s %s cost %d time %lld", dataDepGraph_->GetDagID(),
+                   status, bestCost_, enumTime);
+      Logger::Info("Dag %s %s absolute cost %d time %lld",
+                   dataDepGraph_->GetDagID(), status, bestCost_ + costLwrBound_,
+                   enumTime);
     }
   }
   {
@@ -412,7 +420,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
   if (!isLstOptml) {
     InstCount maxSpillCost = 0;
     for (int i = 0; i < dataDepGraph_->GetInstCnt(); ++i) {
-      if (bestSched->GetSpillCost(i) > maxSpillCost) 
+      if (bestSched->GetSpillCost(i) > maxSpillCost)
         maxSpillCost = bestSched->GetSpillCost(i);
     }
     Logger::Info("DAG %s PEAK %d", dataDepGraph_->GetDagID(), maxSpillCost);
@@ -565,6 +573,56 @@ void SchedRegion::HandlEnumrtrRslt_(FUNC_RESULT rslt, InstCount trgtLngth) {
     //    #endif
     break;
   }
+}
+
+void SchedRegion::RegAlloc_(InstSchedule *&bestSched, InstSchedule *&lstSched) {
+  std::unique_ptr<LocalRegAlloc> u_regAllocBest = nullptr;
+  std::unique_ptr<LocalRegAlloc> u_regAllocList = nullptr;
+
+  if (SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "HEURISTIC" ||
+      SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "BOTH" ||
+      SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "TAKE_SCHED_WITH_LEAST_SPILLS") {
+    // Simulate register allocation using the heuristic schedule.
+    u_regAllocList = std::unique_ptr<LocalRegAlloc>(
+        new LocalRegAlloc(lstSched, dataDepGraph_));
+
+    u_regAllocList->SetupForRegAlloc();
+    u_regAllocList->AllocRegs();
+
+    std::string id(dataDepGraph_->GetDagID());
+    std::string heur_ident(" ***heuristic_schedule***");
+    std::string ident(id + heur_ident);
+
+    u_regAllocList->PrintSpillInfo(ident.c_str());
+  }
+  if (SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "BEST" ||
+      SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "BOTH" ||
+      SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "TAKE_SCHED_WITH_LEAST_SPILLS") {
+    // Simulate register allocation using the best schedule.
+    u_regAllocBest = std::unique_ptr<LocalRegAlloc>(
+        new LocalRegAlloc(bestSched, dataDepGraph_));
+
+    u_regAllocBest->SetupForRegAlloc();
+    u_regAllocBest->AllocRegs();
+
+    u_regAllocBest->PrintSpillInfo(dataDepGraph_->GetDagID());
+  }
+
+  if (SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "TAKE_SCHED_WITH_LEAST_SPILLS")
+    if (u_regAllocList->GetCost() < u_regAllocBest->GetCost()) {
+      bestSched = lstSched;
+#ifdef IS_DEBUG
+      Logger::Info(
+          "Taking list schedule becuase of less spilling with simulated RA.");
+#endif
+    }
 }
 
 } // end namespace opt_sched

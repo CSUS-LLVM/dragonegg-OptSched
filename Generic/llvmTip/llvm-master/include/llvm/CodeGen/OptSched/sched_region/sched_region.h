@@ -171,6 +171,9 @@ protected:
   // Handle the enumerator's result
   void HandlEnumrtrRslt_(FUNC_RESULT rslt, InstCount trgtLngth);
 
+  // Simulate local register allocation.
+  void RegAlloc_(InstSchedule *&bestSched, InstSchedule *&lstSched);
+
   // TODO(max): Document.
   virtual void CmputAbslutUprBound_();
 
