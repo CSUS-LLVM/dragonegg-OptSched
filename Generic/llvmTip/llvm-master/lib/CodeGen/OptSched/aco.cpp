@@ -184,7 +184,7 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
   InstCount heuristicCost = FindOneSchedule()->GetSpillCost() + 1; // prevent divide by zero
 
 #if USE_ACS
-  initialValue_ = 2.0 / (count_ * heuristicCost);
+  initialValue_ = 2.0 / ((double) count_ * heuristicCost);
 #else
   initialValue_ = (double) ANTS_PER_ITERATION / heuristicCost;
 #endif
