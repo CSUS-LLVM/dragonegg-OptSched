@@ -371,7 +371,7 @@ def calculateBlockStats(output):
                 listCost = int(BLOCK_COST_REGEX.findall(block)[0])
                 # The block is not enumerated if the list schedule is optimal or there is a zero
                 # time limit for enumeration.
-                isEnumerated = (BLOCK_NOT_ENUMERATED_REGEX.findall(block) == []) or (
+                isEnumerated = (BLOCK_NOT_ENUMERATED_REGEX.findall(block) == []) and (
                     BLOCK_ZERO_TIME_LIMIT.findall(block) == [])
                 if isEnumerated:
                     isOptimal = bool(
@@ -390,11 +390,7 @@ def calculateBlockStats(output):
                     else:
                         improvement = int(matches[0])
                 else:
-                    if BLOCK_NOT_ENUMERATED_REGEX.findall(block) != []:
-                        isOptimal = True
-                    else:
-                        isOptimal = False
-
+                    isOptimal = False
                     improvement = 0
 
             stats.append({
