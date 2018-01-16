@@ -3,7 +3,7 @@
 import sys
 import re
 
-# The number of register types. 
+# The number of register types.
 MAX_REG_TYPES = 30
 
 RP_OPT_INFO = re.compile(r'INFO: OptSchPeakRegPres Index (\d+) Name (.+) Peak (\d+) Limit (\d+)')
@@ -16,14 +16,14 @@ majorMismatches = 0
 
 with open(str(sys.argv[1])) as logfile:
     log = logfile.read()
-    blocks = log.split("INFO: ********** Opt Scheduling **********");
+    blocks = log.split("INFO: ********** Opt Scheduling **********")
 
 for block in blocks:
     optSchedPressures = [None]*MAX_REG_TYPES
     llvmPressures = [None]*MAX_REG_TYPES
     if (len(RP_DAG_NAME.findall(block)) == 0):
         continue;
-    
+
     totalBlocks+=1
     blockName = RP_DAG_NAME.findall(block)[0]
 
@@ -52,7 +52,7 @@ for block in blocks:
         llvmP = llvmPressures[i]
 
         if (optP['peak'] != llvmP['peak']):
-            print('Mismatch in block ' + blockName + '.') 
+            print('Mismatch in block ' + blockName + '.')
             print('Reg type with mismatch ' + optP['name'] + \
                   ' Limit ' + optP['limit'] + ' Peak OptSched ' + optP['peak'] + \
                   ' Peak LLVM ' + llvmP['peak'] + '.')

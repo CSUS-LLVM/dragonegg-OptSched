@@ -1,5 +1,5 @@
-#include "llvm/CodeGen/OptSched/basic/reg_alloc.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
+#include "llvm/CodeGen/OptSched/basic/reg_alloc.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
 #include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
@@ -17,7 +17,10 @@ LocalRegAlloc::LocalRegAlloc(InstSchedule *instSchedule,
 LocalRegAlloc::~LocalRegAlloc() {}
 
 void LocalRegAlloc::AllocRegs() {
+#ifdef IS_DEBUG
   Logger::Info("REG_ALLOC: Starting LocalRegAlloc.");
+#endif
+
   InstCount cycle, slot;
   for (InstCount i = instSchedule_->GetFrstInst(cycle, slot);
        i != INVALID_VALUE; i = instSchedule_->GetNxtInst(cycle, slot)) {
@@ -203,5 +206,7 @@ void LocalRegAlloc::PrintSpillInfo(const char *dagName) {
   Logger::Info("Number of stores %d", numStores_);
   Logger::Info("Number of loads %d", numLoads_);
 }
+
+int LocalRegAlloc::GetCost() { return numLoads_ + numStores_; }
 
 } // end namespace opt_sched

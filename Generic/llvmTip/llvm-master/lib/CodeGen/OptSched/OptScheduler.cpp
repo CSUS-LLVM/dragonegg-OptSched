@@ -4,15 +4,15 @@
 // implements a branch and bound scheduling algorithm.
 //
 //===-------------------------------------------------===//
-#include "llvm/CodeGen/OptSched/OptScheduler.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
+#include "llvm/CodeGen/OptSched/OptScheduler.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
 #include "llvm/CodeGen/OptSched/basic/graph_trans.h"
-#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
+#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
@@ -31,18 +31,18 @@
 bool OPTSCHED_gPrintSpills;
 
 // read path to configuration directory from command line
-static llvm::cl::opt<std::string> OptSchedCfg(
-    "optsched-cfg", llvm::cl::Hidden,
-    llvm::cl::desc("Path to OptSchedCfg directory"));
+static llvm::cl::opt<std::string>
+    OptSchedCfg("optsched-cfg", llvm::cl::Hidden,
+                llvm::cl::desc("Path to OptSchedCfg directory"));
 
 // Create OptSched scheduler
 static llvm::ScheduleDAGInstrs *createOptSched(llvm::MachineSchedContext *C) {
-	return new opt_sched::ScheduleDAGOptSched(C);
+  return new opt_sched::ScheduleDAGOptSched(C);
 }
 
 // Register the scheduler.
-static llvm::MachineSchedRegistry OptSchedRegistry("optsched", "Use the OptSched scheduler.",
-                                                   createOptSched);
+static llvm::MachineSchedRegistry
+    OptSchedRegistry("optsched", "Use the OptSched scheduler.", createOptSched);
 
 // If this iterator is a debug value, increment until reaching the End or a
 // non-debug instruction. static method from llvm/CodeGen/MachineScheduler.cpp
@@ -110,7 +110,7 @@ void ScheduleDAGOptSched::schedule() {
 
   // (Chris): This option in the sched.ini file will override USE_OPT_SCHED. It
   // will only apply B&B if the region name belongs in the list of specified
-  // regions. Region names are of the form: 
+  // regions. Region names are of the form:
   //   funcName:regionNum
   // No leading zeroes in regionNum, and no whitespace.
   // Get config options.
@@ -128,9 +128,12 @@ void ScheduleDAGOptSched::schedule() {
   }
 
   if (!optSchedEnabled) {
-    /* (Chris) We still want the register pressure
-       even for the default scheduler */
+/* (Chris) We still want the register pressure
+   even for the default scheduler */
+#ifdef IS_DEBUG
     Logger::Info("********** LLVM Scheduling **********\n");
+#endif
+
 #ifdef IS_DEBUG_PEAK_PRESSURE
     if (OPTSCHED_gPrintSpills) {
       SetupLLVMDag();
@@ -251,7 +254,9 @@ void ScheduleDAGOptSched::schedule() {
     }
   }
 
+#ifdef IS_DEBUG
   Logger::Info("********** Opt Scheduling **********");
+#endif
   // discoverBoundaryLiveness();
   // build LLVM DAG
   if (!isHeuristicISO) {
@@ -336,18 +341,24 @@ void ScheduleDAGOptSched::schedule() {
     bool filterByPerp = schedIni.GetBool("FILTER_BY_PERP");
     auto blocksToKeep = [&]() {
       auto setting = schedIni.GetString("BLOCKS_TO_KEEP");
-      if (setting == "ZERO_COST") return BLOCKS_TO_KEEP::ZERO_COST;
-      else if (setting == "OPTIMAL") return BLOCKS_TO_KEEP::OPTIMAL;
-      else if (setting == "IMPROVED") return BLOCKS_TO_KEEP::IMPROVED;
-      else if (setting == "IMPROVED_OR_OPTIMAL") return BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL;
-      else return BLOCKS_TO_KEEP::ALL;
+      if (setting == "ZERO_COST")
+        return BLOCKS_TO_KEEP::ZERO_COST;
+      else if (setting == "OPTIMAL")
+        return BLOCKS_TO_KEEP::OPTIMAL;
+      else if (setting == "IMPROVED")
+        return BLOCKS_TO_KEEP::IMPROVED;
+      else if (setting == "IMPROVED_OR_OPTIMAL")
+        return BLOCKS_TO_KEEP::IMPROVED_OR_OPTIMAL;
+      else
+        return BLOCKS_TO_KEEP::ALL;
     }();
     rslt = region->FindOptimalSchedule(
         useFileBounds, regionTimeout, lengthTimeout, isEasy, normBestCost,
-        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched, filterByPerp, blocksToKeep);
+        bestSchedLngth, normHurstcCost, hurstcSchedLngth, sched, filterByPerp,
+        blocksToKeep);
     if ((!(rslt == RES_SUCCESS || rslt == RES_TIMEOUT) || sched == NULL)) {
       Logger::Info("OptSched run failed: rslt=%d, sched=%p. Falling back.",
-                    rslt, (void *)sched);
+                   rslt, (void *)sched);
 
       if (!isHeuristicISO)
         fallbackScheduler();
@@ -480,7 +491,7 @@ void ScheduleDAGOptSched::fallbackScheduler() {
 }
 
 void ScheduleDAGOptSched::loadOptSchedConfig() {
-  SchedulerOptions& schedIni = SchedulerOptions::getInstance();
+  SchedulerOptions &schedIni = SchedulerOptions::getInstance();
   // setup OptScheduler configuration options
   optSchedEnabled = isOptSchedEnabled();
   latencyPrecision = fetchLatencyPrecision();
