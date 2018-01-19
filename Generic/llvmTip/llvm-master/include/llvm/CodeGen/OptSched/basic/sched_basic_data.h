@@ -72,7 +72,9 @@ enum SPILL_COST_FUNCTION {
   // peak excess reg pressure plus the avg excess reg pressure across the block
   SCF_PEAK_PLUS_AVG,
   // (Chris) Sum of live interval lengths.
-  SCF_SLIL
+  SCF_SLIL,
+  // Run a register allocator and count the spills
+  SCF_SPILLS,
 };
 
 // The type of instruction signatures, used by the enumerator's history table to
