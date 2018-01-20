@@ -67,7 +67,7 @@ BLOCK_PEAK_REG_PRESSURE_REGEX = re.compile(r'PeakRegPresAfter Index (\d+) Name (
 BLOCK_PEAK_REG_BLOCK_NAME = re.compile(r'LLVM max pressure after scheduling for BB (\S+)')
 REGION_OPTSCHED_SPILLS_REGEX = re.compile(r"OPT_SCHED LOCAL RA: DAG Name: (\S+) Number of spills: (\d+) \(Time")
 
-def writeStats(stats, spills, times, blocks, regp):
+def writeStats(stats, spills, times, blocks, regp, trackOptSchedSpills):
     # Write times.
     if times:
         with open(times, 'w') as times_file:
@@ -116,12 +116,22 @@ def writeStats(stats, spills, times, blocks, regp):
             totalCost = 0
             totalImprovement = 0
             totalOptSchedSpills = 0
-            sizes = []
-            enumeratedSizes = []
-            optimalSizes = []
-            improvedSizes = []
-            timedOutSizes = []
-            optimalTimes = []
+            totalEnumeratedSizes = 0
+            totalOptimalImprovedSizes = 0
+            totalOptimalNotImprovedSizes = 0
+            totalNonOptimalImprovedSizes = 0
+            totalNonOptimalNotImprovedSizes = 0
+            totalEnumeratedSpills = 0
+            totalOptimalImprovedSpills = 0
+            totalOptimalNotImprovedSpills = 0
+            totalNonOptimalImprovedSpills = 0
+            totalNonOptimalNotImprovedSpills = 0
+            sizesList = []
+            optimalTimesList = []
+            enumeratedSizesList = []
+            optimalSizesList = []
+            improvedSizesList = []
+            timedOutSizesList = []
 
             for benchName in stats:
                 blocks = stats[benchName]['blocks']
@@ -134,57 +144,107 @@ def writeStats(stats, spills, times, blocks, regp):
                 timedOutNotImproved = 0
                 cost = improvement = 0
                 optSchedSpills = 0
+                enumeratedSizes = 0
+                optimalImprovedSizes = 0
+                optimalNotImprovedSizes = 0
+                nonOptimalImprovedSizes = 0
+                nonOptimalNotImprovedSizes = 0
+                enumeratedSpills = 0
+                optimalImprovedSpills = 0
+                optimalNotImprovedSpills = 0
+                nonOptimalImprovedSpills = 0
+                nonOptimalNotImprovedSpills = 0
+
 
                 for block in blocks:
                     count += 1
                     if block['success']:
                         successful += 1
                         cost += block['listCost']
-                        sizes.append(block['size'])
-                        optSchedSpills += block['optSchedSpills']
+                        size = block['size']
+                        spills = block['optSchedSpills']
+                        sizesList.append(size)
+                        optSchedSpills += spills
                         if block['isEnumerated']:
                             enumerated += 1
                             improvement += block['improvement']
-                            enumeratedSizes.append(block['size'])
+                            enumeratedSizesList.append(size)
+                            enumeratedSizes += size
+                            enumeratedSpills += spills
                             if block['isOptimal']:
-                                optimalTimes.append(block['time'])
-                                optimalSizes.append(block['size'])
+                                optimalTimesList.append(block['time'])
+                                optimalSizesList.append(size)
                                 if block['improvement'] > 0:
-                                    improvedSizes.append(block['size'])
+                                    improvedSizesList.append(size)
+                                    optimalImprovedSizes += size
+                                    optimalImprovedSpills += spills
                                     optimalImproved += 1
                                 else:
                                     optimalNotImproved += 1
+                                    optimalNotImprovedSizes += size
+                                    optimalNotImprovedSpills += spills
                             else:
-                                timedOutSizes.append(block['size'])
+                                timedOutSizesList.append(block['size'])
                                 if block['improvement'] > 0:
-                                    improvedSizes.append(block['size'])
+                                    improvedSizesList.append(size)
+                                    nonOptimalImprovedSizes += size
+                                    nonOptimalImprovedSpills += spills
                                     timedOutImproved += 1
                                 else:
+                                    nonOptimalNotImprovedSizes += size
+                                    nonOptimalNotImprovedSpills += spills
                                     timedOutNotImproved += 1
+
+                # If the option to track simulated spills is enabled, construct the strings that display
+                # information about the number of instructions and the number of spills for the categories
+                # of blocks below.
+                enumeratedStr = ''
+                optimalImprovedStr = ''
+                optimalNotImprovedStr = ''
+                nonOptimalImprovedStr = ''
+                nonOptimalNotImprovedStr = ''
+                if trackOptSchedSpills and enumerated > 0:
+                    try:
+                        enumeratedStr += '  {:,} instrs, {:,} spills'.format(enumeratedSizes, enumeratedSpills)
+
+                        optimalImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(optimalImprovedSizes, \
+                                               optimalImprovedSizes / enumeratedSizes, optimalImprovedSpills, optimalImprovedSpills / enumeratedSpills)
+
+                        optimalNotImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(optimalNotImprovedSizes, \
+                                               optimalNotImprovedSizes / enumeratedSizes, optimalNotImprovedSpills, optimalNotImprovedSpills / enumeratedSpills)
+
+                        nonOptimalImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(nonOptimalImprovedSizes, \
+                                               nonOptimalImprovedSizes / enumeratedSizes, nonOptimalImprovedSpills, nonOptimalImprovedSpills / enumeratedSpills)
+
+                        nonOptimalNotImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(nonOptimalNotImprovedSizes, \
+                                               nonOptimalNotImprovedSizes / enumeratedSizes, nonOptimalNotImprovedSpills, nonOptimalNotImprovedSpills / enumeratedSpills)
+                    except ZeroDivisionError:
+                        print('There are 0 OptSched spills in enumerated blocks, cannot print any useful information related to them.')
 
                 blocks_file.write('%s:\n' % benchName)
                 blocks_file.write('  Blocks: %d\n' %
                                   count)
                 blocks_file.write('  Successful: %d (%.2f%%)\n' %
                                   (successful, (100 * successful / count) if count else 0))
-                blocks_file.write('  Enumerated: %d (%.2f%%)\n' %
-                                  (enumerated, (100 * enumerated / successful) if successful else 0))
-                blocks_file.write('  Optimal and Improved: %d (%.2f%%)\n' %
-                                  (optimalImproved, (100 * optimalImproved / enumerated) if enumerated else 0))
-                blocks_file.write('  Optimal but not Improved: %d (%.2f%%)\n' %
-                                  (optimalNotImproved, (100 * optimalNotImproved / enumerated) if enumerated else 0))
-                blocks_file.write('  Non-Optimal and Improved: %d (%.2f%%)\n' %
-                                  (timedOutImproved, (100 * timedOutImproved / enumerated) if enumerated else 0))
-                blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)\n' %
-                                  (timedOutNotImproved, (100 * timedOutNotImproved / enumerated) if enumerated else 0))
+                blocks_file.write('  Enumerated: %d (%.2f%%)%s\n' %
+                                  (enumerated, (100 * enumerated / successful) if successful else 0, enumeratedStr))
+                blocks_file.write('  Optimal and Improved: %d (%.2f%%)%s\n' %
+                                  (optimalImproved, (100 * optimalImproved / enumerated) if enumerated else 0, optimalImprovedStr))
+                blocks_file.write('  Optimal but not Improved: %d (%.2f%%)%s\n' %
+                                  (optimalNotImproved, (100 * optimalNotImproved / enumerated) if enumerated else 0, optimalNotImprovedStr))
+                blocks_file.write('  Non-Optimal and Improved: %d (%.2f%%)%s\n' %
+                                  (timedOutImproved, (100 * timedOutImproved / enumerated) if enumerated else 0, nonOptimalImprovedStr))
+                blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)%s\n' %
+                                  (timedOutNotImproved, (100 * timedOutNotImproved / enumerated) if enumerated else 0, nonOptimalNotImprovedStr))
                 blocks_file.write('  Heuristic cost: %d\n' %
                                   cost)
                 blocks_file.write('  B&B cost: %d\n' %
                                   (cost - improvement))
                 blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                                   (improvement, (100 * improvement / cost) if cost else 0))
-                blocks_file.write('  Region Spills: %d\n' %
-                                  optSchedSpills)
+                if trackOptSchedSpills:
+                    blocks_file.write('  Region Spills: %d\n' %
+                                    optSchedSpills)
 
                 totalCount += count
                 totalSuccessful += successful
@@ -196,6 +256,41 @@ def writeStats(stats, spills, times, blocks, regp):
                 totalCost += cost
                 totalImprovement += improvement
                 totalOptSchedSpills += optSchedSpills
+                totalEnumeratedSizes += enumeratedSizes
+                totalOptimalImprovedSizes += optimalImprovedSizes
+                totalOptimalNotImprovedSizes += optimalNotImprovedSizes
+                totalNonOptimalImprovedSizes += nonOptimalImprovedSizes
+                totalNonOptimalNotImprovedSizes += nonOptimalNotImprovedSizes
+                totalEnumeratedSpills += enumeratedSpills
+                totalOptimalImprovedSpills += optimalImprovedSpills
+                totalOptimalNotImprovedSpills += optimalNotImprovedSpills
+                totalNonOptimalImprovedSpills += nonOptimalImprovedSpills
+                totalNonOptimalNotImprovedSpills += nonOptimalNotImprovedSpills
+
+
+            totalEnumeratedStr = ''
+            totalOptimalImprovedStr = ''
+            totalOptimalNotImprovedStr = ''
+            totalNonOptimalImprovedStr = ''
+            totalNonOptimalNotImprovedStr = ''
+            if trackOptSchedSpills and enumerated > 0:
+                try:
+                    totalEnumeratedStr += '  {:,} instrs, {:,} spills'.format(totalEnumeratedSizes, totalEnumeratedSpills)
+
+                    totalOptimalImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(totalOptimalImprovedSizes, \
+                                           totalOptimalImprovedSizes / totalEnumeratedSizes, totalOptimalImprovedSpills, totalOptimalImprovedSpills / totalEnumeratedSpills)
+
+                    totalOptimalNotImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(totalOptimalNotImprovedSizes, \
+                                           totalOptimalNotImprovedSizes / totalEnumeratedSizes, totalOptimalNotImprovedSpills, totalOptimalNotImprovedSpills / totalEnumeratedSpills)
+
+                    totalNonOptimalImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(totalNonOptimalImprovedSizes, \
+                                           totalNonOptimalImprovedSizes / totalEnumeratedSizes, totalNonOptimalImprovedSpills, totalNonOptimalImprovedSpills / totalEnumeratedSpills)
+
+                    totalNonOptimalNotImprovedStr += '  {:,} instrs ({:.2%}), {:,} spills ({:.2%}) '.format(totalNonOptimalNotImprovedSizes, \
+                                           totalNonOptimalNotImprovedSizes / totalEnumeratedSizes, totalNonOptimalNotImprovedSpills, totalNonOptimalNotImprovedSpills / totalEnumeratedSpills)
+                except ZeroDivisionError:
+                    print('There are 0 OptSched spills in enumerated blocks, cannot print any useful information related to them.')
+
 
             blocks_file.write('-' * 50 + '\n')
             blocks_file.write('Total:\n')
@@ -203,44 +298,45 @@ def writeStats(stats, spills, times, blocks, regp):
                               totalCount)
             blocks_file.write('  Successful: %d (%.2f%%)\n' %
                               (totalSuccessful, (100 * totalSuccessful / totalCount) if totalCount else 0))
-            blocks_file.write('  Enumerated: %d (%.2f%%)\n' %
-                              (totalEnumerated, (100 * totalEnumerated / totalSuccessful) if totalSuccessful else 0))
-            blocks_file.write('  Optimal and Improved: %d (%.2f%%)\n' %
-                              (totalOptimalImproved, (100 * totalOptimalImproved / totalEnumerated) if totalEnumerated else 0))
-            blocks_file.write('  Optimal but not Improved: %d (%.2f%%)\n' %
-                              (totalOptimalNotImproved, (100 * totalOptimalNotImproved / totalEnumerated) if totalEnumerated else 0))
-            blocks_file.write('  Non-Optimal and Improved: %d (%.2f%%)\n' %
-                              (totalTimedOutImproved, (100 * totalTimedOutImproved / totalEnumerated) if totalEnumerated else 0))
-            blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)\n' %
-                              (totalTimedOutNotImproved, (100 * totalTimedOutNotImproved / totalEnumerated) if totalEnumerated else 0))
+            blocks_file.write('  Enumerated: %d (%.2f%%)%s\n' %
+                              (totalEnumerated, (100 * totalEnumerated / totalSuccessful) if totalSuccessful else 0, totalEnumeratedStr))
+            blocks_file.write('  Optimal and Improved: %d (%.2f%%)%s\n' %
+                              (totalOptimalImproved, (100 * totalOptimalImproved / totalEnumerated) if totalEnumerated else 0, totalOptimalImprovedStr))
+            blocks_file.write('  Optimal but not Improved: %d (%.2f%%)%s\n' %
+                              (totalOptimalNotImproved, (100 * totalOptimalNotImproved / totalEnumerated) if totalEnumerated else 0, totalOptimalNotImprovedStr))
+            blocks_file.write('  Non-Optimal and Improved: %d (%.2f%%)%s\n' %
+                              (totalTimedOutImproved, (100 * totalTimedOutImproved / totalEnumerated) if totalEnumerated else 0, totalNonOptimalImprovedStr))
+            blocks_file.write('  Non-Optimal and not Improved: %d (%.2f%%)%s\n' %
+                              (totalTimedOutNotImproved, (100 * totalTimedOutNotImproved / totalEnumerated) if totalEnumerated else 0, totalNonOptimalNotImprovedStr))
             blocks_file.write('  Heuristic cost: %d\n' %
                               totalCost)
             blocks_file.write('  B&B cost: %d\n' %
                               (totalCost - totalImprovement))
             blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                               (totalImprovement, (100 * totalImprovement / totalCost) if totalCost else 0))
-            blocks_file.write('  Total Region Spills: %d\n' %
-                              totalOptSchedSpills)
+            if trackOptSchedSpills:
+                blocks_file.write('  Total Region Spills: %d\n' %
+                                totalOptSchedSpills)
             blocks_file.write('  Smallest block size: %s\n' %
-                              (min(sizes) if sizes else 'none'))
+                              (min(sizesList) if sizesList else 'none'))
             blocks_file.write('  Largest block size: %s\n' %
-                              (max(sizes) if sizes else 'none'))
+                              (max(sizesList) if sizesList else 'none'))
             blocks_file.write('  Average block size: %.1f\n' %
-                              ((sum(sizes) / len(sizes)) if sizes else 0))
+                              ((sum(sizesList) / len(sizesList)) if sizesList else 0))
             blocks_file.write('  Smallest enumerated block size: %s\n' %
-                              (min(enumeratedSizes) if enumeratedSizes else 'none'))
+                              (min(enumeratedSizesList) if enumeratedSizesList else 'none'))
             blocks_file.write('  Largest enumerated block size: %s\n' %
-                              (max(enumeratedSizes) if enumeratedSizes else 'none'))
+                              (max(enumeratedSizesList) if enumeratedSizesList else 'none'))
             blocks_file.write('  Average enumerated block size: %.1f\n' %
-                              ((sum(enumeratedSizes) / len(enumeratedSizes)) if enumeratedSizes else 0))
+                              ((sum(enumeratedSizesList) / len(enumeratedSizesList)) if enumeratedSizesList else 0))
             blocks_file.write('  Largest optimal block size: %s\n' %
-                              (max(optimalSizes) if optimalSizes else 'none'))
+                              (max(optimalSizesList) if optimalSizesList else 'none'))
             blocks_file.write('  Largest improved block size: %s\n' %
-                              (max(improvedSizes) if improvedSizes else 'none'))
+                              (max(improvedSizesList) if improvedSizesList else 'none'))
             blocks_file.write('  Smallest timed out block size: %s\n' %
-                              (min(timedOutSizes) if timedOutSizes else 'none'))
+                              (min(timedOutSizesList) if timedOutSizesList else 'none'))
             blocks_file.write('  Average optimal solution time: %d ms\n' %
-                              ((sum(optimalTimes) / len(optimalTimes)) if optimalTimes else 0))
+                              ((sum(optimalTimesList) / len(optimalTimesList)) if optimalTimesList else 0))
 
         # Write peak pressure stats
         if regp:
@@ -341,7 +437,7 @@ def calculatePeakPressureStats(output):
     return functions
 
 
-def calculateBlockStats(output):
+def calculateBlockStats(output, trackOptSchedSpills):
     blocks = output.split('Opt Scheduling **********')[1:]
     stats = []
     for index, block in enumerate(blocks):
@@ -363,7 +459,7 @@ def calculateBlockStats(output):
                 start_time = int(BLOCK_START_TIME_REGEX.findall(block)[0])
                 end_time = int(BLOCK_END_TIME_REGEX.findall(block)[0])
                 timeTaken = end_time - start_time
-                if REGION_OPTSCHED_SPILLS_REGEX.findall(block) != []:
+                if REGION_OPTSCHED_SPILLS_REGEX.findall(block) and trackOptSchedSpills:
                     optSchedSpills = int(REGION_OPTSCHED_SPILLS_REGEX.findall(block)[0][1])
                 else:
                     optSchedSpills = 0
@@ -409,7 +505,6 @@ def calculateBlockStats(output):
             print "Unexpected error:", sys.exc_info()[0]
             for line in blocks[index].split('\n')[1:-1][:10]:
                 print '   ', line
-                raise
 
     return stats
 
@@ -426,16 +521,16 @@ Defining this function makes it easier to parse files.
 """
 
 
-def getBenchmarkResult(output):
+def getBenchmarkResult(output, trackOptSchedSpills):
     return {
         'time': int(TIMES_REGEX.findall(output)[0]),
         'spills': calculateSpills(output),
-        'blocks': calculateBlockStats(output),
+        'blocks': calculateBlockStats(output, trackOptSchedSpills),
         'regpressure': calculatePeakPressureStats(output)
     }
 
 
-def runBenchmarks(benchmarks, testOutDir, shouldWriteLogs, config):
+def runBenchmarks(benchmarks, testOutDir, shouldWriteLogs, config, trackOptSchedSpills):
     results = {}
 
     for bench in benchmarks:
@@ -452,7 +547,7 @@ def runBenchmarks(benchmarks, testOutDir, shouldWriteLogs, config):
         except subprocess.CalledProcessError as e:
             print '  WARNING: Benchmark command failed: %s.' % e
         else:
-            results[bench] = getBenchmarkResult(output)
+            results[bench] = getBenchmarkResult(output, trackOptSchedSpills)
 
             # Optionally write log files to results directory.
             if shouldWriteLogs is True:
@@ -464,7 +559,7 @@ def runBenchmarks(benchmarks, testOutDir, shouldWriteLogs, config):
 
 
 def writeLogs(output, testOutDir, bench):
-    with open(testOutDir + LOG_DIR + bench + '.log', 'w') as log:
+    with open(os.path.join(testOutDir,  LOG_DIR + bench + '.log'), 'w') as log:
         log.write(output)
 
 
@@ -490,49 +585,43 @@ def main(args):
             results[args.logfile] = getBenchmarkResult(output)
     # Run the benchmarks and collect results.
     else:
-        # Add forward slash to directory path if necessary.
-        if args.outdir[-1] != '/':
-            args.outdir += '/'
         # Create a directory for the test results.
         if not os.path.exists(args.outdir):
             os.makedirs(args.outdir)
 
-        # Run "testruns" number of tests. Try to find a seperate ini file for each test.
+        # Run "testruns" TODO(guess the number of tests) number of tests. Try to find a seperate ini file for each test.
         for i in range(int(args.testruns)):
-            # Add forward slash to directory path if necessary.
-            if args.ini[-1] != '/':
-                args.ini += '/'
-            iniFileName = [filename for filename in os.listdir(
-                args.ini) if filename.startswith(str(i))]
-
-            # If there is a custom ini file for this test run, copy it to the OptSchedCfg directory.
-            if iniFileName:
-                # Add forward slash to directory path if necessary.
-                if args.cfg[-1] != '/':
-                    args.cfg += '/'
-                shutil.copy(args.ini + iniFileName[0], args.cfg + 'sched.ini')
-
-            # Create a directory for this test run.
             testOutDir = args.outdir
-            # If an ini file is known for this test, name the result directory after the
-            # ini file.
-            if iniFileName:
-                testOutDir += iniFileName[0].split('.')[1] + '/'
 
-            if not os.path.exists(testOutDir):
-                os.makedirs(testOutDir)
+            if args.ini:
+                if not args.cfg:
+                    print('Fatal: No path to the OptSchedCfg directory found. Use option "-g" to specify the path.')
+                    sys.exit(1)
+                else:
+                    iniFileName = [filename for filename in os.listdir(args.ini) if filename.split('.')[0] == str(i)]
 
-            # Add a copy of the ini file to the results directory.
-            if iniFileName:
-                shutil.copy(args.ini + iniFileName[0], testOutDir)
+                    # Move test ini file to OptSchedCfg directroy so the compiler uses it for this test.
+                    shutil.copy(os.path.join(args.ini, iniFileName[0]), os.path.join(args.cfg, 'sched.ini'))
+
+                    # Create a directory for this test run.
+                    testOutDir = args.outdir
+                    # If an ini file is known for this test, name the result directory after the
+                    # ini file.
+                    testOutDir = os.path.join(testOutDir, iniFileName[0].split('.')[1])
+
+                    if not os.path.exists(testOutDir):
+                        os.makedirs(testOutDir)
+
+                    # Add a copy of the ini file to the results directory.
+                    shutil.copy(os.path.join(args.ini, iniFileName[0]), testOutDir)
 
             # If we are writing log files create a directory for them.
             if args.writelogs:
-                if not os.path.exists(testOutDir + 'logs/'):
-                    os.makedirs(testOutDir + LOG_DIR)
+                if not os.path.exists(os.path.join(testOutDir, LOG_DIR)):
+                    os.makedirs(os.path.join(testOutDir, LOG_DIR))
 
             # Run the benchmarks
-            results = runBenchmarks(benchmarks, testOutDir, args.writelogs, args.config)
+            results = runBenchmarks(benchmarks, testOutDir, args.writelogs, args.config, args.trackOptSchedSpills)
 
             spills = None
             times = None
@@ -540,16 +629,16 @@ def main(args):
             regp = None
 
             if args.spills:
-                spills = testOutDir + args.spills
+                spills = os.path.join(testOutDir, args.spills)
             if args.times:
-                times = testOutDir + args.times
+                times = os.path.join(testOutDir, args.times)
             if args.blocks:
-                blocks = testOutDir + args.blocks
+                blocks = os.path.join(testOutDir, args.blocks)
             if args.regp:
-                regp = testOutDir + args.regp
+                regp = os.path.join(testOutDir, args.regp)
 
             # Write out the results for this test.
-            writeStats(results, spills, times, blocks, regp)
+            writeStats(results, spills, times, blocks, regp, args.trackOptSchedSpills)
 
 
 if __name__ == '__main__':
@@ -580,11 +669,11 @@ if __name__ == '__main__':
                       help='The number of tests to run.')
     parser.add_option('-i', '--ini',
                       metavar='filepath',
-                      default='test_ini/',
+                      default=None,
                       help='The directory with the sched.ini files for each test run (%default). They should be named 0.firsttestname.ini, 1.secondtestname.ini...')
     parser.add_option('-g', '--cfg',
                       metavar='filepath',
-                      default='OptSchedCfg/',
+                      default=None,
                       help='Where to find OptSchedCfg for the test runs (%default).')
     parser.add_option('-b', '--bench',
                       metavar='ALL|INT|FP|name1,name2...',
@@ -602,5 +691,10 @@ if __name__ == '__main__':
                       action="store_true",
                       dest="writelogs",
                       help='Should the raw log files be included in the results (%default).')
+    parser.add_option('-a', '--trackOptSchedSpills',
+                      action="store_true",
+                      dest="trackOptSchedSpills",
+                      default=True,
+                      help='Should the simulated number of spills per-block be tracked (%default).')
 
     main(parser.parse_args()[0])

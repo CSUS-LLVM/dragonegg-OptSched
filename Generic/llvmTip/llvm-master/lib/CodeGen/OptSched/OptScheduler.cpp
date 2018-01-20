@@ -521,7 +521,6 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
       static_cast<int16_t>(schedIni.GetInt("HIST_TABLE_HASH_BITS"));
   verifySchedule = schedIni.GetBool("VERIFY_SCHEDULE");
   enableMutations = schedIni.GetBool("LLVM_MUTATIONS");
-  enableMutations = schedIni.GetBool("LLVM_MUTATIONS");
   enumerateStalls = schedIni.GetBool("ENUMERATE_STALLS");
   spillCostFactor = schedIni.GetInt("SPILL_COST_FACTOR");
   checkSpillCostSum = schedIni.GetBool("CHECK_SPILL_COST_SUM");
