@@ -420,6 +420,7 @@ InstCount BBWithSpill::CmputCost_(InstSchedule *sched, COST_COMP_MODE compMode,
 void BBWithSpill::CmputCrntSpillCost_() {
   switch (spillCostFunc_) {
   case SCF_PEAK:
+  case SCF_PRP:
   case SCF_PEAK_PER_TYPE:
     crntSpillCost_ = peakSpillCost_;
     break;

@@ -63,6 +63,8 @@ struct SchedPriorities {
 enum SPILL_COST_FUNCTION {
   // peak excess reg pressure at one point in the schedule
   SCF_PEAK,
+  // peak reg pressure at one point in the schedule
+  SCF_PRP,
   // peak excess reg pressure per type, that is, the peak is
   // taken for each type individually, thus different types
   // may have peaks at different points in the schedule

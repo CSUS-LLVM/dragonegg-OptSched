@@ -660,6 +660,8 @@ SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
       SchedulerOptions::getInstance().GetString("SPILL_COST_FUNCTION");
   if (name == "PEAK") {
     return SCF_PEAK;
+  } else if (name == "PRP") {
+    return SCF_PRP;
   } else if (name == "PEAK_PER_TYPE") {
     return SCF_PEAK_PER_TYPE;
   } else if (name == "SUM") {
