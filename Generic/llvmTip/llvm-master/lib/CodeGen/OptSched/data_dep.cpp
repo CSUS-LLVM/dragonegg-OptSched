@@ -2704,6 +2704,18 @@ InstSchedule::~InstSchedule() {
   delete[] peakRegPressures_;
 }
 
+bool InstSchedule::operator==(InstSchedule &b) const {
+  if (b.totSlotCnt_ != totSlotCnt_)
+    return false;
+  if (b.crntSlotNum_ != crntSlotNum_)
+    return false;
+  for (InstCount i = 0; i < crntSlotNum_; i++) {
+    if (b.instInSlot_[i] != instInSlot_[i])
+      return false;
+  }
+  return true;
+}
+
 bool InstSchedule::AppendInst(InstCount instNum) {
   assert(crntSlotNum_ < totSlotCnt_);
   instInSlot_[crntSlotNum_] = instNum;
@@ -2898,7 +2910,7 @@ void InstSchedule::PrintRegPressures() {
 }
 
 void InstSchedule::PrintInstList(FILE *file, DataDepGraph *dataDepGraph,
-                                 char *label) {
+                                 const char *label) {
   fprintf(file, "\n%s Instruction Order:", label);
 
   for (InstCount i = 0; i < crntSlotNum_; i++) {

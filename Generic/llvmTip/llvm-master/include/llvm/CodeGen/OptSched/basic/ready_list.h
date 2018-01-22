@@ -43,6 +43,7 @@ public:
   // instruction, the next will return the instruction with the second rank,
   // and so on.
   SchedInstruction *GetNextPriorityInst();
+  SchedInstruction *GetNextPriorityInst(unsigned long &key);
 
   // Removes the instruction returned by the last call to
   // GetNextPriorityInst().
@@ -75,6 +76,8 @@ public:
   // Called only if the priorities change dynamically during scheduling
   void UpdatePriorities();
 
+  unsigned long MaxPriority();
+
   // Prints out the ready list, nicely formatted, into an output stream.
   void Print(std::ostream &out);
 
@@ -101,6 +104,8 @@ private:
   InstCount maxLtncySum_;
   InstCount maxNodeID_;
   InstCount maxInptSchedOrder_;
+
+  unsigned long maxPriority_;
 
   // The number of bits for each part of the priority key.
   int16_t useCntBits_;

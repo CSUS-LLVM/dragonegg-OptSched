@@ -91,7 +91,7 @@ private:
   void FinishHurstc_();
   void FinishOptml_();
   void CmputAbslutUprBound_();
-  ListScheduler *AllocLstSchdulr_();
+  ConstrainedScheduler *AllocHeuristicScheduler_();
   bool EnableEnum_();
 
   // BBWithSpill-specific Functions:

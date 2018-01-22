@@ -10,73 +10,47 @@
 # -p               : print command string so it can be copied
 # example: ./RunOptSched.sh -dopt -g++ -o test test.cpp
 
-BASEDIR=$(pwd)"/Generic"
-
-# update path to input files
-#####################################
+BASEDIR=$(dirname $0)"/Generic"
 OPTSCHEDCFG="$BASEDIR/OptSchedCfg"
-MACHINEMODELCONFIG="machine_model.cfg "
-SCHEDULEINIFILE="sched.ini "
-HOTFUNCTIONSINIFILE="hotfuncs.ini "
-######################################
-
 DRAGONEGGPATH="$BASEDIR/dragonegg/dragonegg.so"
 GCCPATH="/usr/bin"
-CLANGPATH="Generic/llvmTip/release_build/bin"
+CLANGPATH="$BASEDIR/llvmTip/build/bin"
 LLVMOPT="-fplugin-arg-dragonegg-llvm-option="
-CLANGOPT="-mllvm "
-LLVMOPTSCHED="$CLANGOPT"'-optsched -O3 '
-MCFG="$CLANGOPT-optsched-mcfg=$OPTSCHEDCFG/$MACHINEMODELCONFIG "
-SINI="$CLANGOPT-optsched-sini=$OPTSCHEDCFG/$SCHEDULEINIFILE "
-HFINI="$CLANGOPT-optsched-hfini=$OPTSCHEDCFG/$HOTFUNCTIONSINIFILE "
+
+args="-mllvm -misched=optsched -O3 -mllvm -optsched-cfg=$OPTSCHEDCFG"
+cc=clang
 
 # process command line arguments
-while [[ $# -gt 0 ]]
-do
-key="$1"
+while [[ $# -gt 0 ]]; do
+    key="$1"
 
-case $key in
-  -dopt)
-  DOPT="$CLANGOPT-debug-only=optsched "
-  ;;
-  -dms)
-  DMS="$CLANGOPT-debug-only=misched "
-  ;;
-  -g++)
-  GPP='True'
-  ;;
-  -o)
-  OUTPUT="-o $2 "
-  shift
-  ;;
-  -p)
-  PRINT='True'
-  ;;
-  -*)
-  echo "Unknown argument: \"$key\""; exit 1
-  ;;
-  *)
-  break
-  ;;
-esac
-shift
+    case $key in
+        -dopt)
+            args="$args -mllvm -debug-only=optsched"
+            ;;
+        -dms)
+            args="$args -mllvm -debug-only=misched"
+            ;;
+        -g++)
+            cc=clang++
+            ;;
+        -p)
+            PRINT='True'
+            ;;
+        -*)
+            echo "Unknown argument: \"$key\""; exit 1
+            ;;
+        *)
+            break
+            ;;
+    esac
+    shift
 done
 
-if [[ $GPP == 'True' ]] 
-then
-  CLANGPATH=$CLANGPATH'/clang++ '
-else
-  CLANGPATH=$CLANGPATH'/clang '
-fi
-
-INPUT=$1
-
 #create command string
-COMMAND="$CLANGPATH$LLVMOPTSCHED$DOPT$DMS$MCFG$SINI$HFINI$OUTPUT$INPUT"
-#COMMAND="$GCCPATH-fplugin=$DRAGONEGGPATH $LLVMOPTSCHED$DOPT$DMS$MCFG$SINI$HFINI$OUTPUT$INPUT"
+COMMAND="$CLANGPATH/$cc $args $@"
 
-if [[ $PRINT == 'True' ]]
-then
+if [[ $PRINT == 'True' ]]; then
   echo $COMMAND
 else
   $COMMAND
