@@ -128,8 +128,8 @@ def generateSOMFiles(somData):
 
             # Write details for each test to stats file
             testStr = 'Spilling Statistics:\n\n'
-            testStr += "\n{:<25}{:>30}{:>25}{:>25}\n".format('Heuristic', 'Extra Spills', '%Funcs at min', 'Max extra per func')
-            testStr += '---------------------------------------------------------------------------------------------------------\n'
+            testStr += "\n{:<25}{:>40}{:>25}{:>25}\n".format('Heuristic', 'Extra Spills', '%Funcs at min', 'Max extra per func')
+            testStr += '-------------------------------------------------------------------------------------------------------------------\n\n'
 
 
             for testName in sorted(totals.totalTestSpills, key=totals.totalTestSpills.__getitem__):
@@ -147,14 +147,14 @@ def generateSOMFiles(somData):
                 maxExtraPerFuncStr = 'inf' if maxExtraSpillsP == -1 else "{:.2%}".format(maxExtraSpillsP)
 
                 #stdev = findStdev(somData[testName])
-                testStr += "{:<30}{:>17}{:>9}{:>21}{:>28}\n".format(testName, \
+                testStr += "{:<40}{:>17}{:>9}{:>21}{:>28}\n\n".format(testName, \
                                                          "{:,}".format(extraSpills), \
                                                          "({})".format(extraSpillsP), \
                                                          funcAtMinP, \
                                                          "{:>7} {:>7} {:>7}".format(maxExtraSpills, "({})".format(minSpillsInFuncWithMaxExtra), \
                                                          maxExtraPerFuncStr))
 
-            testStr += '---------------------------------------------------------------------------------------------------------\n\n'
+            testStr += '-------------------------------------------------------------------------------------------------------------------\n\n'
 
             spillsStatsFile.write(testStr)
 
