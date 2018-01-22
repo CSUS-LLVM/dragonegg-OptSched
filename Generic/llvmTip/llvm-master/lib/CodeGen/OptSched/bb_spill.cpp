@@ -1,6 +1,7 @@
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
 #include "llvm/CodeGen/OptSched/basic/data_dep.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
+#include "llvm/CodeGen/OptSched/basic/reg_alloc.h"
 #include "llvm/CodeGen/OptSched/enum/enumerator.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
 #include "llvm/CodeGen/OptSched/generic/random.h"
@@ -398,13 +399,20 @@ InstCount BBWithSpill::CmputCost_(InstSchedule *sched, COST_COMP_MODE compMode,
   SchedInstruction *inst;
 
   if (compMode == CCM_STTC) {
-    InitForCostCmputtn_();
+    if (spillCostFunc_ != SCF_SPILLS) {
+      InitForCostCmputtn_();
 
-    for (instNum = sched->GetFrstInst(cycleNum, slotNum);
-         instNum != INVALID_VALUE;
-         instNum = sched->GetNxtInst(cycleNum, slotNum)) {
-      inst = dataDepGraph_->GetInstByIndx(instNum);
-      SchdulInst(inst, cycleNum, slotNum, trackCnflcts);
+      for (instNum = sched->GetFrstInst(cycleNum, slotNum);
+           instNum != INVALID_VALUE;
+           instNum = sched->GetNxtInst(cycleNum, slotNum)) {
+        inst = dataDepGraph_->GetInstByIndx(instNum);
+        SchdulInst(inst, cycleNum, slotNum, trackCnflcts);
+      }
+    } else {
+      LocalRegAlloc regAlloc(sched, dataDepGraph_);
+      regAlloc.SetupForRegAlloc();
+      regAlloc.AllocRegs();
+      crntSpillCost_ = regAlloc.GetCost();
     }
   }
 

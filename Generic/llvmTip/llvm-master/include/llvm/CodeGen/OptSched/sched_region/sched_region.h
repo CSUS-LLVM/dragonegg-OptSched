@@ -98,6 +98,7 @@ public:
   InstSchedule *AllocNewSched_();
 
   void UpdateScheduleCost(InstSchedule *sched);
+  SPILL_COST_FUNCTION GetSpillCostFunc();
 
 protected:
   // The dependence graph of this region.

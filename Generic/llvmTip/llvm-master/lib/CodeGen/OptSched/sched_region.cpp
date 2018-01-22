@@ -554,6 +554,10 @@ void SchedRegion::UpdateScheduleCost(InstSchedule *schedule) {
   // no need to return anything as all results can be found in the schedule
 }
 
+SPILL_COST_FUNCTION SchedRegion::GetSpillCostFunc() {
+  return spillCostFunc_;
+}
+
 void SchedRegion::HandlEnumrtrRslt_(FUNC_RESULT rslt, InstCount trgtLngth) {
   switch (rslt) {
   case RES_FAIL:
