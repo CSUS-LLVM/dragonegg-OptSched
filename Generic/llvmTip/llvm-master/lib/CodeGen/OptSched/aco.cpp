@@ -6,6 +6,7 @@
 #include "llvm/CodeGen/OptSched/basic/ready_list.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
+#include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/random.h"
 
 namespace opt_sched {
@@ -17,9 +18,6 @@ double RandDouble(double min, double max) {
   double rand = (double) RandomGen::GetRand32() / INT32_MAX;
   return (rand * (max - min)) + min;
 }
-
-#define INITIAL_VALUE 0.00001
-#define HEURISTIC_IMPORTANCE 1
 
 #define USE_ACS 1
 #define BIASED_CHOICES 10
@@ -37,6 +35,8 @@ ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph, MachineModel *machineMode
   prirts_ = priorities;
   rdyLst_ = new ReadyList(dataDepGraph_, priorities);
   count_ = dataDepGraph->GetInstCnt();
+  Config &schedIni = SchedulerOptions::getInstance();
+  heuristicImportance_ = schedIni.GetInt("HEURISTIC_IMPORTANCE");
 
   int pheremone_size = (count_ + 1) * count_;
   pheremone_ = new pheremone_t[pheremone_size];
@@ -66,7 +66,7 @@ pheremone_t &ACOScheduler::Pheremone(InstCount from, InstCount to) {
 }
 
 double ACOScheduler::Score(SchedInstruction *from, Choice choice) {
-  return Pheremone(from, choice.inst) * pow(choice.heuristic, HEURISTIC_IMPORTANCE);
+  return Pheremone(from, choice.inst) * pow(choice.heuristic, heuristicImportance_);
 }
 
 std::vector<double> ACOScheduler::scores(std::vector<Choice> ready, SchedInstruction *last) {

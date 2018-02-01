@@ -33,7 +33,8 @@ private:
   pheremone_t *pheremone_;
   pheremone_t initialValue_;
   int count_;
-std::vector<double> scores(std::vector<Choice> ready, SchedInstruction *last);
+  int heuristicImportance_;
+  std::vector<double> scores(std::vector<Choice> ready, SchedInstruction *last);
 };
 
 }
