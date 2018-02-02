@@ -45,6 +45,13 @@ STATISTIC(NumCopies, "Number of copies coalesced");
 int OPTSCHED_gNumLoadsBB = 0;
 // The number of inserted stores in the block.
 int OPTSCHED_gNumStoresBB = 0;
+// The number of stores inserted before calls.
+int OPTSCHED_gNumCallBoundaryStoresBB = 0;
+// The number of stores added before block boundaries.
+int OPTSCHED_gNumBlockBoundaryStoresBB = 0;
+// The number of loads from live-in registers.
+int OPTSCHED_gNumLiveInLoadsBB = 0;
+// Does the OptScheduler want us to print spill info.
 extern bool OPTSCHED_gPrintSpills;
 
 static RegisterRegAlloc fastRegAlloc("fast", "fast register allocator",
@@ -835,8 +842,11 @@ void RAFast::AllocateBasicBlock() {
 
   // Add live-in registers as live.
   for (const auto &LI : MBB->liveins())
-    if (MRI->isAllocatable(LI.PhysReg))
+    if (MRI->isAllocatable(LI.PhysReg)) {
       definePhysReg(*MII, LI.PhysReg, regReserved);
+      if (OPTSCHED_gPrintSpills)
+          OPTSCHED_gNumLiveInLoadsBB++;
+    }
 
   SmallVector<unsigned, 8> VirtDead;
   SmallVector<MachineInstr *, 32> Coalesced;
@@ -1056,7 +1066,15 @@ void RAFast::AllocateBasicBlock() {
       // definitions may be used later on and we do not want to reuse
       // those for virtual registers in between.
       DEBUG(dbgs() << "  Spilling remaining registers before call.\n");
-      spillAll(MI);
+      if (OPTSCHED_gPrintSpills) {
+        int numStoresBefore = OPTSCHED_gNumStoresBB;
+        // Add stores.
+        spillAll(MI);
+        // Calculate how many stores were added.
+        OPTSCHED_gNumCallBoundaryStoresBB += OPTSCHED_gNumStoresBB - numStoresBefore;
+      } else {
+        spillAll(MI);
+      }
 
       // The imp-defs are skipped below, but we still need to mark those
       // registers as used by the function.
@@ -1104,7 +1122,15 @@ void RAFast::AllocateBasicBlock() {
 
   // Spill all physical registers holding virtual registers now.
   DEBUG(dbgs() << "Spilling live registers at end of block.\n");
-  spillAll(MBB->getFirstTerminator());
+  if (OPTSCHED_gPrintSpills) {
+    int numStoresBefore = OPTSCHED_gNumStoresBB;
+    // Add stores.
+    spillAll(MBB->getFirstTerminator());
+    // Calculate how many stores were added.
+    OPTSCHED_gNumBlockBoundaryStoresBB += OPTSCHED_gNumStoresBB - numStoresBefore;
+  } else {
+    spillAll(MBB->getFirstTerminator());
+  }
 
   // Erase all the coalesced copies. We are delaying it until now because
   // LiveVirtRegs might refer to the instrs.
@@ -1123,9 +1149,12 @@ bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
   MF = &Fn;
 
   // The number of inserted loads in the function.
-  int numLoadsFunct = 0;
+  int numLoadsFunc = 0;
   // The number of inserted stores in the function.
-  int numStoresFunct = 0;
+  int numStoresFunc = 0;
+  int numCallBoundaryStoresFunc = 0;
+  int numBlockBoundaryStoresFunc = 0;
+  int numLiveInLoadsFunc = 0;
   int blockNumber = 0;
 
   MRI = &MF->getRegInfo();
@@ -1152,9 +1181,13 @@ bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
        MBBi != MBBe; ++MBBi) {
     MBB = &*MBBi;
 
+    // Reset globals to 0 for each BB.
     if (OPTSCHED_gPrintSpills) {
       OPTSCHED_gNumLoadsBB = 0;
       OPTSCHED_gNumStoresBB = 0;
+      OPTSCHED_gNumCallBoundaryStoresBB = 0;
+      OPTSCHED_gNumBlockBoundaryStoresBB = 0;
+      OPTSCHED_gNumLiveInLoadsBB = 0;
     }
 
     AllocateBasicBlock();
@@ -1162,13 +1195,19 @@ bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
     if (OPTSCHED_gPrintSpills) {
       dbgs() << "\n*************************************";
       dbgs() << "\nFunction: " << Fn.getName() << ":" << blockNumber << "\n";
-      dbgs() << "\nLoads in block: " << OPTSCHED_gNumLoadsBB;
-      dbgs() << "\nStores in block: " << OPTSCHED_gNumStoresBB;
       dbgs() << "\nSpills in block: "
              << OPTSCHED_gNumStoresBB + OPTSCHED_gNumLoadsBB;
+      dbgs() << "\nLoads in block: " << OPTSCHED_gNumLoadsBB;
+      dbgs() << "\nStores in block: " << OPTSCHED_gNumStoresBB;
+      dbgs() << "\nCall Boundary Stores in block: " << OPTSCHED_gNumCallBoundaryStoresBB;
+      dbgs() << "\nBlock Boundary Stores in block: " << OPTSCHED_gNumBlockBoundaryStoresBB;
+      dbgs() << "\nLive-In Loads in block: " << OPTSCHED_gNumLiveInLoadsBB;
       dbgs() << "\n*************************************\n";
-      numLoadsFunct += OPTSCHED_gNumLoadsBB;
-      numStoresFunct += OPTSCHED_gNumStoresBB;
+      numLoadsFunc += OPTSCHED_gNumLoadsBB;
+      numStoresFunc += OPTSCHED_gNumStoresBB;
+      numCallBoundaryStoresFunc += OPTSCHED_gNumCallBoundaryStoresBB;
+      numBlockBoundaryStoresFunc += OPTSCHED_gNumBlockBoundaryStoresBB;
+      numLiveInLoadsFunc += OPTSCHED_gNumLiveInLoadsBB;
       blockNumber++;
     }
   }
@@ -1177,9 +1216,12 @@ bool RAFast::runOnMachineFunction(MachineFunction &Fn) {
     dbgs() << "\n*************************************\n";
     dbgs() << "Function: " << Fn.getName() << "\n";
     dbgs() << "END FAST RA: Number of spills: "
-           << numLoadsFunct + numStoresFunct << "\n";
-    dbgs() << "\nLoads in function: " << numLoadsFunct;
-    dbgs() << "\nStores in function: " << numStoresFunct;
+           << numLoadsFunc + numStoresFunc;
+    dbgs() << "\nCall Boundary Stores in function: " << numCallBoundaryStoresFunc;
+    dbgs() << "\nBlock Boundary Stores in function: " << numBlockBoundaryStoresFunc;
+    dbgs() << "\nLive-In Loads in function: " << numLiveInLoadsFunc;
+    dbgs() << "\nLoads in function: " << numLoadsFunc;
+    dbgs() << "\nStores in function: " << numStoresFunc;
     dbgs() << "\n*************************************\n\n";
   }
 
