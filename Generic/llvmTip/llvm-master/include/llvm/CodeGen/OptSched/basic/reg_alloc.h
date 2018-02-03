@@ -28,6 +28,8 @@ public:
   typedef struct RegMap {
     // A queue of instruction numbers that this virtual register is used in.
     queue<int> nextUses;
+    // Do we need to spill this virtual register.
+    bool isDirty;
     // The physical register that this virtual register is mapped to. If this
     // virtual register is not mapped to a physical register, set to -1.
     int assignedReg;
@@ -65,8 +67,13 @@ private:
   // Find all instructions that use each register.
   void ScanUses_();
   void AllocateReg_(int16_t regType, int virtRegNum);
-  // Find the physical register with the latest next use.
-  int FindMaxNextUse_(std::map<int, RegMap>& regMaps, vector<int>& physRegs);
+  // Find a candidate physical register to spill.
+  int FindSpillCand_(std::map<int, RegMap>& regMaps, vector<int>& physRegs);
+  // Load live-in virtual registers. Live-in registers are defined by the
+  // artificial entry instruction.
+  void AddLiveIn_(SchedInstruction* artificialEntry);
+  // Spill all dirty registers.
+  void SpillAll_();
 };
 
 } // end namespace opt_sched

@@ -50,8 +50,8 @@ LOG_DIR = 'logs/'
 
 # Regular expressions.
 SETTING_REGEX = re.compile(r'\bUSE_OPT_SCHED\b.*')
-# SPILLS_REGEX = re.compile(r'Function: (.*?)\nEND FAST RA: Number of spills: (\d+)\n')
-SPILLS_REGEX = re.compile(r'Function: (.*?)\nGREEDY RA: Number of spilled live ranges: (\d+)')
+SPILLS_REGEX = re.compile(r'Function: (.*?)\nEND FAST RA: Number of spills: (\d+)\n')
+#SPILLS_REGEX = re.compile(r'Function: (.*?)\nGREEDY RA: Number of spilled live ranges: (\d+)')
 TIMES_REGEX = re.compile(r'(\d+) total seconds elapsed')
 BLOCK_NAME_AND_SIZE_REGEX = re.compile(r'Processing DAG (.*) with (\d+) insts')
 BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'The list schedule .* is optimal')
@@ -243,7 +243,7 @@ def writeStats(stats, spills, times, blocks, regp, trackOptSchedSpills):
                 blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                                   (improvement, (100 * improvement / cost) if cost else 0))
                 if trackOptSchedSpills:
-                    blocks_file.write('  Region Spills: %d\n' %
+                    blocks_file.write('  Simulated Block Spills: %d\n' %
                                     optSchedSpills)
 
                 totalCount += count
@@ -315,7 +315,7 @@ def writeStats(stats, spills, times, blocks, regp, trackOptSchedSpills):
             blocks_file.write('  Cost improvement: %d (%.2f%%)\n' %
                               (totalImprovement, (100 * totalImprovement / totalCost) if totalCost else 0))
             if trackOptSchedSpills:
-                blocks_file.write('  Total Region Spills: %d\n' %
+                blocks_file.write('  Total Simulated Block Spills: %d\n' %
                                 totalOptSchedSpills)
             blocks_file.write('  Smallest block size: %s\n' %
                               (min(sizesList) if sizesList else 'none'))
