@@ -33,6 +33,7 @@ SchedRegion::SchedRegion(MachineModel *machMdl, DataDepGraph *dataDepGraph,
   vrfySched_ = vrfySched;
   prune_ = prune;
 
+  totalSimSpills_ = INVALID_VALUE;
   bestCost_ = 0;
   bestSchedLngth_ = 0;
   hurstcCost_ = 0;
@@ -73,7 +74,8 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
     bool useFileBounds, Milliseconds rgnTimeout, Milliseconds lngthTimeout,
     bool &isLstOptml, InstCount &bestCost, InstCount &bestSchedLngth,
     InstCount &hurstcCost, InstCount &hurstcSchedLngth,
-    InstSchedule *&bestSched, bool filterByPerp, const BLOCKS_TO_KEEP blocksToKeep) {
+    InstSchedule *&bestSched, bool filterByPerp,
+    const BLOCKS_TO_KEEP blocksToKeep) {
   ConstrainedScheduler *lstSchdulr;
   InstSchedule *lstSched = NULL;
   FUNC_RESULT rslt = RES_SUCCESS;
@@ -554,9 +556,7 @@ void SchedRegion::UpdateScheduleCost(InstSchedule *schedule) {
   // no need to return anything as all results can be found in the schedule
 }
 
-SPILL_COST_FUNCTION SchedRegion::GetSpillCostFunc() {
-  return spillCostFunc_;
-}
+SPILL_COST_FUNCTION SchedRegion::GetSpillCostFunc() { return spillCostFunc_; }
 
 void SchedRegion::HandlEnumrtrRslt_(FUNC_RESULT rslt, InstCount trgtLngth) {
   switch (rslt) {
@@ -624,6 +624,7 @@ void SchedRegion::RegAlloc_(InstSchedule *&bestSched, InstSchedule *&lstSched) {
     u_regAllocBest->AllocRegs();
 
     u_regAllocBest->PrintSpillInfo(dataDepGraph_->GetDagID());
+    totalSimSpills_ = u_regAllocBest->GetCost();
   }
 
   if (SchedulerOptions::getInstance().GetString(

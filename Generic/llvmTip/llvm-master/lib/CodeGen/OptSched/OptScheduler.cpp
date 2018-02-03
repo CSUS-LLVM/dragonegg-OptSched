@@ -59,7 +59,7 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
 namespace opt_sched {
 ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
-      context(C), model(OptSchedCfg + "machine_model.cfg") {
+      context(C), model(OptSchedCfg + "machine_model.cfg"), totalSimulatedSpills(0) {
 
   // valid heuristic names
   std::strcpy(hurstcNames[(int)LSH_CP], "CP");
@@ -365,6 +365,11 @@ void ScheduleDAGOptSched::schedule() {
 
     } else {
       Logger::Info("OptSched succeeded.");
+      // Count simulated spills.
+      if (isSimRegAllocEnabled()) {
+          totalSimulatedSpills += region->GetSimSpills();
+      }
+
       // Convert back to LLVM.
       // Advance past initial DebugValues.
       CurrentTop = nextIfDebug(RegionBegin, RegionEnd);
@@ -709,6 +714,26 @@ bool ScheduleDAGOptSched::rpMismatch(InstSchedule *sched) {
   }
 
   return false;
+}
+
+void ScheduleDAGOptSched::finalizeSchedule() {
+  llvm::ScheduleDAGMILive::finalizeSchedule();
+
+  if (isSimRegAllocEnabled()) {
+    llvm::dbgs() << "*************************************\n";
+    llvm::dbgs() << "Function: " << MF.getName() << "\nTotal Simulated Spills: " << totalSimulatedSpills << "\n";
+    llvm::dbgs() << "*************************************\n";
+  }
+}
+
+bool ScheduleDAGOptSched::isSimRegAllocEnabled() {
+  // This will return false if only the list schedule is allocated.
+  return (OPTSCHED_gPrintSpills && (SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "BEST" ||
+      SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "BOTH" ||
+      SchedulerOptions::getInstance().GetString(
+          "SIMULATE_REGISTER_ALLOCATION") == "TAKE_SCHED_WITH_LEAST_SPILLS"));
 }
 
 } // namespace opt_sched

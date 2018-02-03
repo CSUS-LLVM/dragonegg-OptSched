@@ -56,6 +56,8 @@ public:
   inline InstCount GetBestCost() { return bestCost_; }
   // Returns a pointer to the list scheduler heurisitcs.
   inline SchedPriorities GetHeuristicPriorities() { return hurstcPrirts_; }
+  // Get the number of simulated spills code added for this block.
+  inline int GetSimSpills() { return totalSimSpills_; }
 
   // TODO(max): Document.
   virtual FUNC_RESULT
@@ -160,6 +162,8 @@ protected:
   InstCount crntCycleNum_;
   // TODO(max): Document.
   InstCount crntSlotNum_;
+  // total simulated spills.
+  int totalSimSpills_;
 
   // TODO(max): Document.
   void UseFileBounds_();

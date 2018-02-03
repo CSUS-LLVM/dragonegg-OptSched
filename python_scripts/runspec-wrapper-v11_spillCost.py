@@ -50,8 +50,9 @@ LOG_DIR = 'logs/'
 
 # Regular expressions.
 SETTING_REGEX = re.compile(r'\bUSE_OPT_SCHED\b.*')
-SPILLS_REGEX = re.compile(r'Function: (.*?)\nEND FAST RA: Number of spills: (\d+)\n')
+#SPILLS_REGEX = re.compile(r'Function: (.*?)\nEND FAST RA: Number of spills: (\d+)\n')
 #SPILLS_REGEX = re.compile(r'Function: (.*?)\nGREEDY RA: Number of spilled live ranges: (\d+)')
+SPILLS_REGEX = re.compile(r'Function: (.*?)\nTotal Simulated Spills: (\d+)')
 TIMES_REGEX = re.compile(r'(\d+) total seconds elapsed')
 BLOCK_NAME_AND_SIZE_REGEX = re.compile(r'Processing DAG (.*) with (\d+) insts')
 BLOCK_NOT_ENUMERATED_REGEX = re.compile(r'The list schedule .* is optimal')

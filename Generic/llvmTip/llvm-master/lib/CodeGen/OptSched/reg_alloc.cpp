@@ -33,8 +33,6 @@ void LocalRegAlloc::AllocRegs() {
        i != INVALID_VALUE; i = instSchedule_->GetNxtInst(cycle, slot)) {
     int instNum = i;
     SchedInstruction *inst = dataDepGraph_->GetInstByIndx(instNum);
-    if (!strcmp(inst->GetOpCode(), "__optsched_exit"))
-      Logger::Info("Live-outs %d\n", inst->GetUseCnt());
     // Skip artificial entry and exit nodes.
     if (!strcmp(inst->GetOpCode(), "__optsched_entry") ||
         !strcmp(inst->GetOpCode(), "__optsched_exit"))
