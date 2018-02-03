@@ -10,6 +10,7 @@ from __future__ import division
 import os
 import sys
 import statistics
+import collections
 
 # Constants
 SPILLS_FILENAME = 'spills.dat'
@@ -56,7 +57,7 @@ class TestTotals:
 
 # Process all benchmarks for one test run.
 def processSpillsFile(spillsFile):
-    spillsResult = {}
+    spillsResult = collections.OrderedDict()
     data = spillsFile.readlines()
     dataItr = iter(data)
 
