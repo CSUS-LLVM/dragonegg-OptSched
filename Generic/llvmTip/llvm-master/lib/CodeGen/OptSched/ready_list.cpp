@@ -154,6 +154,15 @@ unsigned long ReadyList::CmputKey_(SchedInstruction *inst, bool isUpdate,
       break;
 
     case LSH_LUC:
+      oldLastUseCnt = inst->GetLastUseCnt();
+      newLastUseCnt = inst->CmputLastUseCnt();
+      assert(!isUpdate || newLastUseCnt >= oldLastUseCnt);
+      if (newLastUseCnt != oldLastUseCnt)
+        changed = true;
+
+      AddPrirtyToKey_(key, keySize, useCntBits_, newLastUseCnt, maxUseCnt_);
+    break;
+
     case LSH_UC:
       AddPrirtyToKey_(key, keySize, useCntBits_, inst->GetUseCnt(), maxUseCnt_);
       break;
