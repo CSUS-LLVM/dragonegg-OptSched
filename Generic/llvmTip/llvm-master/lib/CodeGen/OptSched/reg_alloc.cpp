@@ -38,9 +38,9 @@ void LocalRegAlloc::AllocRegs() {
         !strcmp(inst->GetOpCode(), "__optsched_exit"))
       continue;
 
-      #ifdef IS_DEBUG_REG_ALLOC
-          Logger::Info("REG_ALLOC: Processing instruction %d.", instNum);
-      #endif
+#ifdef IS_DEBUG_REG_ALLOC
+    Logger::Info("REG_ALLOC: Processing instruction %d.", instNum);
+#endif
 
     Register **uses;
     Register **defs;
@@ -267,9 +267,11 @@ void LocalRegAlloc::AddLiveIn_(SchedInstruction *artificialEntry) {
       physRegs[physRegNum] = virtRegNum;
       free.pop();
     } else {
+#ifdef IS_DEBUG_REG_ALLOC
       Logger::Info("Too many live-in registers to allocate them all at once. "
                    "register is %d:%d.",
                    regType, virtRegNum);
+#endif
     }
   }
 }

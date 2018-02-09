@@ -35,7 +35,10 @@ class BenchStats:
         self.testSpills = {}
         # The maximum number of spills above the minimum for this test (spillsAboveMin, spillsInMin)
         self.maxExtraFunc = {}
+        # The number of functions where this test is the algoirthm that found the best schedule.
+        self.funcsWithBestRes = {}
         for testName in testNames:
+            self.funcsWithBestRes[testName] = 0
             self.funcsAtMin[testName] = 0
             self.testSpills[testName] = 0
             self.maxExtraFunc[testName] = (0, 0)
@@ -50,7 +53,9 @@ class TestTotals:
         self.totalFuncsAtMin = {}
         self.totalTestSpills = {}
         self.totalMaxExtraFunc = {}
+        self.totalFuncsWithBestRes = {}
         for testName in testNames:
+            self.totalFuncsWithBestRes[testName] = 0
             self.totalFuncsAtMin[testName] = 0
             self.totalTestSpills[testName] = 0
             self.totalMaxExtraFunc[testName] = (0, 0)
@@ -119,6 +124,7 @@ def generateSOMFiles(somData):
                 for testName in iter(somData):
                     totals.totalFuncsAtMin[testName] += benchData.funcsAtMin[testName]
                     totals.totalTestSpills[testName] += benchData.testSpills[testName]
+                    totals.totalFuncsWithBestRes[testName] += benchData.funcsWithBestRes[testName]
                     if benchData.maxExtraFunc[testName][0] > totals.totalMaxExtraFunc[testName][0]:
                         totals.totalMaxExtraFunc[testName] = (benchData.maxExtraFunc[testName][0], benchData.maxExtraFunc[testName][1])
 
@@ -129,14 +135,15 @@ def generateSOMFiles(somData):
 
             # Write details for each test to stats file
             testStr = 'Spilling Statistics:\n\n'
-            testStr += "\n{:<25}{:>40}{:>25}{:>25}\n".format('Heuristic', 'Extra Spills', '%Funcs at min', 'Max extra per func')
-            testStr += '-------------------------------------------------------------------------------------------------------------------\n\n'
+            testStr += "\n{:<25}{:>40}{:>25}{:>25}{:>28}\n".format('Heuristic', 'Extra Spills', '%Funcs at min', 'Innovativeness', 'Max extra per func')
+            testStr += '--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\n'
 
 
             for testName in sorted(totals.totalTestSpills, key=totals.totalTestSpills.__getitem__):
                 extraSpills = totals.totalTestSpills[testName] - totals.totalSom
                 extraSpillsP = "{:.2%}".format(extraSpills / totals.totalSom)
                 funcAtMinP = "{:.2%}".format(totals.totalFuncsAtMin[testName] / totals.totalFuncsWithSpills)
+                funcsWithBestResP = "{:.2%}".format(totals.totalFuncsWithBestRes[testName] / totals.totalFuncsWithSpills)
 
                 maxExtraSpills = totals.totalMaxExtraFunc[testName][0]
                 minSpillsInFuncWithMaxExtra = totals.totalMaxExtraFunc[testName][1]
@@ -148,14 +155,16 @@ def generateSOMFiles(somData):
                 maxExtraPerFuncStr = 'inf' if maxExtraSpillsP == -1 else "{:.2%}".format(maxExtraSpillsP)
 
                 #stdev = findStdev(somData[testName])
-                testStr += "{:<40}{:>17}{:>9}{:>21}{:>28}\n\n".format(testName, \
+                testStr += "{:<40}{:>17}{:>9}{:>20}{:>18}{:>9}{:>30}\n\n".format(testName, \
                                                          "{:,}".format(extraSpills), \
                                                          "({})".format(extraSpillsP), \
                                                          funcAtMinP, \
+                                                         "{:,}".format(totals.totalFuncsWithBestRes[testName]), \
+                                                         "({})".format(funcsWithBestResP), \
                                                          "{:>7} {:>7} {:>7}".format(maxExtraSpills, "({})".format(minSpillsInFuncWithMaxExtra), \
                                                          maxExtraPerFuncStr))
 
-            testStr += '-------------------------------------------------------------------------------------------------------------------\n\n'
+            testStr += '--------------------------------------------------------------------------------------------------------------------------------------------------------------------\n\n'
 
             spillsStatsFile.write(testStr)
 
@@ -219,6 +228,9 @@ def generateBenchStats(benchName, somData):
 
         # Format output data for this function
         bestTests = '[All]' if len(minTests) == len(somData) else str(minTests)
+
+        if len(minTests) == 1:
+            benchData.funcsWithBestRes[minTests[0]] += 1
 
         # Is this a function with spills.
         if not (bestTests == '[All]' and minSpills == 0):
