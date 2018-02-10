@@ -6,13 +6,12 @@ CSU Sacramento compiler project.
 We have a [slack channel](https://csusllvm.slack.com/signup) for easier communication. Sign up with your csus email.
 
 ## Requirements
-```
-- Ubuntu 16.04 is highly recommended
-- gcc 4.8 built with plugin support
-- g++ 4.8
-- gfortran 4.8
-- cmake 3.4.3 or later
-```
+
+  - Ubuntu 16.04 is highly recommended
+  - gcc 4.8 built with plugin support
+  - g++ 4.8
+  - gfortran 4.8
+  - cmake 3.4.3 or later
 
 ## Set up a development environment
 
