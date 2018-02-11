@@ -1,56 +1,49 @@
-Read Contribution Guide (CONTRIBUTING.md) for steps to install and configure git
+[![CSUS](http://www.csus.edu/Brand/assets/Logos/Core/Primary/Stacked/Primary_Stacked_3_Color_wht_hndTN.png)](http://www.csus.edu/)
 
+# CSUS LLVM
+CSU Sacramento compiler project.
 
-Steps to build modified dragonegg and llvm:
+We have a [slack channel](https://csusllvm.slack.com/signup) for easier communication. Sign up with your csus email.
 
--Use Ubuntu 16.04
--Clone the repository
--Download the modified DRAGONEGG from https://drive.google.com/drive/folders/0B0PcXgBFyHNqcXkyb0pCU3QxY2M?usp=sharing
--Move the extracted dragonegg directory to LLVMDRAGONEGG/Generic
--make CompileLLVMandDRAGONEGG.sh executable run the command:
-	sudo chmod u+x ./CompileLLVMandDRAGONEGG.sh
--run the script with:
-	./CompileLLVMandDRAGONEGG.sh (this will take a very long time
-					   you should check the progress periodically
-					   becuase you may have to re-enter your password
-				           multiple times)
+## Requirements
+```
+- Ubuntu 16.04 is highly recommended
+- gcc 4.8 built with plugin support
+- g++ 4.8
+- gfortran 4.8
+- cmake 3.4.3 or later
+```
 
--to use the OptScheduler use RunOptSched.sh/ClangRunOptSched.sh: see file for details
+## Set up a development environment
 
--to compile a program with dragonegg use the command:
-  /usr/bin/gcc-4.8 -fplugin="/***path to dragonegg.so*** -O3 myprogram.c
+1. Clone the repository (CONTRIBUTING.md contains some tips on using git).
+2. Download the modified dragonegg from this google drive [link](https://drive.google.com/drive/folders/0B0PcXgBFyHNqcXkyb0pCU3QxY2M?usp=sharing).
+3. Extract dragonegg and copy it to the ["Generic"](https://gitlab.com/CSUS_LLVM/LLVM_DRAGONEGG/tree/master/Generic) directory
+4. If you are using Ubuntu, run the script [CompileLLVMandDRAGONEGG.sh](https://gitlab.com/CSUS_LLVM/LLVM_DRAGONEGG/blob/master/CompileLLVMandDRAGONEGG.sh) and follow the prompts to build LLVM and dragonegg.
+	- Run `./CompileLLVMandDRAGONEGG` in the base of the repository.
+5. Our scheduler's code is in the CodeGen directory.
+	- Source files can be found in [lib/CodeGen/OptSched](https://gitlab.com/CSUS_LLVM/LLVM_DRAGONEGG/tree/master/Generic/llvmTip/llvm-master/lib/CodeGen/OptSched)
+	- Headder files can be found in [include/llvm/CodeGen/OptSched](https://gitlab.com/CSUS_LLVM/LLVM_DRAGONEGG/tree/master/Generic/llvmTip/llvm-master/include/llvm/CodeGen/OptSched)
+6. After modifying the code you can use the script [CompileLLVMandDRAGONEGG](https://gitlab.com/CSUS_LLVM/LLVM_DRAGONEGG/blob/master/CompileLLVMandDRAGONEGG.sh) to rebuild LLVM. Note that dragonegg is statically linked and must also be rebuilt after every change.
 
-Enable LLVM's local register allocator with the option -regalloc:fast.
+## Fresh Start Guide
 
-Steps to run CPU2006 tests:
+- [**Look here if you need more detailed help getting started**](https://docs.google.com/document/d/1AmqCsN1CJFvuNOf4hm21SVAJCpPygFirjnRFElgmCCY/)
 
--Open config/Intel_llvm_3.3.cfg and change line 32 so that DRAGON_EGG points to your dragonegg installation
--cd into the CPU2006 base directory
--run: 
-	./install.sh
--after that install script finishes run:
-	source shrc
+## Invoking our scheduler
 
+Our scheduler, "OptSched", is integrated as a "machine scheduler" within LLVM. To invoke our scheduler use the LLVM option `-misched=optsched`. It is also nessessary to provide LLVM with the path to your configuration files. Do this with the `-optsched-cfg` option.
 
-More details about running CPU2006 test copied from https://drive.google.com/drive/folders/0BxVfA7be0XrJWGxnXzhhTFVRdkU?usp=sharing
+By default "OptSchedCfg" is located at [Generic/OptSchedCfg](https://gitlab.com/CSUS_LLVM/LLVM_DRAGONEGG/tree/master/Generic/OptSchedCfg).
 
-- Run the benchmarks by performing the following commands in CPU2006_DIR. If runspec command is not found. Try rerunning "source shrc".
-  
-  (1) This clears any existing compilations of the benchmarks
-  runspec --loose -size=ref -iterations=3 -config=Intel_llvm_3.3 --tune=base -r 1 -I -a scrub all
-  (2) This compiles and runs the actual benchmarks. Be sure not to use the compiter when the benchmarks are running.
-  runspec --loose -size=SIZE -iterations=N -config=CF --tune=base -r 1 -I -a ACT BENCH
+- For example, to compile a program using our scheduler with clang use the command:
 
-  where SIZE is either test (use the small test input for checking correctness) or ref (use the large reference input for measuring performance)
-  N is the number of iterations you want to run. Usually, we run 3 iterations 
-  CF is the name of the config file to use
-  ACT is either build (only compile the benchmarks without running them) or validate (compile and then run the benchmarks)
-  BENCH is either all (run all benchmarks) or fp (run FP benchmarks only) or int (run integer benchmarks only) or a list of specific benchmark names. The list could have only one benchmark.
+		clang -O3 -mllvm -misched=optsched -mllvm -optsched-cfg=**/path/to/OptSchedCfg/** test.c
 
-Example:
-runspec --loose -size=ref -iterations=3 -config= Intel_llvm_3.3.cfg --tune=base -r 1 -I -a validate all
+## Dragonegg
 
-This command will compile and run all benchmarks three times using the reference input according to the configuration specified in the file Intel_llvm_3.3.cfg.
-Collect the results for your test by opening the .txt files whose names appear when the test completes. 
-The result files will be located in the directory CPU2006_DIR/result. The files generated that hold the execution times are the files "*.ref.txt"
+Dragonegg is a gcc plugin that allows us to compile FORTRAN benchmarks with the LLVM backend.
 
+- To compile a program using dragonegg use the command:
+
+		/usr/bin/gfortran-4.8  -O3 -fplugin=**/path/to/dragonegg/dragonegg.so** -fplugin-arg-dragonegg-llvm-option=-misched:optsched -fplugin-arg-dragonegg-llvm-option=-optsched-cfg:**/path/to/OptSchedCfg/** test.f
