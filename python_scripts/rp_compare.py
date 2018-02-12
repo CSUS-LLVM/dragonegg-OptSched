@@ -1,4 +1,6 @@
 #/usr/bin/python3
+# Calculate how often OptSched's register pressure estimates match LLVM's
+# You must compile OptSched with IS_DEBUG_PEAK_PRESSURE flag enabled.
 
 import sys
 import re

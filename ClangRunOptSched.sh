@@ -8,14 +8,14 @@
 # -g++             : compile with g++
 # -o filename      : the name for the output binary
 # -p               : print command string so it can be copied
+# -d               : use debug build of clang, not the release verison
 # example: ./RunOptSched.sh -dopt -g++ -o test test.cpp
 
 BASEDIR=$(dirname $0)"/Generic"
-OPTSCHEDCFG="$BASEDIR/OptSchedCfg"
+OPTSCHEDCFG="$BASEDIR/OptSchedCfg/"
 DRAGONEGGPATH="$BASEDIR/dragonegg/dragonegg.so"
 GCCPATH="/usr/bin"
-CLANGPATH="$BASEDIR/llvmTip/build/bin"
-LLVMOPT="-fplugin-arg-dragonegg-llvm-option="
+CLANGPATH="$BASEDIR/llvmTip/release_build/bin"
 
 args="-mllvm -misched=optsched -O3 -mllvm -optsched-cfg=$OPTSCHEDCFG"
 cc=clang
@@ -36,6 +36,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         -p)
             PRINT='True'
+            ;;
+        -d)
+            CLANGPATH="$BASEDIR/llvmTip/build/bin"
             ;;
         -*)
             echo "Unknown argument: \"$key\""; exit 1
