@@ -184,7 +184,7 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
 
   InstCount hurstcExecCost;
   Config &schedIni = SchedulerOptions::getInstance();
-  if (!schedIni.GetBool("USE_ACO")) {
+  if (!schedIni.GetBool("USE_ACO", false)) {
     CmputNormCost_(lstSched, CCM_DYNMC, hurstcExecCost, true);
   } else {
     CmputNormCost_(lstSched, CCM_STTC, hurstcExecCost, false);
