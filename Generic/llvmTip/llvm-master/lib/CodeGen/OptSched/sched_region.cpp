@@ -294,6 +294,17 @@ FUNC_RESULT SchedRegion::FindOptimalSchedule(
                  optimalSchedule ? "optimal" : "not optimal");
   }
 
+#ifdef IS_DEBUG_PRINT_PERP_AT_EACH_STEP
+    Logger::Info("Printing PERP at each step in the schedule.");
+
+    int costSum = 0;
+    for (int i = 0; i < dataDepGraph_->GetInstCnt(); ++i) {
+      Logger::Info("Cycle: %lu Cost: %lu", i, bestSched_->GetSpillCost(i));
+      costSum += bestSched_->GetSpillCost(i);
+    }
+    Logger::Info("Cost Sum: %lu", costSum);
+#endif
+
   if (SchedulerOptions::getInstance().GetString(
           "SIMULATE_REGISTER_ALLOCATION") != "NO") {
 #ifdef IS_DEBUG
