@@ -36,7 +36,7 @@ ACOScheduler::ACOScheduler(DataDepGraph *dataDepGraph, MachineModel *machineMode
   rdyLst_ = new ReadyList(dataDepGraph_, priorities);
   count_ = dataDepGraph->GetInstCnt();
   Config &schedIni = SchedulerOptions::getInstance();
-  heuristicImportance_ = schedIni.GetInt("HEURISTIC_IMPORTANCE");
+  heuristicImportance_ = schedIni.GetInt("ACO_HEURISTIC_IMPORTANCE");
 
   int pheremone_size = (count_ + 1) * count_;
   pheremone_ = new pheremone_t[pheremone_size];
@@ -193,6 +193,8 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
   /* std::cout<<initialValue_<<std::endl; */
 
   InstSchedule *bestSchedule = NULL;
+  Config &schedIni = SchedulerOptions::getInstance();
+  int noImprovementMax = schedIni.GetInt("ACO_STOP_ITERATIONS");
   int noImprovement = 0; // how many iterations with no improvement
   for (int it = 0; ; it++) {
     InstSchedule *iterationBest = NULL;
@@ -222,7 +224,7 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
       noImprovement++;
       /* if (*iterationBest == *bestSchedule) */
       /*   std::cout << "same" << std::endl; */
-      if (noImprovement > 50)
+      if (noImprovement > noImprovementMax)
         break;
     }
 #if USE_ACS
