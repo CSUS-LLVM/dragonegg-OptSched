@@ -107,7 +107,7 @@ bool BBWithSpill::EnableEnum_() {
 
 ConstrainedScheduler *BBWithSpill::AllocHeuristicScheduler_() {
   Config &schedIni = SchedulerOptions::getInstance();
-  if (schedIni.GetBool("USE_ACO"))
+  if (schedIni.GetBool("USE_ACO", false))
     return new ACOScheduler(dataDepGraph_, machMdl_, abslutSchedUprBound_, hurstcPrirts_);
   else
     return new ListScheduler(dataDepGraph_, machMdl_, abslutSchedUprBound_, hurstcPrirts_);
