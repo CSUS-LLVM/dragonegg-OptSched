@@ -499,7 +499,7 @@ bool CostHistEnumTreeNode::ChkCostDmntnForBBSpill_(EnumTreeNode *node,
       ((LengthCostEnumerator *)en)->GetSpillCostFunc();
   if (time_ > node->GetTime())
     return false;
-  if (spillCostFunc == SCF_SLIL || spillCostFunc == SCF_PEAK || spillCostFunc == SCF_PRP) {
+  if (spillCostFunc == SCF_SLIL || spillCostFunc == SCF_PERP || spillCostFunc == SCF_PRP) {
     if (!DoesHistoryCostDominate(partialCost_, totalCost_, *node,
                                  static_cast<LengthCostEnumerator &>(*en)))
       return false;

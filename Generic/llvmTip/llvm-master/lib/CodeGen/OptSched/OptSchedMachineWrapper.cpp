@@ -31,8 +31,6 @@ void LLVMMachineModel::convertMachineModel(
   mdlName_ = target.getTarget().getName();
 
   Logger::Info("Machine model: %s", mdlName_.c_str());
-  bool useZeroLimit =
-      SchedulerOptions::getInstance().GetString("SPILL_COST_FUNCTION") == "PRP";
 
   // Clear The registerTypes list to read registers limits from the LLVM machine
   // model
@@ -44,10 +42,11 @@ void LLVMMachineModel::convertMachineModel(
     regType.name = registerInfo->getRegPressureSetName(pSet);
     int pressureLimit = regClassInfo->getRegPressureSetLimit(pSet);
     // set registers with 0 limit to 1 to support flags and special cases
-    if (pressureLimit > 0 && !useZeroLimit)
+    if (pressureLimit > 0)
       regType.count = pressureLimit;
     else
-      regType.count = 3;
+      regType.count = 1;
+
     registerTypes_.push_back(regType);
 #ifdef IS_DEBUG_MM
     Logger::Info("Pressure set %s has a limit of %d", regType.name.c_str(),

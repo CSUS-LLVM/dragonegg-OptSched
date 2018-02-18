@@ -663,8 +663,9 @@ ScheduleDAGOptSched::parseHeuristic(const std::string &str) const {
 SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
   std::string name =
       SchedulerOptions::getInstance().GetString("SPILL_COST_FUNCTION");
-  if (name == "PEAK") {
-    return SCF_PEAK;
+  // PERP used to be called PEAK.
+  if (name == "PERP" || name == "PEAK") {
+    return SCF_PERP;
   } else if (name == "PRP") {
     return SCF_PRP;
   } else if (name == "PEAK_PER_TYPE") {
@@ -676,8 +677,8 @@ SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
   } else if (name == "SLIL") {
     return SCF_SLIL;
   } else {
-    Logger::Error("Unrecognized spill cost function. Defaulted to PEAK.");
-    return SCF_PEAK;
+    Logger::Error("Unrecognized spill cost function. Defaulted to PERP.");
+    return SCF_PERP;
   }
 }
 
