@@ -576,7 +576,7 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction *inst,
     if (spillCostFunc_ == SCF_PEAK_PER_TYPE)
       excessRegs = peakRegPressures_[i] - machMdl_->GetPhysRegCnt(i);
     else if (spillCostFunc_ == SCF_PRP)
-      excessRegs = peakRegPressures_[i];
+      excessRegs = liveRegs;
     else
       excessRegs = liveRegs - machMdl_->GetPhysRegCnt(i);
 
