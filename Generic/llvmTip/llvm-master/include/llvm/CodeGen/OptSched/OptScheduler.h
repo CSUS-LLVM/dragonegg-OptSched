@@ -126,7 +126,7 @@ private:
   // The heuristic used for the enumerator.
   SchedPriorities enumPriorities;
   // Check if Heuristic is set to ISO.
-  bool isHeuristicISO;
+  bool llvmScheduling;
   // The number of simulated register spills in this function
   int totalSimulatedSpills;
   // Load config files for the OptScheduler and set flags
