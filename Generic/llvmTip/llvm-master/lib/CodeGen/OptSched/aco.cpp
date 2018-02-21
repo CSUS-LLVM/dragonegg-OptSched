@@ -106,6 +106,8 @@ SchedInstruction *ACOScheduler::SelectInstruction(std::vector<Choice> ready, Sch
 InstSchedule *ACOScheduler::FindOneSchedule() {
   SchedInstruction *lastInst = NULL;
   InstSchedule *schedule = new InstSchedule(machMdl_, dataDepGraph_, true);
+  InstCount maxPriority = rdyLst_->MaxPriority();
+  if (maxPriority == 0) maxPriority = 1; // divide by 0 is bad
   Initialize_();
 
   while (!IsSchedComplete_()) {
@@ -119,7 +121,7 @@ InstSchedule *ACOScheduler::FindOneSchedule() {
       if (ChkInstLglty_(inst)) {
         Choice c;
         c.inst = inst;
-        c.heuristic = (double) heuristic / rdyLst_->MaxPriority();
+        c.heuristic = (double) heuristic / maxPriority;
         ready.push_back(c);
       }
       inst = rdyLst_->GetNextPriorityInst(heuristic);
