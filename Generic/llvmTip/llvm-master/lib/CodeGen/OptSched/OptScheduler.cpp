@@ -176,7 +176,7 @@ void ScheduleDAGOptSched::schedule() {
   }
 
   // Use LLVM's heuristic schedule as input to the B&B scheduler.
-  if (isHeuristicISO) {
+  if (llvmScheduling) {
 
     ScheduleDAGMILive::schedule();
 
@@ -259,7 +259,7 @@ void ScheduleDAGOptSched::schedule() {
 #endif
   // discoverBoundaryLiveness();
   // build LLVM DAG
-  if (!isHeuristicISO) {
+  if (!llvmScheduling) {
     SetupLLVMDag();
     // Init topo for fast search for cycles and/or mutations
     Topo.InitDAGTopologicalSorting();
@@ -360,7 +360,7 @@ void ScheduleDAGOptSched::schedule() {
       Logger::Info("OptSched run failed: rslt=%d, sched=%p. Falling back.",
                    rslt, (void *)sched);
 
-      if (!isHeuristicISO)
+      if (!llvmScheduling)
         fallbackScheduler();
 
     } else {
@@ -491,7 +491,7 @@ void ScheduleDAGOptSched::fallbackScheduler() {
   }
 
   // Only call LLVM scheduler if the heurisitc is not ISO.
-  if (!isHeuristicISO)
+  if (!llvmScheduling)
     ScheduleDAGMILive::schedule();
 }
 
@@ -535,8 +535,10 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   maxSpillCost = schedIni.GetInt("MAX_SPILL_COST");
   lowerBoundAlgorithm = parseLowerBoundAlgorithm();
   heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
-  isHeuristicISO = schedIni.GetString("HEURISTIC") == "ISO" ||
-                   schedIni.GetString("HEURISTIC") == "NID";
+  // To support old sched.ini files setting NID as the heuristic means LLVM
+  // scheduling is enabled.
+  llvmScheduling =  schedIni.GetBool("LLVM_SCHEDULING", false) ||
+                     schedIni.GetString("HEURISTIC") == "NID";
   enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
   spillCostFunction = parseSpillCostFunc();
   regionTimeout = schedIni.GetInt("REGION_TIMEOUT");
@@ -663,8 +665,9 @@ ScheduleDAGOptSched::parseHeuristic(const std::string &str) const {
 SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
   std::string name =
       SchedulerOptions::getInstance().GetString("SPILL_COST_FUNCTION");
-  if (name == "PEAK") {
-    return SCF_PEAK;
+  // PERP used to be called PEAK.
+  if (name == "PERP" || name == "PEAK") {
+    return SCF_PERP;
   } else if (name == "PRP") {
     return SCF_PRP;
   } else if (name == "PEAK_PER_TYPE") {
@@ -676,8 +679,8 @@ SPILL_COST_FUNCTION ScheduleDAGOptSched::parseSpillCostFunc() const {
   } else if (name == "SLIL") {
     return SCF_SLIL;
   } else {
-    Logger::Error("Unrecognized spill cost function. Defaulted to PEAK.");
-    return SCF_PEAK;
+    Logger::Error("Unrecognized spill cost function. Defaulted to PERP.");
+    return SCF_PERP;
   }
 }
 

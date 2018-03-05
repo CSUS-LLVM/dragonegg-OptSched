@@ -429,7 +429,7 @@ InstCount BBWithSpill::CmputCost_(InstSchedule *sched, COST_COMP_MODE compMode,
 
 void BBWithSpill::CmputCrntSpillCost_() {
   switch (spillCostFunc_) {
-  case SCF_PEAK:
+  case SCF_PERP:
   case SCF_PRP:
   case SCF_PEAK_PER_TYPE:
     crntSpillCost_ = peakSpillCost_;
@@ -575,6 +575,8 @@ void BBWithSpill::UpdateSpillInfoForSchdul_(SchedInstruction *inst,
 
     if (spillCostFunc_ == SCF_PEAK_PER_TYPE)
       excessRegs = peakRegPressures_[i] - machMdl_->GetPhysRegCnt(i);
+    else if (spillCostFunc_ == SCF_PRP)
+      excessRegs = liveRegs;
     else
       excessRegs = liveRegs - machMdl_->GetPhysRegCnt(i);
 
