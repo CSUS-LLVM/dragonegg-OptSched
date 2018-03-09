@@ -3,12 +3,12 @@ Description:  A wrapper that convert an LLVM ScheduleDAG to an OptSched
               DataDepGraph.
 *******************************************************************************/
 
-#include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineScheduler.h"
+#include "llvm/CodeGen/OptSched/OptSchedDagWrapper.h"
 #include "llvm/CodeGen/OptSched/basic/register.h"
 #include "llvm/CodeGen/OptSched/basic/sched_basic_data.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
@@ -32,40 +32,47 @@ namespace opt_sched {
 
 using namespace llvm;
 
+static std::unique_ptr<LLVMRegTypeFilter> createLLVMRegTypeFilter(
+    const MachineModel *MM, const llvm::TargetRegisterInfo *TRI,
+    const std::vector<unsigned> &RegionPressure, float RegFilterFactor = .7f) {
+  return std::unique_ptr<LLVMRegTypeFilter>(
+      new LLVMRegTypeFilter(MM, TRI, RegionPressure, RegFilterFactor));
+}
+
 LLVMDataDepGraph::LLVMDataDepGraph(
     MachineSchedContext *context, ScheduleDAGMILive *llvmDag,
     LLVMMachineModel *machMdl, LATENCY_PRECISION ltncyPrcsn,
     MachineBasicBlock *BB, GraphTransTypes graphTransTypes,
-    ScheduleDAGTopologicalSort &Topo, bool treatOrderDepsAsDataDeps,
+    const std::vector<unsigned> &RegionPressure, bool treatOrderDepsAsDataDeps,
     int maxDagSizeForPrcisLtncy, int regionNum)
     : DataDepGraph(machMdl, ltncyPrcsn, graphTransTypes),
       llvmNodes_(llvmDag->SUnits), context_(context), schedDag_(llvmDag),
-      topo_(Topo), target_(llvmDag->TM) {
-  llvmMachMdl_ = static_cast<LLVMMachineModel *>(machMdl_);
+      target_(llvmDag->TM), RegionPressure(RegionPressure), RTFilter(nullptr) {
+  llvmMachMdl_ = machMdl;
   dagFileFormat_ = DFF_BB;
   isTraceFormat_ = false;
   ltncyPrcsn_ = ltncyPrcsn;
   treatOrderDepsAsDataDeps_ = treatOrderDepsAsDataDeps;
   maxDagSizeForPrcisLtncy_ = maxDagSizeForPrcisLtncy;
+  includesNonStandardBlock_ = false;
+  includesUnsupported_ = false;
+  ShouldFilterRegisterTypes = SchedulerOptions::getInstance().GetBool(
+      "FILTER_REGISTERS_TYPES_WITH_LOW_PRP");
+  includesUnpipelined_ = true;
+
+  if (ShouldFilterRegisterTypes)
+    RTFilter = createLLVMRegTypeFilter(machMdl, schedDag_->TRI, RegionPressure);
 
   // The extra 2 are for the artifical root and leaf nodes.
   instCnt_ = nodeCnt_ = llvmNodes_.size() + 2;
-
   // TODO(max99x): Find real weight.
   weight_ = 1.0f;
 
   std::snprintf(dagID_, MAX_NAMESIZE, "%s:%d",
                 context_->MF->getFunction()->getName().data(), regionNum);
-
   std::snprintf(compiler_, MAX_NAMESIZE, "LLVM");
 
   AllocArrays_(instCnt_);
-
-  includesNonStandardBlock_ = false;
-  includesUnsupported_ = false;
-
-  // TODO(max99x)/(austin): Find real value for this.
-  includesUnpipelined_ = true;
 
   ConvertLLVMNodes_();
 
@@ -351,7 +358,7 @@ void LLVMDataDepGraph::AddDefsAndUses(RegisterFile regFiles[]) {
   // Optionally, add these registers as uses in the aritificial leaf node.
   if (SchedulerOptions::getInstance().GetBool(
           "ADD_DEFINED_AND_NOT_USED_REGS")) {
-    for (int i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
+    for (int16_t i = 0; i < machMdl_->GetRegTypeCnt(); i++) {
       for (int j = 0; j < regFiles[i].GetRegCnt(); j++) {
         Register *reg = regFiles[i].GetReg(j);
         if (reg->GetUseCnt() == 0) {
@@ -584,19 +591,23 @@ LLVMDataDepGraph::GetRegisterType_(const unsigned resNo) const {
   // If we want to use simple register types return the first PSet.
   if (useSimpleTypes) {
     const char *pSetName = TRI.getRegPressureSetName(*PSetI);
-    int type = llvmMachMdl_->GetRegTypeByName(pSetName);
-    pSetTypes.push_back(type);
-    return pSetTypes;
-  }
+    bool FilterOutRegType = ShouldFilterRegisterTypes && (*RTFilter)[pSetName];
 
-  for (; PSetI.isValid(); ++PSetI) {
-    const char *pSetName = TRI.getRegPressureSetName(*PSetI);
-    int type = llvmMachMdl_->GetRegTypeByName(pSetName);
+    if (!FilterOutRegType) {
+      int type = llvmMachMdl_->GetRegTypeByName(pSetName);
+      pSetTypes.push_back(type);
+    }
 
-    pSetTypes.push_back(type);
-#ifdef IS_DEBUG_REG_TYPES
-    Logger::Info("Pset is %s", pSetName);
-#endif
+  } else {
+    for (; PSetI.isValid(); ++PSetI) {
+      const char *pSetName = TRI.getRegPressureSetName(*PSetI);
+      bool FilterOutRegType = ShouldFilterRegisterTypes && (*RTFilter)[pSetName];
+
+      if (!FilterOutRegType) {
+        int type = llvmMachMdl_->GetRegTypeByName(pSetName);
+        pSetTypes.push_back(type);
+      }
+    }
   }
 
   return pSetTypes;
@@ -633,6 +644,56 @@ bool LLVMDataDepGraph::isLeafNode(const SUnit &unit) {
       return false;
   }
   return true;
+}
+
+LLVMRegTypeFilter::LLVMRegTypeFilter(
+    const MachineModel *MM, const llvm::TargetRegisterInfo *TRI,
+    const std::vector<unsigned> &RegionPressure, float RegFilterFactor)
+    : MM(MM), TRI(TRI), RegionPressure(RegionPressure),
+      RegFilterFactor(RegFilterFactor) {
+  FindPSetsToFilter();
+}
+
+void LLVMRegTypeFilter::FindPSetsToFilter() {
+  for (unsigned i = 0, e = RegionPressure.size(); i < e; ++i) {
+    const char *RegTypeName = TRI->getRegPressureSetName(i);
+    int16_t RegTypeID = MM->GetRegTypeByName(RegTypeName);
+
+    int RPLimit = MM->GetPhysRegCnt(RegTypeID);
+    int MAXPR = RegionPressure[i];
+
+    bool ShouldFilterType = MAXPR < RegFilterFactor * RPLimit;
+
+    RegTypeIDFilteredMap[RegTypeID] = ShouldFilterType;
+    RegTypeNameFilteredMap[RegTypeName] = ShouldFilterType;
+  }
+}
+
+bool LLVMRegTypeFilter::operator[](const int16_t RegTypeID) const {
+  assert(RegTypeIDFilteredMap.find(RegTypeID) != RegTypeIDFilteredMap.end() &&
+         "Could not find RegTypeID!");
+
+  return RegTypeIDFilteredMap.find(RegTypeID)->second;
+}
+
+bool LLVMRegTypeFilter::operator[](const char *RegTypeName) const {
+  assert(RegTypeNameFilteredMap.find(RegTypeName) !=
+             RegTypeNameFilteredMap.end() &&
+         "Could not find RegTypeName!");
+
+  return RegTypeNameFilteredMap.find(RegTypeName)->second;
+}
+
+bool LLVMRegTypeFilter::shouldFilter(int16_t RegTypeID) const {
+  return (*this)[RegTypeID];
+}
+
+bool LLVMRegTypeFilter::shouldFilter(const char *RegTypeName) const {
+  return (*this)[RegTypeName];
+}
+
+void LLVMRegTypeFilter::setRegFilterFactor(float RegFilterFactor) {
+  this->RegFilterFactor = RegFilterFactor;
 }
 
 } // end namespace opt_sched

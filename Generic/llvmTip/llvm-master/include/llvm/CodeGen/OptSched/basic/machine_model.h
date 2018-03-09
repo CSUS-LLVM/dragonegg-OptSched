@@ -126,9 +126,9 @@ public:
   bool IsRealInst(InstType instTypeCode) const;
   // The machine model is simple if the issue rate is 1, the number of issue
   // types is 1, and the number of issue slots is 1.
-  bool IsSimple() {
+  bool IsSimple() const {
     return issueRate_ == 1 && issueSlotCnt_ == 1 && issueTypes_.size() == 1;
-  }
+  };
 
 protected:
   // Creates an uninitialized machine model. For use by subclasses.

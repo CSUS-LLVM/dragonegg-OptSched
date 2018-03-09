@@ -59,7 +59,8 @@ nextIfDebug(llvm::MachineBasicBlock::iterator I,
 namespace opt_sched {
 ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
     : llvm::ScheduleDAGMILive(C, llvm::make_unique<llvm::GenericScheduler>(C)),
-      context(C), model(OptSchedCfg + "machine_model.cfg"), totalSimulatedSpills(0) {
+      context(C), model(OptSchedCfg + "machine_model.cfg"),
+      totalSimulatedSpills(0) {
 
   // valid heuristic names
   std::strcpy(hurstcNames[(int)LSH_CP], "CP");
@@ -301,8 +302,9 @@ void ScheduleDAGOptSched::schedule() {
 
   // convert dag
   LLVMDataDepGraph dag(context, this, &model, latencyPrecision, BB,
-                       graphTransTypes, Topo, treatOrderDepsAsDataDeps,
-                       maxDagSizeForLatencyPrecision, regionNum);
+                       graphTransTypes, RPTracker.getPressure().MaxSetPressure,
+                       treatOrderDepsAsDataDeps, maxDagSizeForLatencyPrecision,
+                       regionNum);
   // create region
   SchedRegion *region = new BBWithSpill(
       &model, &dag, 0, histTableHashBits, lowerBoundAlgorithm,
@@ -367,7 +369,7 @@ void ScheduleDAGOptSched::schedule() {
       Logger::Info("OptSched succeeded.");
       // Count simulated spills.
       if (isSimRegAllocEnabled()) {
-          totalSimulatedSpills += region->GetSimSpills();
+        totalSimulatedSpills += region->GetSimSpills();
       }
 
       // Convert back to LLVM.
@@ -537,8 +539,8 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   heuristicPriorities = parseHeuristic(schedIni.GetString("HEURISTIC"));
   // To support old sched.ini files setting NID as the heuristic means LLVM
   // scheduling is enabled.
-  llvmScheduling =  schedIni.GetBool("LLVM_SCHEDULING", false) ||
-                     schedIni.GetString("HEURISTIC") == "NID";
+  llvmScheduling = schedIni.GetBool("LLVM_SCHEDULING", false) ||
+                   schedIni.GetString("HEURISTIC") == "NID";
   enumPriorities = parseHeuristic(schedIni.GetString("ENUM_HEURISTIC"));
   spillCostFunction = parseSpillCostFunc();
   regionTimeout = schedIni.GetInt("REGION_TIMEOUT");
@@ -724,19 +726,23 @@ void ScheduleDAGOptSched::finalizeSchedule() {
 
   if (isSimRegAllocEnabled()) {
     llvm::dbgs() << "*************************************\n";
-    llvm::dbgs() << "Function: " << MF.getName() << "\nTotal Simulated Spills: " << totalSimulatedSpills << "\n";
+    llvm::dbgs() << "Function: " << MF.getName()
+                 << "\nTotal Simulated Spills: " << totalSimulatedSpills
+                 << "\n";
     llvm::dbgs() << "*************************************\n";
   }
 }
 
 bool ScheduleDAGOptSched::isSimRegAllocEnabled() {
   // This will return false if only the list schedule is allocated.
-  return (OPTSCHED_gPrintSpills && (SchedulerOptions::getInstance().GetString(
-          "SIMULATE_REGISTER_ALLOCATION") == "BEST" ||
-      SchedulerOptions::getInstance().GetString(
-          "SIMULATE_REGISTER_ALLOCATION") == "BOTH" ||
-      SchedulerOptions::getInstance().GetString(
-          "SIMULATE_REGISTER_ALLOCATION") == "TAKE_SCHED_WITH_LEAST_SPILLS"));
+  return (
+      OPTSCHED_gPrintSpills &&
+      (SchedulerOptions::getInstance().GetString(
+           "SIMULATE_REGISTER_ALLOCATION") == "BEST" ||
+       SchedulerOptions::getInstance().GetString(
+           "SIMULATE_REGISTER_ALLOCATION") == "BOTH" ||
+       SchedulerOptions::getInstance().GetString(
+           "SIMULATE_REGISTER_ALLOCATION") == "TAKE_SCHED_WITH_LEAST_SPILLS"));
 }
 
 } // namespace opt_sched
