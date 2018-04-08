@@ -130,7 +130,8 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
     CreateNode_(unit.NodeNum, instName.c_str(), instType, opCode.c_str(),
                 unit.NodeNum, // nodeID
-                0, 0,
+                unit.NodeNum, // fileSchedOrder
+                unit.NodeNum, // fileSchedCycle
                 0,  // fileInstLwrBound
                 0,  // fileInstUprBound
                 0); // blkNum
@@ -216,8 +217,8 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
       CreateNode_(rootNum, "artificial",
                   machMdl_->GetInstTypeByName("artificial"), "__optsched_entry",
                   rootNum, // nodeID
-                  0,       // fileSchedOrder
-                  0,       // fileSchedCycle
+                  rootNum, // fileSchedOrder
+                  rootNum, // fileSchedCycle
                   0,       // fileInstLwrBound
                   0,       // fileInstUprBound
                   0);      // blkNum
@@ -231,7 +232,8 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
   CreateNode_(leafNum, "artificial", machMdl_->GetInstTypeByName("artificial"),
               "__optsched_exit",
               leafNum, // nodeID
-              0, 0,
+              leafNum, // fileSchedOrder
+              leafNum, // fileSchedCycle
               0,  // fileInstLwrBound
               0,  // fileInstUprBound
               0); // blkNum
