@@ -14,8 +14,8 @@ import collections
 
 # Constants
 SPILLS_FILENAME = 'spills.dat'
-SPILLS_MIN_FILE = 'spills_min.dat'
-SPILLS_STATS_FILE = 'spills_stats.dat'
+SPILLS_MIN_FILE_SUFFIX = '_spills_min.dat'
+SPILLS_STATS_FILE_SUFFIX = '_som_summary.dat'
 
 # Track metrics for each benchmark.
 class BenchStats:
@@ -103,6 +103,9 @@ def processBenchmark(dataItr):
 # Collect SOM stats and generate output files.
 def generateSOMFiles(somData):
     try:
+        testRunsDirectoryBase = os.path.basename(os.path.abspath(sys.argv[1]))
+        SPILLS_STATS_FILE = testRunsDirectoryBase + SPILLS_STATS_FILE_SUFFIX
+        SPILLS_MIN_FILE = testRunsDirectoryBase + SPILLS_MIN_FILE_SUFFIX
         with open(os.path.join(SPILLS_MIN_FILE), 'w') as minSpillsFile, \
         open(os.path.join(SPILLS_STATS_FILE), 'w') as spillsStatsFile:
             # Iterate through benchmarks using a random entry in somData,
@@ -252,11 +255,16 @@ if __name__ == '__main__':
     somData = {}
 
     # Find all test run direcotires.
-    dirNames = os.listdir(sys.argv[1])
+    testRunsDirectory = os.path.abspath(sys.argv[1])
+    dirNames = os.listdir(testRunsDirectory)
     # Gather spill data for each test run.
     for dirName in dirNames:
+        # Verify this is a directory.
+        if not os.path.isdir(os.path.join(testRunsDirectory, dirName)):
+            continue
+
         try:
-            with open(os.path.join(dirName, SPILLS_FILENAME)) as spillsFile:
+            with open(os.path.join(testRunsDirectory, dirName, SPILLS_FILENAME)) as spillsFile:
                 somData[dirName] = processSpillsFile(spillsFile)
 
         except IOError as error:
