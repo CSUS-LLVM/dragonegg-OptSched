@@ -97,10 +97,12 @@ SchedInstruction *ACOScheduler::SelectInstruction(std::vector<Choice> ready, Sch
   pheremone_t point = RandDouble(0, sum);
   for (auto choice : ready) {
     point -= Score(lastInst, choice);
-    if (point <= 0.00001)
+    if (point <= 0)
       return choice.inst;
   }
-  assert(false); // should not get here
+  std::cerr << "returning last instruction" << std::endl;
+  assert(point < 0.001); // floats should not be this inaccurate
+  return ready.back().inst;
 }
 
 InstSchedule *ACOScheduler::FindOneSchedule() {
@@ -129,11 +131,11 @@ InstSchedule *ACOScheduler::FindOneSchedule() {
     rdyLst_->ResetIterator();
 
     // print out the ready list for debugging
-    std::stringstream stream;
-    stream << "Ready list: ";
-    for (auto choice : ready) {
-      stream << choice.inst->GetNum() << ", ";
-    }
+    /* std::stringstream stream; */
+    /* stream << "Ready list: "; */
+    /* for (auto choice : ready) { */
+      /* stream << choice.inst->GetNum() << ", "; */
+    /* } */
     /* Logger::Info(stream.str().c_str()); */
 
     inst = NULL;
@@ -198,7 +200,8 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
   Config &schedIni = SchedulerOptions::getInstance();
   int noImprovementMax = schedIni.GetInt("ACO_STOP_ITERATIONS");
   int noImprovement = 0; // how many iterations with no improvement
-  for (int it = 0; ; it++) {
+  int iterations = 0;
+  while (true) {
     InstSchedule *iterationBest = NULL;
     for (int i = 0; i < ANTS_PER_ITERATION; i++) {
       InstSchedule *schedule = FindOneSchedule();
@@ -232,10 +235,12 @@ FUNC_RESULT ACOScheduler::FindSchedule(InstSchedule *schedule_out, SchedRegion *
 #if USE_ACS
     UpdatePheremone(bestSchedule);
 #endif
+    iterations++;
   }
   schedule_out->Copy(bestSchedule);
   delete bestSchedule;
 
+  Logger::Info("ACO finished after %d iterations", iterations);
   return RES_SUCCESS;
 }
 
