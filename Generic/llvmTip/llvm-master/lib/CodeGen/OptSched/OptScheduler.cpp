@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/OptSched/basic/register.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/utilities.h"
+#include "llvm/CodeGen/OptSched/generic/random.h"
 #include "llvm/CodeGen/OptSched/sched_region/sched_region.h"
 #include "llvm/CodeGen/OptSched/spill/bb_spill.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
@@ -552,6 +553,10 @@ void ScheduleDAGOptSched::loadOptSchedConfig() {
   minDagSize = schedIni.GetInt("MIN_DAG_SIZE");
   maxDagSize = schedIni.GetInt("MAX_DAG_SIZE");
   useFileBounds = schedIni.GetBool("USE_FILE_BOUNDS");
+  int randomSeed = schedIni.GetInt("RANDOM_SEED", 0);
+  if (randomSeed == 0)
+    randomSeed = time(NULL);
+  RandomGen::SetSeed(randomSeed);
 }
 
 llvm::SmallVector<llvm::RegisterMaskPair, 8>
