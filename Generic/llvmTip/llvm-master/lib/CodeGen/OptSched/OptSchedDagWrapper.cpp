@@ -57,7 +57,7 @@ LLVMDataDepGraph::LLVMDataDepGraph(
   includesNonStandardBlock_ = false;
   includesUnsupported_ = false;
   ShouldFilterRegisterTypes = SchedulerOptions::getInstance().GetBool(
-      "FILTER_REGISTERS_TYPES_WITH_LOW_PRP");
+      "FILTER_REGISTERS_TYPES_WITH_LOW_PRP", false);
   includesUnpipelined_ = true;
 
   if (ShouldFilterRegisterTypes)
