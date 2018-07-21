@@ -1,4 +1,7 @@
 #!/usr/bin/python2
+# Wrapper for the runspec tool. Use with the OptSched scheduler
+# and LLVM to collect data during instruction scheduling when
+# compiling the CPU2006 benchmarks.
 
 from __future__ import division
 import optparse
@@ -8,8 +11,45 @@ import sys
 import os
 import shutil
 
-# Configuration.
-INT_BENCHMARKS = [
+## Configuration
+
+# Dictionary for benchmark selection. Maps benchmark names and categories
+# to lists of specific benchmarks.
+benchDict = {}
+
+# Add all benchmarks individually.
+benchDict['perlbench'] = ['perlbench']
+benchDict['bzip2'] = ['bzip2']
+benchDict['gcc'] = ['gcc']
+benchDict['mcf'] = ['mcf']
+benchDict['gobmk'] = ['gobmk']
+benchDict['hmmer'] = ['hmmer']
+benchDict['sjeng'] = ['sjeng']
+benchDict['libquantum'] = ['libquantum']
+benchDict['h264ref'] = ['h264ref']
+benchDict['omnetpp'] = ['omnetpp']
+benchDict['astar'] = ['astar']
+benchDict['xalancbmk'] = ['xalancbmk']
+benchDict['bwaves'] = ['bwaves']
+benchDict['gamess'] = ['gamess']
+benchDict['milc'] = ['milc']
+benchDict['zeusmp'] = ['zeusmp']
+benchDict['gromacs'] = ['gromacs']
+benchDict['cactus'] = ['cactus']
+benchDict['leslie'] = ['leslie']
+benchDict['namd'] = ['namd']
+benchDict['dealII'] = ['dealII']
+benchDict['soplex'] = ['soplex']
+benchDict['povray'] = ['povray']
+benchDict['calculix'] = ['calculix']
+benchDict['Gems'] = ['Gems']
+benchDict['tonto'] = ['tonto']
+benchDict['lbm'] = ['lbm']
+benchDict['wrf'] = ['wrf']
+benchDict['sphinx'] = ['sphinx']
+
+# Add ALL benchmark group.
+benchDict['ALL'] = [
     'perlbench',
     'bzip2',
     'gcc',
@@ -21,9 +61,7 @@ INT_BENCHMARKS = [
     'h264ref',
     'omnetpp',
     'astar',
-    'xalancbmk'
-]
-FP_BENCHMARKS = [
+    'xalancbmk',
     'bwaves',
     'gamess',
     'milc',
@@ -42,11 +80,95 @@ FP_BENCHMARKS = [
     'wrf',
     'sphinx'
 ]
-ALL_BENCHMARKS = INT_BENCHMARKS + FP_BENCHMARKS
+
+# Add INT benchmark group.
+benchDict['INT'] = [
+    'perlbench',
+    'bzip2',
+    'gcc',
+    'mcf',
+    'gobmk',
+    'hmmer',
+    'sjeng',
+    'libquantum',
+    'h264ref',
+    'omnetpp',
+    'astar',
+    'xalancbmk'
+]
+
+# Add FP benchmark group.
+benchDict['FP'] = [
+    'bwaves',
+    'gamess',
+    'milc',
+    'zeusmp',
+    'gromacs',
+    'cactus',
+    'leslie',
+    'namd',
+    'dealII',
+    'soplex',
+    'povray',
+    'calculix',
+    'Gems',
+    'tonto',
+    'lbm',
+    'wrf',
+    'sphinx'
+]
+
+# Add C benchmark group.
+benchDict['C'] = [
+    'perlbench',
+    'bzip2',
+    'gcc',
+    'mcf',
+    'milc',
+    'gobmk',
+    'hmmer',
+    'sjeng',
+    'libquantum',
+    'h264ref',
+    'lbm',
+    'sphinx'
+]
+
+# Add C++ benchmark group.
+benchDict['C++'] = [
+    'namd',
+    'dealII',
+    'soplex',
+    'povray',
+    'omnetpp',
+    'astar',
+    'xalancbmk'
+]
+
+# Add the FORTRAN benchmark group.
+benchDict['FORTRAN'] = [
+    'bwaves',
+    'gamess',
+    'zeusmp',
+    'leslie',
+    'Gems',
+    'tonto'
+]
+
+# Add the MIXED language benchmark group.
+benchDict['MIXED'] = [
+    'gromacs',
+    'cactus',
+    'calculix',
+    'wrf'
+]
+
+# The FP benchmarks without FORTRAN. (ie no dragonegg)
+benchDict['FP_NO_F'] = list(set(benchDict['FP']) - set(benchDict['FORTRAN'] + benchDict['MIXED']))
+
 BUILD_COMMAND = "runspec --loose -size=ref -iterations=1 -config=%s --tune=base -r 1 -I -a build %s"
 SCRUB_COMMAND = "runspec --loose -size=ref -iterations=1 -config=%s --tune=base -r 1 -I -a scrub %s"
 LOG_DIR = 'logs/'
-
 
 # Regular expressions.
 SETTING_REGEX = re.compile(r'\bUSE_OPT_SCHED\b.*')
@@ -540,8 +662,8 @@ def runBenchmarks(benchmarks, testOutDir, shouldWriteLogs, config, trackOptSched
             p = subprocess.Popen('/bin/bash', stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE)
             p.stdin.write("source shrc" + "\n")
-            p.stdin.write(BUILD_COMMAND % (config, bench) + "\n")
-            p.stdin.write(SCRUB_COMMAND % (config, bench))
+            p.stdin.write(SCRUB_COMMAND % (config, bench) + "\n")
+            p.stdin.write(BUILD_COMMAND % (config, bench))
             p.stdin.close()
             output = p.stdout.read()
 
@@ -565,18 +687,18 @@ def writeLogs(output, testOutDir, bench):
 
 
 def main(args):
-    # Select benchmarks.
-    if args.bench == 'ALL':
-        benchmarks = ALL_BENCHMARKS
-    elif args.bench == 'INT':
-        benchmarks = INT_BENCHMARKS
-    elif args.bench == 'FP':
-        benchmarks = FP_BENCHMARKS
-    else:
-        benchmarks = args.bench.split(',')
-        for bench in benchmarks:
-            if bench not in ALL_BENCHMARKS:
-                print 'WARNING: Unknown benchmark specified: "%s".' % bench
+    ## Select benchmarks.
+    benchArgs = args.bench.split(',')
+    # List of benchmarks to run.
+    benchmarks = []
+    for benchArg in benchArgs:
+        if benchArg not in benchDict:
+            print 'Fatal: Unknown benchmark specified: "%s".' % benchArg
+            if benchArg == 'all':
+                print 'Did you mean ALL?'
+            sys.exit(1)
+
+        benchmarks = list(set(benchmarks + benchDict[benchArg]))
 
     # Parse single log file instead of running benchmark
     results = {}
