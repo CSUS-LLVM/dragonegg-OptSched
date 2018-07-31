@@ -307,7 +307,7 @@ bool ARMSubtarget::enableMachineScheduler() const {
   // Enable the MachineScheduler before register allocation for out-of-order
   // architectures where we do not use the PostRA scheduler anymore (for now
   // restricted to swift).
-  return getSchedModel().isOutOfOrder() && isSwift();
+  return true;
 }
 
 // This overrides the PostRAScheduler bit in the SchedModel for any CPU.
