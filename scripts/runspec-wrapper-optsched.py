@@ -167,6 +167,27 @@ benchDict['MIXED'] = [
 # The FP benchmarks without FORTRAN. (ie no dragonegg)
 benchDict['FP_NO_F'] = list(set(benchDict['FP']) - set(benchDict['FORTRAN'] + benchDict['MIXED']))
 
+#List of log files
+logFile = {}
+
+#Add all log files
+logFile['ALL'] = [
+	'adpcm',
+	'epic',
+	'g721',
+	'gsm',
+	'jpeg',
+	'pegwit'
+]
+
+#Add log files individually
+logFile['adpcm'] = ['adpcm']
+logFile['epic'] = ['epic']
+logFile['g721'] = ['g721']
+logFile['gsm'] = ['gsm']
+logFile['jpeg'] = ['jpeg']
+logFile['pegwit'] = ['pegwit']
+
 BUILD_COMMAND = "runspec --loose -size=ref -iterations=1 -config=%s --tune=base -r 1 -I -a build %s"
 SCRUB_COMMAND = "runspec --loose -size=ref -iterations=1 -config=%s --tune=base -r 1 -I -a scrub %s"
 LOG_DIR = 'logs/'
@@ -704,26 +725,38 @@ def main(args):
 
         benchmarks = list(set(benchmarks + benchDict[benchArg]))
 
-    # Parse single log file instead of running benchmark
+    # Parse a log file or multiple log files instead of running benchmark
     results = {}
     if args.logfile is not None:
-        with open(args.logfile) as log_file:
-            output = log_file.read()
-            results[args.logfile] = getBenchmarkResult(output, args.trackOptSchedSpills)
+	logArgs = args.logfile.split(',')
+	logfiles = []
+	for logArg in logArgs:
+		if logArg not in logFile:
+			print 'Fatal: Unknown log file specified: "%s".' % logArg
+			if logArg == 'all':
+				print 'Did you mean ALL?'
+			sys.exit(1)
 
-        spills = os.path.join(args.outdir, args.spills)
-        times = os.path.join(args.outdir, args.times)
-        blocks = os.path.join(args.outdir, args.blocks)
+		logfiles = list(set(logfiles + logFile[logArg]))
+	
+        for log in logfiles:
+		with open('./' + log + '/' + log + '.log') as log_file:
+			output = log_file.read()
+			results[log] = getBenchmarkResult(output, args.trackOptSchedSpills)
+		
+		spills = os.path.join(args.outdir, args.spills)
+	        times = os.path.join(args.outdir, args.times)
+        	blocks = os.path.join(args.outdir, args.blocks)
 
-        if args.regp:
-            regp = os.path.join(testOutDir, args.regp)
-        else:
-            regp = None
+		if args.regp:
+	            	regp = os.path.join(testOutDir, args.regp)
+        	else:
+            		regp = None
 
-        # Write out the results from the logfile.
-        writeStats(results, spills, times, blocks, regp, args.trackOptSchedSpills)
-
-    # Run the benchmarks and collect results.
+        	# Write out the results from the logfile.
+        	writeStats(results, spills, times, blocks, regp, args.trackOptSchedSpills)
+    
+	# Run the benchmarks and collect results.
     else:
         # Create a directory for the test results.
         if not os.path.exists(args.outdir):
@@ -815,9 +848,9 @@ if __name__ == '__main__':
                       default='ALL',
                       help='Which benchmarks to run.')
     parser.add_option('-l', '--logfile',
-                      metavar='CPU2006.###.log',
+                      metavar='*.log',
                       default=None,
-                      help='Parse log file instead of running benchmark. Only single-benchmark log files produce valid statistics.')
+                      help='Parse log file(s) instead of running benchmark.')
     parser.add_option('-o', '--outdir',
                       metavar='filepath',
                       default='./',
