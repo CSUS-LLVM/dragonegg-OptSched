@@ -45,6 +45,14 @@ static cl::opt<bool>
 UseFusedMulOps("arm-use-mulops",
                cl::init(true), cl::Hidden);
 
+static cl::opt<bool>
+UsePreMisched("arm-use-pre-misched",
+           cl::init(false), cl::Hidden);
+
+static cl::opt<bool>
+UsePostMisched("arm-use-post-misched",
+           cl::init(false), cl::Hidden);
+
 enum ITMode {
   DefaultIT,
   RestrictedIT,
@@ -307,16 +315,20 @@ bool ARMSubtarget::enableMachineScheduler() const {
   // Enable the MachineScheduler before register allocation for out-of-order
   // architectures where we do not use the PostRA scheduler anymore (for now
   // restricted to swift).
-  return true;
+  return UsePreMisched || getSchedModel().isOutOfOrder() && isSwift();
 }
 
 // This overrides the PostRAScheduler bit in the SchedModel for any CPU.
 bool ARMSubtarget::enablePostRAScheduler() const {
   // No need for PostRA scheduling on out of order CPUs (for now restricted to
   // swift).
-  if (getSchedModel().isOutOfOrder() && isSwift())
-    return false;
-  return (!isThumb() || hasThumb2());
+  if (UsePostMisched)
+    return true;
+  else {
+    if (getSchedModel().isOutOfOrder() && isSwift())
+      return false;
+    return (!isThumb() || hasThumb2());
+  }
 }
 
 bool ARMSubtarget::enableAtomicExpand() const {
