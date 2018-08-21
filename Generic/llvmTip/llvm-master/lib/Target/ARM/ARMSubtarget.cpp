@@ -45,14 +45,6 @@ static cl::opt<bool>
 UseFusedMulOps("arm-use-mulops",
                cl::init(true), cl::Hidden);
 
-static cl::opt<bool>
-UsePreMisched("arm-use-pre-misched",
-           cl::init(true), cl::Hidden);
-
-static cl::opt<bool>
-UsePostMisched("arm-use-post-misched",
-           cl::init(true), cl::Hidden);
-
 enum ITMode {
   DefaultIT,
   RestrictedIT,
@@ -312,8 +304,6 @@ bool ARMSubtarget::hasSinCos() const {
 }
 
 bool ARMSubtarget::enableMachineScheduler() const {
-  if (UsePreMisched.getNumOccurrences())
-    return UsePreMisched;
   // Enable the MachineScheduler before register allocation for out-of-order
   // architectures where we do not use the PostRA scheduler anymore (for now
   // restricted to swift).
@@ -322,8 +312,6 @@ bool ARMSubtarget::enableMachineScheduler() const {
 
 // This overrides the PostRAScheduler bit in the SchedModel for any CPU.
 bool ARMSubtarget::enablePostRAScheduler() const {
-  if (UsePostMisched.getNumOccurrences())
-    return UsePostMisched;
   // No need for PostRA scheduling on out of order CPUs (for now restricted to
   // swift).
   if (getSchedModel().isOutOfOrder() && isSwift())
