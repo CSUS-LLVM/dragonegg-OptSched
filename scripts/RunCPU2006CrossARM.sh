@@ -60,7 +60,7 @@ cd $HOME
 echo "Running libquantum"
 cp 462.libquantum/exe/libquantum_base..exe 462.libquantum/run/run_base_test_.exe.0000/.
 cd /home/ghassan/462.libquantum/run/run_base_test_.exe.0000
-time /bin/sh -c "../run_base_test_.exe.0000/libquantum_base..exe 33 5 > test.out 2>> test.err"
+time /bin/sh -c "../run_base_test_.exe.0000/libquantum_base..exe 337 5 > test.out 2>> test.err"
 cd $HOME
 
 # soplex
