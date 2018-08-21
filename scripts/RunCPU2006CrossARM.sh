@@ -8,25 +8,25 @@ ARNAME=ziped_benches.tar.xz
 tar xJvf $ARNAME
 
 # perlbench
-echo "Running perlbench"
-cp 400.perlbench/exe/perlbench_base..exe 400.perlbench/run/run_base_test_.exe.0000/.
-cd /home/ghassan/400.perlbench/run/run_base_test_.exe.0000
-time /bin/sh -c "../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib attrs.pl > attrs.out 2>> attrs.err
-../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib gv.pl > gv.out 2>> gv.err
-../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib makerand.pl > makerand.out 2>> makerand.err
-../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib pack.pl > pack.out 2>> pack.err
-../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib redef.pl > redef.out 2>> redef.err
-../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib ref.pl > ref.out 2>> ref.err
-../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib regmesg.pl > regmesg.out 2>> regmesg.err
-../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib test.pl > test.out 2>> test.err"
-cd $HOME
+#echo "Running perlbench"
+#cp 400.perlbench/exe/perlbench_base..exe 400.perlbench/run/run_base_test_.exe.0000/.
+#cd /home/ghassan/400.perlbench/run/run_base_test_.exe.0000
+#time /bin/sh -c "../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib attrs.pl > attrs.out 2>> attrs.err
+#../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib gv.pl > gv.out 2>> gv.err
+#../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib makerand.pl > makerand.out 2>> makerand.err
+#../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib pack.pl > pack.out 2>> pack.err
+#../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib redef.pl > redef.out 2>> redef.err
+#../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib ref.pl > ref.out 2>> ref.err
+#../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib regmesg.pl > regmesg.out 2>> regmesg.err
+#../run_base_test_.exe.0000/perlbench_base..exe -I. -I./lib test.pl > test.out 2>> test.err"
+#cd $HOME
 
 # gcc
-echo "Running gcc"
-cp 403.gcc/exe/gcc_base..exe 403.gcc/run/run_base_test_.exe.0000/.
-cd /home/ghassan/403.gcc/run/run_base_test_.exe.0000
-time /bin/sh -c "../run_base_test_.exe.0000/gcc_base..exe cccp.in -o cccp.s > cccp.out 2>> cccp.err"
-cd $HOME
+#echo "Running gcc"
+#cp 403.gcc/exe/gcc_base..exe 403.gcc/run/run_base_test_.exe.0000/.
+#cd /home/ghassan/403.gcc/run/run_base_test_.exe.0000
+#time /bin/sh -c "../run_base_test_.exe.0000/gcc_base..exe cccp.in -o cccp.s > cccp.out 2>> cccp.err"
+#cd $HOME
 
 # mcf
 echo "Running mcf"
@@ -36,11 +36,11 @@ time /bin/sh -c "../run_base_test_.exe.0000/mcf_base..exe inp.in > inp.out 2>> i
 cd $HOME
 
 # sphinx3
-echo "Running sphinx3"
-cp 482.sphinx3/exe/sphinx_livepretend_base..exe 482.sphinx3/run/run_base_test_.exe.0000/.
-cd /home/ghassan/482.sphinx3/run/run_base_test_.exe.0000
-time /bin/sh -c "../run_base_test_.exe.0000/sphinx_livepretend_base..exe ctlfile . args.an4 > an4.log 2>> an4.err"
-cd $HOME
+#echo "Running sphinx3"
+#cp 482.sphinx3/exe/sphinx_livepretend_base..exe 482.sphinx3/run/run_base_test_.exe.0000/.
+#cd /home/ghassan/482.sphinx3/run/run_base_test_.exe.0000
+#time /bin/sh -c "../run_base_test_.exe.0000/sphinx_livepretend_base..exe ctlfile . args.an4 > an4.log 2>> an4.err"
+#cd $HOME
 
 # milc
 echo "Running milc"
