@@ -8,9 +8,11 @@ HOME=/home/ghassan
 ARNAME=ziped_benches.tar.xz
 
 # extract benchmarks
+echo 'Extracting archive that was copied from grace'
 tar xJf $ARNAME
 
-for i in {1..$ITER};
+echo "Running benchmarks $ITER times"
+for ((i=0; i<$ITER; i++));
 do
     # perlbench
     #echo "Running perlbench"
