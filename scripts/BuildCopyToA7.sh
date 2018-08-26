@@ -6,8 +6,17 @@ BENCH="401.bzip2 429.mcf 433.milc 445.gobmk 456.hmmer 458.sjeng 462.libquantum 4
 # source the shrc
 . ./shrc
 
+# Try to scrub benchmarks. Catch unchecked error in runspec where the benchmarks are not actually cleaned if
+# they were built by another user or root.
 echo 'Cleaning benchmarks'
-runspec --loose -size=test -iterations=1 -config=Intel_llvm_3.9.cfg --tune=base -r 1 -I -a scrub $BENCH 2>&1 > /dev/null
+rslt=$(runspec --loose -size=test -iterations=1 -config=Intel_llvm_3.9.cfg --tune=base -r 1 -I -a scrub $BENCH 2>&1 | \
+awk '/Couldn'\''t unlink/ { print "1" }' -)
+if [ ! -z $rslt ];
+then
+  echo "Error scrubbing benchmarks. Try with sudo."
+  echo "\"sudo sh -c '. ./shrc; runspec --loose -size=test -iterations=1 -config=Intel_llvm_3.9.cfg --tune=base -r 1 -I -a scrub all'\""
+  exit 1
+fi
 
 echo 'Building benchmarks'
 runspec --loose -size=test -iterations=1 -config=Intel_llvm_3.9.cfg --tune=base -r 1 -I -a build $BENCH 2>&1 > /dev/null
@@ -21,5 +30,8 @@ tar cJf ziped_benches.tar.xz */exe
 
 echo 'Copying to A7 machine'
 scp -q ziped_benches.tar.xz ghassan@99.113.71.118:~
+
+echo 'Cleaning benchmarks again'
+runspec --loose -size=test -iterations=1 -config=Intel_llvm_3.9.cfg --tune=base -r 1 -I -a scrub $BENCH 2>&1 > /dev/null
 
 echo 'Done!'
