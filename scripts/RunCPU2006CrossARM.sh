@@ -1,5 +1,8 @@
 #!/bin/sh
-# Run the CPU2006 benchmarks on ARM
+# Run the CPU2006 benchmarks on ARM. Assumes you have the time utility from
+# linux.
+# TODO: Combine with the "Gen" python script. Create a portable tool that can
+# run benchmarks and generate statistics on arbitrary platforms.
 
 # Number of times the benchmarks should be run.
 ITER=3
@@ -11,7 +14,7 @@ ARNAME=ziped_benches.tar.xz
 echo 'Extracting archive that was copied from grace'
 tar xJf $ARNAME
 
-echo "Running benchmarks $ITER times"
+echo "Invoking benchmarks $ITER times"
 for ((i=0; i<$ITER; i++));
 do
     # perlbench
