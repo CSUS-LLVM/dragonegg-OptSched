@@ -12,7 +12,7 @@ import re
 from functools import reduce
 
 BENCH_START_REGEX = re.compile("Running (\S+)")
-BENCH_USER_TIME_REGEX = re.compile("user\t(\S+)")
+BENCH_USER_TIME_REGEX = re.compile("user\s+(\S+)")
 
 # Statistics about the running time of a single benchmark
 class BenchData:
@@ -97,7 +97,7 @@ def parseBench(linesIter, benchData):
 # Find "BenchData" for all benchmarks within "inData"
 def parseData(inData):
     benchesData = {}
-    linesIter = inData.split("\n").__iter__()
+    linesIter = iter(inData)
     for line in linesIter:
         # Look for the start of a new benchmark
         findBenchDataStart = BENCH_START_REGEX.findall(line)
@@ -123,7 +123,7 @@ def main(args):
         elif (sys.stdin):
             inData = sys.stdin
 
-        benchesData = parseData(inData.read())
+        benchesData = parseData(inData)
         # Find usertime stats
         for entry in benchesData:
             benchesData[entry].findAllUserTimeStats()
