@@ -1,8 +1,5 @@
 /*******************************************************************************
 Description:  A wrapper that convert an LLVM target to an OptSched MachineModel.
-Author:       Max Shawabkeh
-Created:      Mar. 2011
-Last Update:  Mar. 2017
 *******************************************************************************/
 
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
