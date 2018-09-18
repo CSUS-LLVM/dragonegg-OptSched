@@ -70,8 +70,8 @@ fi
 cd $BASEDIR
 
 echo 'Note: This assumes you are using Ubuntu and you installed the prerequisites.'
-read -p 'Build dragonegg? [y/n] (default: n): ' -r
-if [[ $REPLY =~ ^([yY][eE][sS]|[yY])+$ ]]
+read -p 'Build dragonegg? [y/n] (default: y): ' -r
+if [[ $REPLY =~ ^([yY][eE][sS]|[yY])+$ || -z "$REPLY" ]]
 then
   echo 'building dragonegg'
   cd $DRAGONEGGDIR
