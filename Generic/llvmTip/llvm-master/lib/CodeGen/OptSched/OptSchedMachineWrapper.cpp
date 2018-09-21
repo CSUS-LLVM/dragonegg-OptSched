@@ -2,28 +2,30 @@
 Description:  A wrapper that convert an LLVM target to an OptSched MachineModel.
 *******************************************************************************/
 
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/OptSched/OptSchedMachineWrapper.h"
+#include "llvm/CodeGen/OptSched/basic/machine_model.h"
 #include "llvm/CodeGen/OptSched/generic/config.h"
 #include "llvm/CodeGen/OptSched/generic/logger.h"
-#include "llvm/CodeGen/ScheduleDAG.h"
+#include "llvm/CodeGen/ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
 #define DEBUG_TYPE "optsched"
 
-namespace opt_sched {
-
+using namespace opt_sched;
 using namespace llvm;
 
 LLVMMachineModel::LLVMMachineModel(const string configFile)
     : MachineModel(configFile) {}
 
 void LLVMMachineModel::convertMachineModel(
-    const ScheduleDAGMILive *scheduleDag,
-    const RegisterClassInfo *regClassInfo) {
-  const TargetMachine &target = scheduleDag->TM;
+    const ScheduleDAG &dag, const RegisterClassInfo *regClassInfo) {
+  const TargetMachine &target = dag.TM;
 
   mdlName_ = target.getTarget().getName();
 
@@ -33,7 +35,7 @@ void LLVMMachineModel::convertMachineModel(
   // model
   registerTypes_.clear();
 
-  registerInfo = scheduleDag->TRI;
+  registerInfo = dag.TRI;
   for (int pSet = 0; pSet < registerInfo->getNumRegPressureSets(); ++pSet) {
     RegTypeInfo regType;
     regType.name = registerInfo->getRegPressureSetName(pSet);
@@ -62,7 +64,7 @@ void LLVMMachineModel::convertMachineModel(
     Logger::Info("For the register class %s getNumRegs is %d", clsName,
                  (*cls)->getNumRegs());
     Logger::Info("For the register class %s getRegPressureLimit is %d", clsName,
-                 registerInfo->getRegPressureLimit((*cls), scheduleDag->MF));
+                 registerInfo->getRegPressureLimit((*cls), dag.MF));
     Logger::Info("This register has a weight of %lu", weight);
     Logger::Info("Pressure Sets for this register class");
     for (const int *pSet = registerInfo->getRegClassPressureSets(*cls);
@@ -70,7 +72,7 @@ void LLVMMachineModel::convertMachineModel(
       Logger::Info(
           "Pressure set %s has member %s and a pressure set limit of %d",
           registerInfo->getRegPressureSetName(*pSet), clsName,
-          registerInfo->getRegPressureSetLimit(scheduleDag->MF, *pSet));
+          registerInfo->getRegPressureSetLimit(dag.MF, *pSet));
     }
   }
 #endif
@@ -116,4 +118,110 @@ void LLVMMachineModel::convertMachineModel(
 #endif
 }
 
-} // end namespace opt_sched
+CortexA7MMGenerator::CortexA7MMGenerator(const llvm::ScheduleDAGInstrs *dag,
+                                         MachineModel *mm)
+    : dag(dag), mm(mm) {
+  iid = dag->getSchedModel()->getInstrItineraries();
+}
+
+#ifdef IS_DEBUG_MM
+namespace {
+
+void dumpInstType(InstTypeInfo &instType, MachineModel *mm) {
+  Logger::Info("Adding new instruction type.\n \
+                    Name: %s\n \
+                    Is Context Dependent: %s\n \
+                    IssueType: %s\n \
+                    Latency: %d\n \
+                    Is Pipelined %s\n \
+                    Supported: %s\n \
+                    Blocks Cycle: %s\n",
+               instType.name.c_str(), instType.isCntxtDep ? "True" : "False",
+               mm->GetIssueTypeNameByCode(instType.issuType), instType.ltncy,
+               instType.pipelined ? "True" : "False",
+               instType.sprtd ? "True" : "False",
+               instType.blksCycle ? "True" : "False");
+}
+
+} // namespace
+#endif
+
+bool CortexA7MMGenerator::isMIPipelined(const MachineInstr *inst,
+                                        unsigned idx) const {
+  const InstrStage *IS = iid->beginStage(idx);
+  const InstrStage *E = iid->endStage(idx);
+
+  for (; IS != E; ++IS)
+    if (IS->getCycles() > 1)
+      // Instruction contains a non-pipelined stage
+      return false;
+
+  // All stages can be pipelined
+  return true;
+}
+
+IssueType CortexA7MMGenerator::generateIssueType(const InstrStage *E) const {
+  IssueType type = INVALID_ISSUE_TYPE;
+  // Get functional units for the last stage in the itinerary
+  const unsigned units = E->getUnits();
+
+  if (units & NLSPipe)
+    type = mm->GetIssueTypeByName("NLSPipe");
+  else if (units & NPipe)
+    type = mm->GetIssueTypeByName("NPipe");
+  else if (units & LSPipe)
+    type = mm->GetIssueTypeByName("LSPipe");
+  else if (units & Pipe0 || units & Pipe1)
+    type = mm->GetIssueTypeByName("ALUPipe");
+  else
+    type = mm->GetInstTypeByName("Default");
+
+  assert(type != INVALID_ISSUE_TYPE && "Could not find issue type for "
+                                      "instruction, is the correct machine "
+                                      "model file loaded?");
+  return type;
+}
+
+void CortexA7MMGenerator::generateInstrType(const MachineInstr *instr) {
+  const std::string instrName = dag->TII->getName(instr->getOpcode());
+
+  // Search in the machine model for an instType with this OpCode name
+  const InstType instType = mm->GetInstTypeByName(instrName);
+
+  // If the machine model does not have instType with this OpCode name,
+  // generate a type for the instruction.
+  if (instType == INVALID_INST_TYPE) {
+#ifdef IS_DEBUG_MM
+    Logger::Info("Generating instr type for \'%s\'", instrName.c_str());
+#endif
+    SUnit *su = dag->getSUnit(const_cast<MachineInstr *>(instr));
+    const MCInstrDesc *instDesc = dag->getInstrDesc(su);
+    unsigned idx = instDesc->getSchedClass();
+
+    if (!iid || iid->isEmpty() || iid->isEndMarker(idx)) {
+#ifdef IS_DEBUG_MM
+      Logger::Info("No itinerary data for instr \'%s\'", instrName.c_str());
+#endif
+      return;
+    }
+
+    // Create the new instruction type
+    InstTypeInfo instType;
+    instType.name = instrName;
+    // Endstage is the last stage+1 so decrement the iterator to get final stage
+    const InstrStage *E = iid->endStage(idx);
+    instType.issuType = generateIssueType(--E);
+    instType.isCntxtDep = false;
+    instType.ltncy = 1; // Assume using "rough" llvm latencies
+    instType.pipelined = isMIPipelined(instr, idx);
+    instType.sprtd = true;
+    instType.blksCycle = false; // TODO: Find a more precise value for this.
+
+#ifdef IS_DEBUG_MM
+    dumpInstType(instType, mm);
+#endif
+
+    // Add the new instruction type
+    mm->AddInstType(instType);
+  }
+}

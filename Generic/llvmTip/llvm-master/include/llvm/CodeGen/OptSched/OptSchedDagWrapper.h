@@ -1,9 +1,6 @@
 /*******************************************************************************
 Description:  A wrapper that convert an LLVM ScheduleDAG to an OptSched
               DataDepGraph.
-Author:       Max Shawabkeh
-Created:      Apr. 2011
-Last Update:  Mar. 2017
 *******************************************************************************/
 
 #ifndef OPTSCHED_DAG_WRAPPER_H

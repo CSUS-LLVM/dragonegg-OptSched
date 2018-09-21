@@ -51,6 +51,28 @@ const IssueType ISSU_STALL = -2;
 // code itself, but some of the legacy users of this class use it.
 const int MAX_ISSUTYPE_CNT = 20;
 
+// A description of an instruction type.
+struct InstTypeInfo {
+  // The name of the instruction type.
+  string name;
+  // Whether instructions of this type can be scheduled only in a particular
+  // context.
+  bool isCntxtDep;
+  // The issue type used by instructions of this type.
+  IssueType issuType;
+  // The latency of this instructions, i.e. the number of cycles this
+  // instruction takes before instructions that depend on it (true
+  // dependence) can be scheduled.
+  int16_t ltncy;
+  // Whether instructions of this type are pipelined.
+  bool pipelined;
+  // Whether instructions of this type are supported.
+  bool sprtd;
+  // Whether instructions of this type block the cycle, such that no other
+  // instructions can be scheduled in the same cycle.
+  bool blksCycle;
+};
+
 // A read-only description of a machine.
 class MachineModel {
 public:
@@ -126,35 +148,15 @@ public:
   bool IsRealInst(InstType instTypeCode) const;
   // The machine model is simple if the issue rate is 1, the number of issue
   // types is 1, and the number of issue slots is 1.
-  bool IsSimple() const {
+  inline bool IsSimple() const {
     return issueRate_ == 1 && issueSlotCnt_ == 1 && issueTypes_.size() == 1;
-  };
+  }
+  // Add a new instruction type.
+  void AddInstType(InstTypeInfo &instTypeInfo);
 
 protected:
   // Creates an uninitialized machine model. For use by subclasses.
   MachineModel() {}
-
-  // A description of an instruction type.
-  struct InstTypeInfo {
-    // The name of the instruction type.
-    string name;
-    // Whether instructions of this type can be scheduled only in a particular
-    // context.
-    bool isCntxtDep;
-    // The issue type used by instructions of this type.
-    IssueType issuType;
-    // The latency of this instructions, i.e. the number of cycles this
-    // instruction takes before instructions that depend on it (true
-    // dependence) can be scheduled.
-    int16_t ltncy;
-    // Whether instructions of this type are pipelined.
-    bool pipelined;
-    // Whether instructions of this type are supported.
-    bool sprtd;
-    // Whether instructions of this type block the cycle, such that no other
-    // instructions can be scheduled in the same cycle.
-    bool blksCycle;
-  };
 
   // A description of a register type.
   struct RegTypeInfo {
@@ -189,6 +191,7 @@ protected:
   vector<RegTypeInfo> registerTypes_;
   // A vector of issue types with their names and slot counts.
   vector<IssueTypeInfo> issueTypes_;
+
 };
 
 } // end namespace opt_sched

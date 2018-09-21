@@ -191,6 +191,10 @@ bool MachineModel::IsFloat(InstType instTypeCode) const {
   return instTypes_[instTypeCode].name[0] == 'f';
 }
 
+void MachineModel::AddInstType(InstTypeInfo &instTypeInfo) {
+  instTypes_.push_back(std::move(instTypeInfo));
+}
+
 const string &MachineModel::GetModelName() const { return mdlName_; }
 
 int MachineModel::GetInstTypeCnt() const { return instTypes_.size(); }

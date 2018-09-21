@@ -81,7 +81,7 @@ ScheduleDAGOptSched::ScheduleDAGOptSched(llvm::MachineSchedContext *C)
   hotFunctions.Load(OptSchedCfg + "hotfuncs.ini");
 
   // Convert machine model
-  model.convertMachineModel(this, RegClassInfo);
+  model.convertMachineModel(static_cast<llvm::ScheduleDAG&>(*this), RegClassInfo);
 
   // Load config files for the OptScheduler
   loadOptSchedConfig();
