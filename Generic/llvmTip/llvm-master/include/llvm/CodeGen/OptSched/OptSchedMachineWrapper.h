@@ -19,6 +19,8 @@ contained in those ini files.
 
 namespace opt_sched {
 
+class MachineModelGenerator;
+
 // A wrapper for the OptSched MachineModel
 class LLVMMachineModel : public MachineModel {
 public:
@@ -26,12 +28,18 @@ public:
   LLVMMachineModel(const string configFile);
   // Convert information about the target machine into the
   // optimal scheduler machine model
-  void convertMachineModel(const llvm::ScheduleDAG &dag,
+  void convertMachineModel(const llvm::ScheduleDAGInstrs &dag,
                            const llvm::RegisterClassInfo *regClassInfo);
   // Pointer to register info for target
   const llvm::TargetRegisterInfo *registerInfo;
-
+  MachineModelGenerator* getMMGen() { return MMGen.get(); }
   ~LLVMMachineModel() = default;
+
+private:
+  // Should a machine model be generated.
+  bool shouldGenerateMM;
+  // The machine model generator class.
+  std::unique_ptr<MachineModelGenerator> MMGen;
 };
 
 // Generate a machine model for a specific chip.
@@ -43,7 +51,10 @@ public:
   virtual ~MachineModelGenerator() = default;
 };
 
-// Generate a machine model for the Cortex A7.
+// Generate a machine model for the Cortex A7. This will only generate
+// instruction types. Things like issue type and issue rate must be specified
+// correctly in the machine_model.cfg file. Check
+// OptSchedCfg/arch/ARM_cortex_a7_machine_model.cfg for a template.
 class CortexA7MMGenerator : public MachineModelGenerator {
 public:
   CortexA7MMGenerator(const llvm::ScheduleDAGInstrs *dag, MachineModel *mm);
@@ -55,11 +66,11 @@ public:
 private:
   // Functional Units
   enum FU : unsigned {
-    Pipe0 = 1,
-    Pipe1 = 2,
-    LSPipe = 4,
-    NPipe = 8,
-    NLSPipe = 16
+    Pipe0 = 1,   // 00000001
+    Pipe1 = 2,   // 00000010
+    LSPipe = 4,  // 00000100
+    NPipe = 8,   // 00001000
+    NLSPipe = 16 // 00010000
   };
   const llvm::ScheduleDAGInstrs *dag;
   MachineModel *mm;

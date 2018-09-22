@@ -14,22 +14,65 @@ Description:  A wrapper that convert an LLVM target to an OptSched MachineModel.
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include <memory>
 
 #define DEBUG_TYPE "optsched"
 
 using namespace opt_sched;
 using namespace llvm;
 
+namespace {
+
+#ifdef IS_DEBUG_MM
+void dumpInstType(InstTypeInfo &instType, MachineModel *mm) {
+  Logger::Info("Adding new instruction type.\n \
+                Name: %s\n \
+                Is Context Dependent: %s\n \
+                IssueType: %s\n \
+                Latency: %d\n \
+                Is Pipelined %s\n \
+                Supported: %s\n \
+                Blocks Cycle: %s\n",
+               instType.name.c_str(), instType.isCntxtDep ? "True" : "False",
+               mm->GetIssueTypeNameByCode(instType.issuType), instType.ltncy,
+               instType.pipelined ? "True" : "False",
+               instType.sprtd ? "True" : "False",
+               instType.blksCycle ? "True" : "False");
+}
+#endif
+
+std::unique_ptr<MachineModelGenerator>
+createCortexA7MMGenerator(const llvm::ScheduleDAGInstrs *dag,
+                          MachineModel *mm) {
+  return llvm::make_unique<CortexA7MMGenerator>(dag, mm);
+}
+
+} // end anonymous namespace
+
+
 LLVMMachineModel::LLVMMachineModel(const string configFile)
-    : MachineModel(configFile) {}
+    : MachineModel(configFile), registerInfo(nullptr), shouldGenerateMM(false),
+      MMGen(nullptr) {}
 
 void LLVMMachineModel::convertMachineModel(
-    const ScheduleDAG &dag, const RegisterClassInfo *regClassInfo) {
+    const ScheduleDAGInstrs &dag, const RegisterClassInfo *regClassInfo) {
   const TargetMachine &target = dag.TM;
 
   mdlName_ = target.getTarget().getName();
 
   Logger::Info("Machine model: %s", mdlName_.c_str());
+
+  // Should we try to generate a machine model using LLVM itineraries.
+  shouldGenerateMM =
+      SchedulerOptions::getInstance().GetBool("GENERATE_MACHINE_MODEL", false);
+
+  if (shouldGenerateMM) {
+    if (mdlName_ == "ARM-Cortex-A7")
+      MMGen = createCortexA7MMGenerator(&dag, this);
+    else
+      Logger::Error("Could not find machine model generator for target \"%s\"",
+                    mdlName_.c_str());
+  }
 
   // Clear The registerTypes list to read registers limits from the LLVM machine
   // model
@@ -77,7 +120,6 @@ void LLVMMachineModel::convertMachineModel(
   }
 #endif
 
-  // TODO(max99x): Get real instruction types.
   InstTypeInfo instType;
 
   instType.name = "Default";
@@ -124,28 +166,6 @@ CortexA7MMGenerator::CortexA7MMGenerator(const llvm::ScheduleDAGInstrs *dag,
   iid = dag->getSchedModel()->getInstrItineraries();
 }
 
-#ifdef IS_DEBUG_MM
-namespace {
-
-void dumpInstType(InstTypeInfo &instType, MachineModel *mm) {
-  Logger::Info("Adding new instruction type.\n \
-                    Name: %s\n \
-                    Is Context Dependent: %s\n \
-                    IssueType: %s\n \
-                    Latency: %d\n \
-                    Is Pipelined %s\n \
-                    Supported: %s\n \
-                    Blocks Cycle: %s\n",
-               instType.name.c_str(), instType.isCntxtDep ? "True" : "False",
-               mm->GetIssueTypeNameByCode(instType.issuType), instType.ltncy,
-               instType.pipelined ? "True" : "False",
-               instType.sprtd ? "True" : "False",
-               instType.blksCycle ? "True" : "False");
-}
-
-} // namespace
-#endif
-
 bool CortexA7MMGenerator::isMIPipelined(const MachineInstr *inst,
                                         unsigned idx) const {
   const InstrStage *IS = iid->beginStage(idx);
@@ -177,8 +197,8 @@ IssueType CortexA7MMGenerator::generateIssueType(const InstrStage *E) const {
     type = mm->GetInstTypeByName("Default");
 
   assert(type != INVALID_ISSUE_TYPE && "Could not find issue type for "
-                                      "instruction, is the correct machine "
-                                      "model file loaded?");
+                                       "instruction, is the correct machine "
+                                       "model file loaded?");
   return type;
 }
 

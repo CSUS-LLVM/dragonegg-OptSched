@@ -113,6 +113,18 @@ void LLVMDataDepGraph::ConvertLLVMNodes_() {
 
     instName = opCode = schedDag_->TII->getName(instr->getOpcode());
 
+    // Should we try to generate scheduling types for instructions in this
+    // region
+    bool shouldGenerateMM = SchedulerOptions::getInstance().GetBool(
+        "GENERATE_MACHINE_MODEL", false);
+
+    if (shouldGenerateMM) {
+      assert(llvmMachMdl_->getMMGen() &&
+             "Machine Model Generator was not initialized");
+
+      llvmMachMdl_->getMMGen()->generateInstrType(instr);
+    }
+
     // Search in the machine model for an instType with this OpCode name
     instType = machMdl_->GetInstTypeByName(instName.c_str());
 
