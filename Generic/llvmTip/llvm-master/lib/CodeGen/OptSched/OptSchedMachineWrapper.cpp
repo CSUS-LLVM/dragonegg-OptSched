@@ -44,7 +44,7 @@ void dumpInstType(InstTypeInfo &instType, MachineModel *mm) {
 std::unique_ptr<MachineModelGenerator>
 createCortexA7MMGenerator(const llvm::ScheduleDAGInstrs *dag,
                           MachineModel *mm) {
-  return llvm::make_unique<CortexA7MMGenerator>(dag, mm);
+  return make_unique<CortexA7MMGenerator>(dag, mm);
 }
 
 } // end anonymous namespace
