@@ -65,7 +65,6 @@ FUNC_RESULT ListScheduler::FindSchedule(InstSchedule *sched, SchedRegion *rgn) {
       if (stallCnt > dataDepGraph_->GetMaxLtncy())
         return RES_ERROR;
     } else {
-      stallCnt = 0;
       instNum = inst->GetNum();
       //      Logger::Info("Scheduling inst %d", instNum);
       SchdulInst_(inst, crntCycleNum_);
@@ -79,8 +78,10 @@ FUNC_RESULT ListScheduler::FindSchedule(InstSchedule *sched, SchedRegion *rgn) {
     // if (inst && machMdl_->IsRealInst(inst->GetInstType())) {
     crntSched_->AppendInst(instNum);
     bool cycleAdvanced = MovToNxtSlot_(inst);
-    if (cycleAdvanced)
+    if (cycleAdvanced) {
       InitNewCycle_();
+      stallCnt = 0;
+    }
     //}
   }
 
