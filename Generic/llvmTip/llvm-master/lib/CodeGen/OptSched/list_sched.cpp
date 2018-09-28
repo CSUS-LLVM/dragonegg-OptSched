@@ -21,8 +21,8 @@ ListScheduler::ListScheduler(DataDepGraph *dataDepGraph, MachineModel *machMdl,
 ListScheduler::~ListScheduler() { delete rdyLst_; }
 
 FUNC_RESULT ListScheduler::FindSchedule(InstSchedule *sched, SchedRegion *rgn) {
-  int stallCnt = 0;
   InstCount rdyLstSize, maxRdyLstSize = 0, avgRdyLstSize = 0, iterCnt = 0;
+  bool isEmptyCycle = true;
 
   crntSched_ = sched;
   rgn_ = rgn;
@@ -60,11 +60,8 @@ FUNC_RESULT ListScheduler::FindSchedule(InstSchedule *sched, SchedRegion *rgn) {
     // If the ready list is empty.
     if (inst == NULL) {
       instNum = SCHD_STALL;
-      stallCnt++;
-      //      Logger::Info("Scheduling a stall");
-      if (stallCnt > dataDepGraph_->GetMaxLtncy())
-        return RES_ERROR;
     } else {
+      isEmptyCycle = false;
       instNum = inst->GetNum();
       //      Logger::Info("Scheduling inst %d", instNum);
       SchdulInst_(inst, crntCycleNum_);
@@ -79,10 +76,13 @@ FUNC_RESULT ListScheduler::FindSchedule(InstSchedule *sched, SchedRegion *rgn) {
     crntSched_->AppendInst(instNum);
     bool cycleAdvanced = MovToNxtSlot_(inst);
     if (cycleAdvanced) {
+      bool schedIsLegal = ChkSchedLglty_(isEmptyCycle);
+      if (!schedIsLegal)
+        return RES_ERROR;
+
       InitNewCycle_();
-      stallCnt = 0;
+      isEmptyCycle = true;
     }
-    //}
   }
 
 #ifdef IS_DEB UG_SCHED

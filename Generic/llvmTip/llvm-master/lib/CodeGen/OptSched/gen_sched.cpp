@@ -88,6 +88,7 @@ ConstrainedScheduler::ConstrainedScheduler(DataDepGraph *dataDepGraph,
   crntRealSlotNum_ = 0;
   crntCycleNum_ = 0;
   isCrntCycleBlkd_ = false;
+  consecEmptyCycles_ = 0;
 
   avlblSlotsInCrntCycle_ = new int16_t[issuTypeCnt_];
   if (avlblSlotsInCrntCycle_ == NULL)
@@ -314,6 +315,14 @@ bool ConstrainedScheduler::ChkInstLglty_(SchedInstruction *inst) {
   assert(avlblSlotsInCrntCycle_[issuType] >= 0);
   // Logger::Info("avlblSlots = %d", avlblSlotsInCrntCycle_[issuType]);
   return (avlblSlotsInCrntCycle_[issuType] > 0);
+}
+
+bool ConstrainedScheduler::ChkSchedLglty_(bool isEmptyCycle) {
+  if (isEmptyCycle)
+    consecEmptyCycles_++;
+  else
+    consecEmptyCycles_ = 0;
+  return consecEmptyCycles_ <= dataDepGraph_->GetMaxLtncy();
 }
 
 void ConstrainedScheduler::UpdtSlotAvlblty_(SchedInstruction *inst) {

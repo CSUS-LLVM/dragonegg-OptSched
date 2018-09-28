@@ -118,6 +118,9 @@ protected:
   InstCount crntSlotNum_;
   // As above, but only for "real" instructions, as opposed to artificial.
   InstCount crntRealSlotNum_;
+  // The current number of consecutive empty cycles (filled only with stalls)
+  // since an instruction was scheduled.
+  InstCount consecEmptyCycles_;
 
   // Whether the current cycle is blocked by an instruction that blocks the
   // whole cycle.
@@ -191,6 +194,9 @@ protected:
 
   // Checks the legality of issuing an instruction of a given issue type.
   bool ChkInstLglty_(SchedInstruction *inst);
+
+  // Checks the legality of the current schedule.
+  bool ChkSchedLglty_(bool isEmptyCycle);
 
   // Updates the slot availability information to reflect the scheduling of
   // the given instruction.
