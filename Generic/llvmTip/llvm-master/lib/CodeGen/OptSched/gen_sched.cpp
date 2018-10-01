@@ -287,13 +287,6 @@ bool ConstrainedScheduler::ChkInstLglty_(SchedInstruction *inst) {
   // Do region-specific legality check
   if (rgn_->ChkInstLglty(inst) == false)
     return false;
-  // Logger::Info("Legal");
-
-  if (inst && machMdl_->IsRealInst(inst->GetInstType()) &&
-      crntRealSlotNum_ == issuSlotCnt_) {
-    return false;
-  }
-  // Logger::Info("Slots ok");
 
   // Account for instructions that block the whole cycle.
   if (isCrntCycleBlkd_)
