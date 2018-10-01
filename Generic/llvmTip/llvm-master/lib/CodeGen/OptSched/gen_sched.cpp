@@ -23,7 +23,6 @@ InstScheduler::InstScheduler(DataDepStruct *dataDepGraph, MachineModel *machMdl,
   leafInst_ = dataDepGraph->GetLeafInst();
 
   issuRate_ = machMdl_->GetIssueRate();
-  issuSlotCnt_ = machMdl_->GetIssueSlotCnt();
   issuTypeCnt_ = machMdl_->GetIssueTypeCnt();
 
   schduldInstCnt_ = 0;

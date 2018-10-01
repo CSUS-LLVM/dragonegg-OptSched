@@ -24,7 +24,7 @@ extern bool OPTSCHED_gPrintSpills;
 namespace opt_sched {
 
 // The denominator used when calculating cost weight.
-static const int COST_WGHT_BASE = 100;
+static const int COST_WGHT_BASE = 10000;
 
 BBWithSpill::BBWithSpill(MachineModel *machMdl, DataDepGraph *dataDepGraph,
                          long rgnNum, int16_t sigHashSize, LB_ALG lbAlg,

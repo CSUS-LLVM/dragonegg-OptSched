@@ -144,8 +144,7 @@ void LLVMMachineModel::convertMachineModel(
 #ifdef IS_DEBUG_MM
   Logger::Info(
       "######################## THE MACHINE MODEL #######################");
-  Logger::Info("Issue Rate: %d. Issue Slot Count: %d", issueRate_,
-               issueSlotCnt_);
+  Logger::Info("Issue Rate: %d.", issueRate_);
   Logger::Info("Issue Types Count: %d", issueTypes_.size());
   for (int x = 0; x < issueTypes_.size(); x++)
     Logger::Info("Type %s has %d slots", issueTypes_[x].name.c_str(),

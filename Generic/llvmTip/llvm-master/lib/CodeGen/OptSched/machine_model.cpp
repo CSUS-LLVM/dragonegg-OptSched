@@ -18,7 +18,6 @@ MachineModel::MachineModel(const string &modelFile) {
   mdlName_ = buffer;
 
   issueRate_ = buf.ReadIntSpec("ISSUE_RATE:");
-  issueSlotCnt_ = buf.ReadIntSpec("ISSUE_SLOT_COUNT:");
 
   issueTypes_.resize(buf.ReadIntSpec("ISSUE_TYPE_COUNT:"));
   for (size_t j = 0; j < issueTypes_.size(); j++) {
@@ -192,6 +191,10 @@ bool MachineModel::IsFloat(InstType instTypeCode) const {
 }
 
 void MachineModel::AddInstType(InstTypeInfo &instTypeInfo) {
+  // If this new instruction type is unpipelined notify the model
+  if (!instTypeInfo.pipelined)
+    includesUnpipelined_ = true;
+
   instTypes_.push_back(std::move(instTypeInfo));
 }
 
@@ -202,8 +205,6 @@ int MachineModel::GetInstTypeCnt() const { return instTypes_.size(); }
 int MachineModel::GetIssueTypeCnt() const { return issueTypes_.size(); }
 
 int MachineModel::GetIssueRate() const { return issueRate_; }
-
-int MachineModel::GetIssueSlotCnt() const { return issueSlotCnt_; }
 
 int16_t MachineModel::GetRegTypeCnt() const {
   return (int16_t)registerTypes_.size();

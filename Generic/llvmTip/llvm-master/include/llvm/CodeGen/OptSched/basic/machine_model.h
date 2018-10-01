@@ -89,11 +89,7 @@ public:
   int GetIssueTypeCnt() const;
   // Returns the machine's issue rate. I.e. the total number of issue slots
   // for all issue types.
-  // TODO(ghassan): Eliminate.
   int GetIssueRate() const;
-  // Returns the maximum number of total issue slots per cycle, for all issue
-  // types.
-  int GetIssueSlotCnt() const;
   // Returns the number of register types.
   int16_t GetRegTypeCnt() const;
   // Returns the number of registers of a given type.
@@ -149,7 +145,8 @@ public:
   // The machine model is simple if the issue rate is 1, the number of issue
   // types is 1, and the number of issue slots is 1.
   inline bool IsSimple() const {
-    return issueRate_ == 1 && issueSlotCnt_ == 1 && issueTypes_.size() == 1;
+    return issueRate_ == 1 && issueTypes_.size() == 1 &&
+           issueTypes_[0].slotsCount == 1 && !includesUnpipelined_;
   }
   // Add a new instruction type.
   void AddInstType(InstTypeInfo &instTypeInfo);
@@ -178,12 +175,11 @@ protected:
   string mdlName_;
   // The machine's issue rate. I.e. the total number of issue slots for all
   // issue types.
-  // TODO(ghassan): Eliminate.
   int issueRate_;
-  // The maximum number of total issue slots per cycle, for all issue types.
-  int issueSlotCnt_;
   // The latencies for different dependence types.
   int16_t dependenceLatencies_[4];
+  // Whether the machine model includes unpipelined instructions.
+  bool includesUnpipelined_ = false;
 
   // A vector of instruction type descriptions.
   vector<InstTypeInfo> instTypes_;
@@ -191,7 +187,6 @@ protected:
   vector<RegTypeInfo> registerTypes_;
   // A vector of issue types with their names and slot counts.
   vector<IssueTypeInfo> issueTypes_;
-
 };
 
 } // end namespace opt_sched
